@@ -1,0 +1,4 @@
+name: Summarize Changes
+category: dev
+description: 最新の変更内容を要約
+prompt: git diffを確認し、最新の変更内容を日本語で簡潔に要約してください。

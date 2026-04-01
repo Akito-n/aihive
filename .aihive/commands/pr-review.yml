@@ -1,0 +1,5 @@
+name: PR Review
+category: review
+description: PRをレビューしてdescriptionを記載
+prompt: |
+  このPRに対してレビューを行い、実装内容などをPR descriptionに書くために記載してください。

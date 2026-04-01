@@ -1,0 +1,4 @@
+name: "Run Tests"
+category: "dev"
+description: "テストを実行して結果を報告"
+prompt: "テストスイートを実行し、結果を報告してください。失敗があれば原因を分析してください。"
