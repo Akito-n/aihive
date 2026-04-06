@@ -68,6 +68,12 @@ export function CharacterScreen({ onBack }: CharacterScreenProps) {
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<ScreenMode>("view");
   const [jobSelectIndex, setJobSelectIndex] = useState(0);
+  const [blink, setBlink] = useState(true);
+
+  useEffect(() => {
+    const timer = setInterval(() => setBlink((v) => !v), 700);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -173,8 +179,13 @@ export function CharacterScreen({ onBack }: CharacterScreenProps) {
               );
             })}
           </Box>
-          <Box marginTop={1}>
-            <Text dimColor>↑↓ Select  Enter Confirm  Esc Cancel</Text>
+          <Box marginTop={1} gap={1}>
+            <Text backgroundColor="gray" color="black" bold> ↑↓ </Text>
+            <Text> Select </Text>
+            <Text backgroundColor="green" color="black" bold> Enter </Text>
+            <Text> Confirm </Text>
+            <Text backgroundColor="gray" color="black" bold> Esc </Text>
+            <Text> Cancel </Text>
           </Box>
         </Box>
       </Box>
@@ -224,7 +235,7 @@ export function CharacterScreen({ onBack }: CharacterScreenProps) {
           <Box gap={1}>
             <Text bold>Job:</Text>
             <Text color="yellow">{jobDef.icon} {jobDef.name}</Text>
-            <Text dimColor>(j to change)</Text>
+            <Text color="gray"> ─ {jobDef.description}</Text>
           </Box>
           <Box gap={1}>
             <Text bold>Level:</Text>
@@ -316,9 +327,11 @@ export function CharacterScreen({ onBack }: CharacterScreenProps) {
         )}
       </Box>
 
-      <Box marginTop={1} gap={2}>
-        <Text dimColor>j Change Job</Text>
-        <Text dimColor>Esc Back</Text>
+      <Box marginTop={1} gap={1}>
+        <Text backgroundColor={blink ? "yellow" : "gray"} color="black" bold> Enter </Text>
+        <Text> Change Job </Text>
+        <Text backgroundColor="gray" color="black" bold> Esc </Text>
+        <Text> Back </Text>
       </Box>
     </Box>
   );
