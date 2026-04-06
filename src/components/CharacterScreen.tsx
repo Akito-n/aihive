@@ -49,7 +49,7 @@ const BATTLE_STATS: BattleStatDef[] = [
 
 function statBar(value: number, max: number, width: number = 20): string {
   const safeMax = max > 0 ? max : 1;
-  const filled = Math.min(width, Math.round((value / safeMax) * width));
+  const filled = Math.max(0, Math.min(width, Math.round((value / safeMax) * width)));
   return "█".repeat(filled) + "░".repeat(width - filled);
 }
 
@@ -57,7 +57,7 @@ function xpBar(current: number, nextLevel: number, prevLevel: number, width: num
   const range = nextLevel - prevLevel;
   const progress = current - prevLevel;
   const ratio = range > 0 ? progress / range : 0;
-  const filled = Math.min(width, Math.round(ratio * width));
+  const filled = Math.max(0, Math.min(width, Math.round(ratio * width)));
   return "█".repeat(filled) + "░".repeat(width - filled);
 }
 
