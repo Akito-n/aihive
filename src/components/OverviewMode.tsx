@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from "react";
 import { Box, Text, useStdout } from "ink";
-import { capturePane, resizePane } from "../lib/tmux.js";
-import type { AgentInfo } from "../lib/tmux.js";
+import React, { useEffect, useRef, useState } from "react";
 import { parseAnsi, stripAnsi } from "../lib/ansi.js";
+import type { AgentInfo } from "../lib/tmux.js";
+import { capturePane, resizePane } from "../lib/tmux.js";
 
 const ROLE_COLOR: Record<string, string> = {
   orchestrator: "magenta",
@@ -92,7 +92,9 @@ export function OverviewMode({
           {"📺 Overview Mode"}
         </Text>
         <Text dimColor> — {agents.length} agents | </Text>
-        <Text bold color="yellow">[O]</Text>
+        <Text bold color="yellow">
+          [O]
+        </Text>
         <Text dimColor> to close</Text>
       </Box>
 
@@ -130,14 +132,20 @@ export function OverviewMode({
                           <Text wrap="truncate">
                             {spans.map((span) => {
                               const spanKey = `${span.text.slice(0, 15)}-${span.fg ?? ""}`;
-                              const props: Record<string, unknown> = { key: spanKey };
+                              const props: Record<string, unknown> = {
+                                key: spanKey,
+                              };
                               if (span.fg) props.color = span.fg;
                               if (span.bg) props.backgroundColor = span.bg;
                               if (span.bold) props.bold = true;
                               if (span.dim) props.dimColor = true;
                               if (span.italic) props.italic = true;
                               if (span.underline) props.underline = true;
-                              return React.createElement(Text, props, span.text);
+                              return React.createElement(
+                                Text,
+                                props,
+                                span.text,
+                              );
                             })}
                           </Text>
                         </Box>

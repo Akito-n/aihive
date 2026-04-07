@@ -1,9 +1,9 @@
-import React, { useState } from "react";
 import { Box, Text, useInput } from "ink";
-import { AgentEditor } from "./AgentEditor.js";
-import { QuickCommandEditor } from "./QuickCommandEditor.js";
-import { CharacterScreen } from "./CharacterScreen.js";
+import { useState } from "react";
 import type { AihiveConfig } from "../lib/config.js";
+import { AgentEditor } from "./AgentEditor.js";
+import { CharacterScreen } from "./CharacterScreen.js";
+import { QuickCommandEditor } from "./QuickCommandEditor.js";
 
 interface SettingsScreenProps {
   config: AihiveConfig;
@@ -47,7 +47,11 @@ const MENU_ITEMS: MenuItem[] = [
 
 type SettingsView = "menu" | "agents" | "commands" | "character";
 
-export function SettingsScreen({ config, onSave, onBack }: SettingsScreenProps) {
+export function SettingsScreen({
+  config,
+  onSave,
+  onBack,
+}: SettingsScreenProps) {
   const [view, setView] = useState<SettingsView>("menu");
   const [selectedIndex, setSelectedIndex] = useState(0);
 
@@ -128,10 +132,7 @@ export function SettingsScreen({ config, onSave, onBack }: SettingsScreenProps) 
           return (
             <Box key={item.key} gap={1}>
               <Text color="cyan">{isSelected ? "▶" : " "}</Text>
-              <Text
-                bold={isSelected}
-                color={isSelected ? item.color : "white"}
-              >
+              <Text bold={isSelected} color={isSelected ? item.color : "white"}>
                 {item.label.padEnd(16)}
               </Text>
               <Text

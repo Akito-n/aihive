@@ -3,8 +3,8 @@
 // user-assistant turns for quality evaluation.
 
 import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
 import { homedir } from "node:os";
+import { join } from "node:path";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -63,7 +63,9 @@ export function findHistoryFiles(): { filePath: string; projectDir: string }[] {
   for (const dir of projectDirs) {
     const projectPath = join(CLAUDE_PROJECTS_DIR, dir);
     try {
-      const files = readdirSync(projectPath).filter((f) => f.endsWith(".jsonl"));
+      const files = readdirSync(projectPath).filter((f) =>
+        f.endsWith(".jsonl"),
+      );
       for (const file of files) {
         results.push({
           filePath: join(projectPath, file),
@@ -136,7 +138,7 @@ export function formatForEvaluation(session: Session): string {
       // Add truncation marker
       const remaining = MAX_CONVERSATION_CHARS - totalLength;
       if (remaining > 50) {
-        parts.push(block.slice(0, remaining) + "\n... (truncated)");
+        parts.push(`${block.slice(0, remaining)}\n... (truncated)`);
       }
       break;
     }
@@ -173,7 +175,10 @@ function isConversationEntry(entry: JournalEntry): boolean {
 
   // For user messages, must have string content (actual user prompt)
   if (entry.type === "user") {
-    return typeof entry.message?.content === "string" && entry.message.content.trim().length > 0;
+    return (
+      typeof entry.message?.content === "string" &&
+      entry.message.content.trim().length > 0
+    );
   }
 
   // For assistant messages, must have text content
@@ -181,7 +186,8 @@ function isConversationEntry(entry: JournalEntry): boolean {
     const content = entry.message.content;
     if (Array.isArray(content)) {
       return content.some(
-        (block) => typeof block === "object" && block.type === "text" && block.text,
+        (block) =>
+          typeof block === "object" && block.type === "text" && block.text,
       );
     }
   }
@@ -196,8 +202,11 @@ function extractAssistantText(entry: JournalEntry): string {
   if (typeof content === "string") return content;
   if (Array.isArray(content)) {
     return content
-      .filter((block): block is ContentBlock & { text: string } =>
-        typeof block === "object" && block.type === "text" && typeof block.text === "string",
+      .filter(
+        (block): block is ContentBlock & { text: string } =>
+          typeof block === "object" &&
+          block.type === "text" &&
+          typeof block.text === "string",
       )
       .map((block) => block.text)
       .join("\n");
@@ -208,9 +217,7 @@ function extractAssistantText(entry: JournalEntry): string {
 /** Build user-assistant turn pairs from entries */
 function buildTurns(entries: JournalEntry[]): Turn[] {
   // Sort by timestamp
-  entries.sort((a, b) =>
-    (a.timestamp ?? "").localeCompare(b.timestamp ?? ""),
-  );
+  entries.sort((a, b) => (a.timestamp ?? "").localeCompare(b.timestamp ?? ""));
 
   const turns: Turn[] = [];
   let pendingUser: { text: string; timestamp: string } | null = null;

@@ -30,19 +30,18 @@ Respond with ONLY a JSON object, no other text:
 // ─── Public API ──────────────────────────────────────────────────────
 
 /** Evaluate a conversation and return XP scores */
-export function evaluateConversation(conversationText: string): XpScores | null {
+export function evaluateConversation(
+  conversationText: string,
+): XpScores | null {
   const prompt = EVALUATION_PROMPT + conversationText;
 
   let output: string;
   try {
-    output = execSync(
-      `claude -p ${escapeShellArg(prompt)}`,
-      {
-        encoding: "utf8",
-        timeout: 60_000,
-        stdio: ["pipe", "pipe", "pipe"],
-      },
-    ).trim();
+    output = execSync(`claude -p ${escapeShellArg(prompt)}`, {
+      encoding: "utf8",
+      timeout: 60_000,
+      stdio: ["pipe", "pipe", "pipe"],
+    }).trim();
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`  ⚠ Claude CLI evaluation failed: ${message}`);

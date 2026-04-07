@@ -1,16 +1,15 @@
-import React, { useState, useEffect, useRef } from "react";
-import { Box, Text } from "ink";
-import { useStdout } from "ink";
+import { Box, Text, useStdout } from "ink";
+import React, { useEffect, useRef, useState } from "react";
+import { parseAnsi, stripAnsi } from "../lib/ansi.js";
 import { capturePane, resizePane } from "../lib/tmux.js";
-import { stripAnsi, parseAnsi } from "../lib/ansi.js";
 
 // Patterns that indicate Claude Code is waiting for user choice
 const PROMPT_PATTERNS = [
-  /^\s*[›>]\s*\d+\.\s/m,           // › 1. Yes / > 1. Yes
-  /Do you want to/i,                // "Do you want to overwrite..."
-  /\(y\/n\)/i,                      // (y/n) prompt
-  /\(Y\/n\)/,                       // (Y/n) prompt
-  /Esc to cancel/,                  // Claude Code choice UI
+  /^\s*[›>]\s*\d+\.\s/m, // › 1. Yes / > 1. Yes
+  /Do you want to/i, // "Do you want to overwrite..."
+  /\(y\/n\)/i, // (y/n) prompt
+  /\(Y\/n\)/, // (Y/n) prompt
+  /Esc to cancel/, // Claude Code choice UI
 ];
 
 export interface PromptInfo {

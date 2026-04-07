@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { stringify, parse } from "yaml";
+import { parse, stringify } from "yaml";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -83,7 +83,11 @@ export class SkillManager {
 
   /** Get counts by state */
   getCounts(): Record<SkillState, number> {
-    const counts: Record<SkillState, number> = { proposed: 0, approved: 0, rejected: 0 };
+    const counts: Record<SkillState, number> = {
+      proposed: 0,
+      approved: 0,
+      rejected: 0,
+    };
     for (const entry of this.entries.values()) {
       counts[entry.state]++;
     }
@@ -94,9 +98,10 @@ export class SkillManager {
   findByTrigger(keyword: string): Skill[] {
     const lower = keyword.toLowerCase();
     return this.getApproved().filter(
-      (s) => s.trigger.toLowerCase().includes(lower) ||
-             s.name.toLowerCase().includes(lower) ||
-             s.description.toLowerCase().includes(lower),
+      (s) =>
+        s.trigger.toLowerCase().includes(lower) ||
+        s.name.toLowerCase().includes(lower) ||
+        s.description.toLowerCase().includes(lower),
     );
   }
 
@@ -124,7 +129,7 @@ export class SkillManager {
       try {
         const raw = fs.readFileSync(path.join(this.skillsDir, file), "utf8");
         const data = parse(raw) as Skill & { state?: SkillState };
-        if (data && data.id) {
+        if (data?.id) {
           const state = data.state ?? "approved";
           const { state: _, ...skill } = data as Skill & { state?: SkillState };
           this.entries.set(data.id, { skill: skill as Skill, state });
