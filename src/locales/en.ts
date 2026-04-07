@@ -77,6 +77,11 @@ export const en = {
   "status.running": "RUNNING",
   "status.stopping": "STOPPING",
 
+  // ─── Log View ──────────────────────────────────────────────────
+  "log.entries": "entries",
+  "log.close": "to close",
+  "log.noEvents": "No events yet",
+
   // ─── Help Bar ───────────────────────────────────────────────────
   "help.start": "Start",
   "help.select": "Select",

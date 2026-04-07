@@ -79,6 +79,11 @@ export const ja: Record<TransKey, string> = {
   "status.running": "実行中",
   "status.stopping": "停止中",
 
+  // ─── Log View ──────────────────────────────────────────────────
+  "log.entries": "件",
+  "log.close": "で閉じる",
+  "log.noEvents": "イベントはまだありません",
+
   // ─── Help Bar ───────────────────────────────────────────────────
   "help.start": "開始",
   "help.select": "選択",
