@@ -9,7 +9,10 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/bin/aihive.tsx",
-    "start": "node dist/bin/aihive.js"
+    "start": "node dist/bin/aihive.js",
+    "check": "biome check src/",
+    "check:fix": "biome check --write src/",
+    "typecheck": "tsc --noEmit"
   },
   "files": [
     "dist/",
@@ -31,6 +34,7 @@
     "yaml": "^2.8.3"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.4.10",
     "@types/node": "^25.5.0",
     "@types/react": "^19.2.14",
     "tsx": "^4.21.0",
