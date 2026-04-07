@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Box, Text, useInput } from "ink";
 import { AgentEditor } from "./AgentEditor.js";
 import { QuickCommandEditor } from "./QuickCommandEditor.js";
+import { CharacterScreen } from "./CharacterScreen.js";
 import type { AihiveConfig } from "../lib/config.js";
 
 interface SettingsScreenProps {
@@ -31,6 +32,12 @@ const MENU_ITEMS: MenuItem[] = [
     color: "yellow",
   },
   {
+    key: "character",
+    label: "Character",
+    description: "View RPG character stats",
+    color: "magenta",
+  },
+  {
     key: "back",
     label: "Back",
     description: "Return to main menu",
@@ -38,7 +45,7 @@ const MENU_ITEMS: MenuItem[] = [
   },
 ];
 
-type SettingsView = "menu" | "agents" | "commands";
+type SettingsView = "menu" | "agents" | "commands" | "character";
 
 export function SettingsScreen({ config, onSave, onBack }: SettingsScreenProps) {
   const [view, setView] = useState<SettingsView>("menu");
@@ -60,6 +67,8 @@ export function SettingsScreen({ config, onSave, onBack }: SettingsScreenProps) 
           setView("agents");
         } else if (item.key === "commands") {
           setView("commands");
+        } else if (item.key === "character") {
+          setView("character");
         } else if (item.key === "back") {
           onBack();
         }
@@ -86,6 +95,10 @@ export function SettingsScreen({ config, onSave, onBack }: SettingsScreenProps) 
 
   if (view === "commands") {
     return <QuickCommandEditor onBack={() => setView("menu")} />;
+  }
+
+  if (view === "character") {
+    return <CharacterScreen onBack={() => setView("menu")} />;
   }
 
   return (

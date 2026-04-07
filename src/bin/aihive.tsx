@@ -15,9 +15,16 @@ Usage: aihive [options]
 
 Options:
   -h, --help         Show this help message
+  --evaluate         Evaluate conversation history and gain XP
 
 Config: ${getConfigPath()}
 `);
+  process.exit(0);
+}
+
+if (args.includes("--evaluate")) {
+  const { runEvaluation } = await import("../lib/evaluate-command.js");
+  await runEvaluation();
   process.exit(0);
 }
 
