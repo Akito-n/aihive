@@ -19,7 +19,7 @@ export interface CliDefinition {
 
 // ─── Tool Restrictions ───────────────────────────────────────────────
 
-const SCOUT_TOOLS = "Read Glob Grep Bash";
+const SCOUT_TOOLS = "Read Write Glob Grep Bash";
 const DEFAULT_TOOLS = "Edit Write Read Glob Grep Bash Agent";
 
 // ─── CLI Definitions ─────────────────────────────────────────────────
