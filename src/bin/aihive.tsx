@@ -3,6 +3,9 @@ import { render } from "ink";
 import { App } from "../components/App.js";
 import { getConfigPath } from "../lib/config.js";
 import { checkDependencies } from "../lib/dependencies.js";
+import { loadLocale } from "../lib/i18n.js";
+
+loadLocale();
 
 const args = process.argv.slice(2);
 

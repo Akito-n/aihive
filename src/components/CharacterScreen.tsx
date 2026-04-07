@@ -1,10 +1,6 @@
 import { Box, Text, useInput } from "ink";
 import { useEffect, useState } from "react";
-import type {
-  BattleStats,
-  Character,
-  EvaluationRecord,
-} from "../lib/game-db.js";
+import type { BattleStats, Character } from "../lib/game-db.js";
 import {
   calculateBattleStats,
   getCharacter,
@@ -15,6 +11,8 @@ import {
   updateCharacterJob,
   xpForLevel,
 } from "../lib/game-db.js";
+import { t } from "../lib/i18n.js";
+import type { TransKey } from "../locales/en.js";
 
 interface CharacterScreenProps {
   onBack: () => void;
@@ -31,32 +29,16 @@ interface SkillStatDef {
     | "statCollaboration"
     | "statInquiry"
   >;
-  label: string;
-  jaLabel: string;
+  transKey: TransKey;
   color: string;
 }
 
 const SKILL_STATS: SkillStatDef[] = [
-  {
-    key: "statArticulation",
-    label: "Articulation",
-    jaLabel: "伝達力",
-    color: "cyan",
-  },
-  {
-    key: "statComprehension",
-    label: "Comprehension",
-    jaLabel: "理解力",
-    color: "green",
-  },
-  { key: "statReview", label: "Review", jaLabel: "検証力", color: "yellow" },
-  {
-    key: "statCollaboration",
-    label: "Collaboration",
-    jaLabel: "協調力",
-    color: "blue",
-  },
-  { key: "statInquiry", label: "Inquiry", jaLabel: "探究力", color: "magenta" },
+  { key: "statArticulation", transKey: "skill.articulation", color: "cyan" },
+  { key: "statComprehension", transKey: "skill.comprehension", color: "green" },
+  { key: "statReview", transKey: "skill.review", color: "yellow" },
+  { key: "statCollaboration", transKey: "skill.collaboration", color: "blue" },
+  { key: "statInquiry", transKey: "skill.inquiry", color: "magenta" },
 ];
 
 interface BattleStatDef {
@@ -97,7 +79,9 @@ function xpBar(
 
 export function CharacterScreen({ onBack }: CharacterScreenProps) {
   const [character, setCharacter] = useState<Character | null>(null);
-  const [history, setHistory] = useState<EvaluationRecord[]>([]);
+  const [history, setHistory] = useState<
+    ReturnType<typeof getEvaluationHistory>
+  >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<ScreenMode>("view");
@@ -166,7 +150,7 @@ export function CharacterScreen({ onBack }: CharacterScreenProps) {
   if (loading) {
     return (
       <Box paddingY={1} paddingX={2}>
-        <Text dimColor>Loading character data...</Text>
+        <Text dimColor>{t("character.loading")}</Text>
       </Box>
     );
   }
@@ -174,8 +158,10 @@ export function CharacterScreen({ onBack }: CharacterScreenProps) {
   if (error || !character) {
     return (
       <Box flexDirection="column" paddingY={1} paddingX={2}>
-        <Text color="red">Error: {error ?? "Character not found"}</Text>
-        <Text dimColor>Esc Back</Text>
+        <Text color="red">
+          {t("common.error")}: {error ?? t("character.notFound")}
+        </Text>
+        <Text dimColor>Esc {t("common.back")}</Text>
       </Box>
     );
   }
@@ -192,7 +178,7 @@ export function CharacterScreen({ onBack }: CharacterScreenProps) {
           paddingY={1}
         >
           <Text bold color="yellow">
-            Select Job
+            {t("character.selectJob")}
           </Text>
           <Box marginTop={1} flexDirection="column">
             {JOB_KEYS.map((jobKey, i) => {
@@ -209,7 +195,9 @@ export function CharacterScreen({ onBack }: CharacterScreenProps) {
                     {job.icon} {job.name.padEnd(10)}
                   </Text>
                   <Text dimColor={!isSelected}>{job.description}</Text>
-                  {isCurrent && <Text color="green"> (current)</Text>}
+                  {isCurrent && (
+                    <Text color="green"> {t("language.current")}</Text>
+                  )}
                 </Box>
               );
             })}
@@ -219,17 +207,17 @@ export function CharacterScreen({ onBack }: CharacterScreenProps) {
               {" "}
               ↑↓{" "}
             </Text>
-            <Text> Select </Text>
+            <Text> {t("common.select")} </Text>
             <Text backgroundColor="green" color="black" bold>
               {" "}
               Enter{" "}
             </Text>
-            <Text> Confirm </Text>
+            <Text> {t("common.confirm")} </Text>
             <Text backgroundColor="gray" color="black" bold>
               {" "}
               Esc{" "}
             </Text>
-            <Text> Cancel </Text>
+            <Text> {t("common.cancel")} </Text>
           </Box>
         </Box>
       </Box>
@@ -279,27 +267,27 @@ export function CharacterScreen({ onBack }: CharacterScreenProps) {
       >
         {/* Character Info */}
         <Text bold color="magenta">
-          {jobDef.icon} Character Status
+          {jobDef.icon} {t("character.title")}
         </Text>
 
         <Box marginTop={1} flexDirection="column">
           <Box gap={1}>
-            <Text bold>Name:</Text>
+            <Text bold>{t("character.name")}</Text>
             <Text color="white">{character.name}</Text>
           </Box>
           <Box gap={1}>
-            <Text bold>Job:</Text>
+            <Text bold>{t("character.job")}</Text>
             <Text color="yellow">
               {jobDef.icon} {jobDef.name}
             </Text>
             <Text color="gray"> ─ {jobDef.description}</Text>
           </Box>
           <Box gap={1}>
-            <Text bold>Level:</Text>
+            <Text bold>{t("character.level")}</Text>
             <Text color="yellow">{character.level}</Text>
           </Box>
           <Box gap={1}>
-            <Text bold>XP:</Text>
+            <Text bold>{t("character.xp")}</Text>
             <Text>
               {character.totalXp} / {nextLevelXp}
             </Text>
@@ -313,7 +301,7 @@ export function CharacterScreen({ onBack }: CharacterScreenProps) {
         {/* Battle Stats */}
         <Box marginTop={1} flexDirection="column">
           <Text bold color="red">
-            Battle Stats
+            {t("character.battleStats")}
           </Text>
           {BATTLE_STATS.map((stat) => {
             const value = battle[stat.key];
@@ -332,14 +320,13 @@ export function CharacterScreen({ onBack }: CharacterScreenProps) {
         {/* Skill XP */}
         <Box marginTop={1} flexDirection="column">
           <Text bold color="cyan">
-            Skill XP
+            {t("character.skillXp")}
           </Text>
           {SKILL_STATS.map((stat) => {
             const value = character[stat.key];
             return (
               <Box key={stat.key} gap={1}>
-                <Text color={stat.color}>{stat.jaLabel}</Text>
-                <Text dimColor>{stat.label.padEnd(14)}</Text>
+                <Text color={stat.color}>{t(stat.transKey).padEnd(14)}</Text>
                 <Text color={stat.color}>{statBar(value, maxSkill, 16)}</Text>
                 <Text> {String(value).padStart(4)}</Text>
               </Box>
@@ -351,7 +338,7 @@ export function CharacterScreen({ onBack }: CharacterScreenProps) {
         {history.length > 0 && (
           <Box marginTop={1} flexDirection="column">
             <Text bold color="gray">
-              Recent Evaluations
+              {t("character.recentEvaluations")}
             </Text>
             {history.map((record) => (
               <Box key={record.id} gap={1}>
@@ -367,7 +354,7 @@ export function CharacterScreen({ onBack }: CharacterScreenProps) {
 
         {history.length === 0 && (
           <Box marginTop={1}>
-            <Text dimColor>No evaluations yet. Run: aihive --evaluate</Text>
+            <Text dimColor>{t("character.noEvaluations")}</Text>
           </Box>
         )}
       </Box>
@@ -377,12 +364,12 @@ export function CharacterScreen({ onBack }: CharacterScreenProps) {
           {" "}
           Enter{" "}
         </Text>
-        <Text> Change Job </Text>
+        <Text> {t("character.changeJob")} </Text>
         <Text backgroundColor="gray" color="black" bold>
           {" "}
           Esc{" "}
         </Text>
-        <Text> Back </Text>
+        <Text> {t("common.back")} </Text>
       </Box>
     </Box>
   );

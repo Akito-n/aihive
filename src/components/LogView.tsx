@@ -1,4 +1,5 @@
 import { Box, Text } from "ink";
+import { t } from "../lib/i18n.js";
 
 interface LogViewProps {
   logs: string[];
@@ -28,12 +29,23 @@ function getLogColor(log: string): string | undefined {
 export function LogView({ logs }: LogViewProps) {
   return (
     <Box flexDirection="column">
-      <Text bold underline>
-        Log
-      </Text>
-      <Box marginTop={1} flexDirection="column">
+      <Box marginBottom={1}>
+        <Text bold color="gray">
+          {"📋 Log"}
+        </Text>
+        <Text dimColor>
+          {" "}
+          — {logs.length} {t("log.entries")} |{" "}
+        </Text>
+        <Text bold color="yellow">
+          [L]
+        </Text>
+        <Text dimColor> {t("log.close")}</Text>
+      </Box>
+
+      <Box flexDirection="column">
         {logs.length === 0 ? (
-          <Text dimColor>No events yet</Text>
+          <Text dimColor>{t("log.noEvents")}</Text>
         ) : (
           logs.map((log, i) => {
             const color = getLogColor(log);

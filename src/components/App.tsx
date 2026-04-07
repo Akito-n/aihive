@@ -405,6 +405,26 @@ export function App() {
     );
   }
 
+  if (showLog) {
+    return (
+      <Box flexDirection="column" padding={1} height={termHeight}>
+        <Header
+          state={state}
+          agents={agents}
+          taskCount={tasks.length}
+          skillCount={skillCounts.approved}
+          memoryCount={memoryCount}
+        />
+        <Box marginTop={1} flexGrow={1} overflow="hidden">
+          <LogView logs={logs} />
+        </Box>
+        <Box marginTop={1}>
+          <HelpBar state={state} />
+        </Box>
+      </Box>
+    );
+  }
+
   return (
     <Box flexDirection="column" padding={1} height={termHeight}>
       <Header
@@ -426,7 +446,7 @@ export function App() {
             />
           </Box>
         )}
-        <Box flexDirection="column" flexGrow={1} marginRight={showLog ? 1 : 0}>
+        <Box flexDirection="column" flexGrow={1}>
           {selectedAgent ? (
             <PaneView
               sessionName={config.session}
@@ -450,11 +470,6 @@ export function App() {
             </Box>
           )}
         </Box>
-        {showLog && (
-          <Box flexDirection="column" width={32}>
-            <LogView logs={logs} />
-          </Box>
-        )}
       </Box>
 
       <Box marginTop={1}>

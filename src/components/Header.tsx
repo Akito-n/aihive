@@ -1,21 +1,27 @@
 import { Box, Text } from "ink";
+import { t } from "../lib/i18n.js";
 import type { AgentInfo } from "../lib/tmux.js";
 
+type AppState = "idle" | "settings" | "starting" | "running" | "stopping";
+
+const STATUS_KEYS: Record<
+  AppState,
+  { labelKey: Parameters<typeof t>[0]; color: string }
+> = {
+  idle: { labelKey: "status.idle", color: "gray" },
+  settings: { labelKey: "status.settings", color: "yellow" },
+  starting: { labelKey: "status.starting", color: "cyan" },
+  running: { labelKey: "status.running", color: "green" },
+  stopping: { labelKey: "status.stopping", color: "yellow" },
+};
+
 interface HeaderProps {
-  state: "idle" | "settings" | "starting" | "running" | "stopping";
+  state: AppState;
   agents: AgentInfo[];
   taskCount?: number;
   skillCount?: number;
   memoryCount?: number;
 }
-
-const STATUS_MAP = {
-  idle: { label: "IDLE", color: "gray" },
-  settings: { label: "SETTINGS", color: "yellow" },
-  starting: { label: "STARTING", color: "cyan" },
-  running: { label: "RUNNING", color: "green" },
-  stopping: { label: "STOPPING", color: "yellow" },
-} as const;
 
 export function Header({
   state,
@@ -24,13 +30,13 @@ export function Header({
   skillCount = 0,
   memoryCount = 0,
 }: HeaderProps) {
-  const status = STATUS_MAP[state];
+  const status = STATUS_KEYS[state];
 
   // Model distribution summary (includes CLI prefix for non-claude)
   const modelCounts = new Map<string, number>();
   for (const a of agents) {
     const prefix = a.cli && a.cli !== "claude" ? `${a.cli}:` : "";
-    const m = prefix + (a.model ?? "default");
+    const m = `${prefix}${a.model ?? "default"}`;
     modelCounts.set(m, (modelCounts.get(m) ?? 0) + 1);
   }
   const modelSummary = [...modelCounts.entries()]
@@ -47,14 +53,16 @@ export function Header({
         <Text dimColor>v0.1.0</Text>
         <Text> </Text>
         <Text bold color={status.color}>
-          [{status.label}]
+          [{t(status.labelKey)}]
         </Text>
       </Box>
       <Text dimColor>
-        Agents: {agents.length}
-        {modelSummary ? ` (${modelSummary})` : ""} | Tasks: {taskCount}
-        {skillCount > 0 ? ` | Skills: ${skillCount}` : ""}
-        {memoryCount > 0 ? ` | Memory: ${memoryCount}` : ""} | Session: aihive
+        {t("header.agents")}: {agents.length}
+        {modelSummary ? ` (${modelSummary})` : ""} | {t("header.tasks")}:{" "}
+        {taskCount}
+        {skillCount > 0 ? ` | ${t("header.skills")}: ${skillCount}` : ""}
+        {memoryCount > 0 ? ` | ${t("header.memory")}: ${memoryCount}` : ""} |{" "}
+        {t("header.session")}: aihive
       </Text>
     </Box>
   );

@@ -1,4 +1,7 @@
 import { execSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { buildAgentCommand } from "./cli-registry.js";
 import type { AgentConfig, AihiveConfig } from "./config.js";
 import { getPaneTarget } from "./config.js";
@@ -149,11 +152,22 @@ const PASTE_THRESHOLD = 100;
 
 function sendKeys(session: string, target: string, text: string): void {
   if (text.length >= PASTE_THRESHOLD) {
-    // Long text: use load-buffer + paste-buffer to show [N chars pasted]
-    execSync(`tmux load-buffer -b _aihive_paste - <<< ${JSON.stringify(text)}`);
-    execSync(`tmux paste-buffer -b _aihive_paste -t ${session}:${target}`);
-    execSync("tmux delete-buffer -b _aihive_paste", { stdio: "ignore" });
-    execSync(`tmux send-keys -t ${session}:${target} Enter`);
+    // Long text: write to temp file → load-buffer → paste-buffer
+    // Avoids shell metacharacter issues with <<< herestrings
+    const tmpFile = path.join(os.tmpdir(), `aihive-paste-${process.pid}.tmp`);
+    try {
+      fs.writeFileSync(tmpFile, text);
+      execSync(`tmux load-buffer -b _aihive_paste ${tmpFile}`);
+      execSync(`tmux paste-buffer -b _aihive_paste -t ${session}:${target}`);
+      execSync("tmux delete-buffer -b _aihive_paste", { stdio: "ignore" });
+      execSync(`tmux send-keys -t ${session}:${target} Enter`);
+    } finally {
+      try {
+        fs.unlinkSync(tmpFile);
+      } catch {
+        // ignore cleanup errors
+      }
+    }
   } else {
     execSync(`tmux send-keys -t ${session}:${target} ${JSON.stringify(text)}`);
     execSync(`tmux send-keys -t ${session}:${target} Enter`);

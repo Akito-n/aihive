@@ -1,4 +1,5 @@
 import { Box, Text } from "ink";
+import { t } from "../lib/i18n.js";
 
 interface HelpBarProps {
   state: "idle" | "settings" | "starting" | "running" | "stopping";
@@ -12,7 +13,7 @@ export function HelpBar({ state }: HelpBarProps) {
           <Text bold color="green">
             [s]
           </Text>{" "}
-          Start
+          {t("help.start")}
         </Text>
       )}
       {state === "running" && (
@@ -21,31 +22,31 @@ export function HelpBar({ state }: HelpBarProps) {
             <Text bold color="yellow">
               [j/k]
             </Text>{" "}
-            Select
+            {t("help.select")}
           </Text>
           <Text>
             <Text bold color="cyan">
               [Enter/i]
             </Text>{" "}
-            Send command
+            {t("help.sendCommand")}
           </Text>
           <Text>
             <Text bold color="blue">
               [O]
             </Text>{" "}
-            Overview
+            {t("help.overview")}
           </Text>
           <Text>
             <Text bold color="gray">
               [L]
             </Text>{" "}
-            Log
+            {t("help.log")}
           </Text>
           <Text>
             <Text bold color="red">
               [x]
             </Text>{" "}
-            Stop
+            {t("help.stop")}
           </Text>
         </>
       )}
@@ -53,7 +54,7 @@ export function HelpBar({ state }: HelpBarProps) {
         <Text bold color="gray">
           [q]
         </Text>{" "}
-        Quit
+        {t("help.quit")}
       </Text>
     </Box>
   );

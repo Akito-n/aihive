@@ -1,10 +1,12 @@
 import { Box, Text, useInput } from "ink";
 import { useState } from "react";
+import { t } from "../lib/i18n.js";
+import type { TransKey } from "../locales/en.js";
 
 interface MenuItem {
   key: string;
-  label: string;
-  description: string;
+  labelKey: TransKey;
+  descKey: TransKey;
   color: string;
 }
 
@@ -17,20 +19,20 @@ interface MainMenuProps {
 const MENU_ITEMS: MenuItem[] = [
   {
     key: "start",
-    label: "Start Agents",
-    description: "Launch all agents in tmux",
+    labelKey: "mainMenu.startAgents",
+    descKey: "mainMenu.startAgents.desc",
     color: "green",
   },
   {
     key: "config",
-    label: "Settings",
-    description: "Configure workers and options",
+    labelKey: "mainMenu.settings",
+    descKey: "mainMenu.settings.desc",
     color: "yellow",
   },
   {
     key: "quit",
-    label: "Quit",
-    description: "Exit aihive",
+    labelKey: "mainMenu.quit",
+    descKey: "mainMenu.quit.desc",
     color: "red",
   },
 ];
@@ -90,7 +92,7 @@ export function MainMenu({ onSelect, agents, roleCounts = {} }: MainMenuProps) {
         </Box>
         <Box marginTop={1}>
           <Text color="yellow" bold>
-            {"⬡  Multi-Agent Orchestration  ⬡"}
+            {t("mainMenu.tagline")}
           </Text>
         </Box>
       </Box>
@@ -120,13 +122,13 @@ export function MainMenu({ onSelect, agents, roleCounts = {} }: MainMenuProps) {
             <Box key={item.key} gap={1}>
               <Text color="cyan">{isSelected ? "▶" : " "}</Text>
               <Text bold={isSelected} color={isSelected ? item.color : "white"}>
-                {item.label.padEnd(14)}
+                {t(item.labelKey).padEnd(14)}
               </Text>
               <Text
                 dimColor={!isSelected}
                 color={isSelected ? "gray" : undefined}
               >
-                {item.description}
+                {t(item.descKey)}
               </Text>
             </Box>
           );
@@ -135,8 +137,8 @@ export function MainMenu({ onSelect, agents, roleCounts = {} }: MainMenuProps) {
 
       {/* Controls hint */}
       <Box marginTop={1} gap={2}>
-        <Text dimColor>↑↓ Select</Text>
-        <Text dimColor>Enter Confirm</Text>
+        <Text dimColor>↑↓ {t("common.select")}</Text>
+        <Text dimColor>Enter {t("common.confirm")}</Text>
       </Box>
     </Box>
   );

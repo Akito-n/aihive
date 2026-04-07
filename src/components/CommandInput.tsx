@@ -385,7 +385,22 @@ export function CommandInput({
 
       const sanitized = input.replace(/[\r\n]+/g, " ");
 
-      // Burst detection
+      // Insert at cursor
+      const newValue = value.slice(0, cursor) + sanitized + value.slice(cursor);
+
+      // Immediate paste detection: single input chunk >= threshold
+      if (sanitized.length >= BURST_THRESHOLD && !paste) {
+        const pasteStart = cursor;
+        const pasteEnd = cursor + sanitized.length;
+        setValue(newValue);
+        setCursor(pasteEnd);
+        setPaste({ start: pasteStart, end: pasteEnd });
+        setScrollOffset(0);
+        burstRef.current.count = 0;
+        return;
+      }
+
+      // Burst detection for slower paste (multiple rapid small inputs)
       const burst = burstRef.current;
       burst.count += sanitized.length;
       if (burst.timer) clearTimeout(burst.timer);
@@ -402,8 +417,6 @@ export function CommandInput({
         burst.count = 0;
       }, BURST_WINDOW_MS);
 
-      // Insert at cursor
-      const newValue = value.slice(0, cursor) + sanitized + value.slice(cursor);
       setValue(newValue);
       setCursor(cursor + sanitized.length);
 
