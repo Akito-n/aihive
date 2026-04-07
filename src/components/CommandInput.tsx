@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Box, Text, useInput, useStdout } from "ink";
-import type { PromptInfo } from "./PaneView.js";
+import type React from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { SlashCommand } from "../lib/commands.js";
+import type { PromptInfo } from "./PaneView.js";
 
 interface CommandInputProps {
   targetLabel: string;
@@ -89,7 +90,11 @@ function buildDisplay(value: string, paste: PasteRange | null): string {
 }
 
 // Convert display cursor position to real value cursor position
-function displayToReal(dCursor: number, value: string, paste: PasteRange | null): number {
+function displayToReal(
+  dCursor: number,
+  _value: string,
+  paste: PasteRange | null,
+): number {
   if (!paste) return dCursor;
   const aliasText = pasteAlias(paste.end - paste.start);
   const aliasStart = paste.start; // display position where alias starts
@@ -108,7 +113,11 @@ function displayToReal(dCursor: number, value: string, paste: PasteRange | null)
 }
 
 // Convert real cursor to display cursor
-function realToDisplay(rCursor: number, value: string, paste: PasteRange | null): number {
+function realToDisplay(
+  rCursor: number,
+  _value: string,
+  paste: PasteRange | null,
+): number {
   if (!paste) return rCursor;
   const aliasText = pasteAlias(paste.end - paste.start);
 
@@ -133,7 +142,10 @@ export function CommandInput({
   const [selectedCmd, setSelectedCmd] = useState(0);
   const [lastQuery, setLastQuery] = useState("");
   const [paste, setPaste] = useState<PasteRange | null>(null);
-  const burstRef = useRef({ count: 0, timer: null as ReturnType<typeof setTimeout> | null });
+  const burstRef = useRef({
+    count: 0,
+    timer: null as ReturnType<typeof setTimeout> | null,
+  });
   const { stdout } = useStdout();
 
   const viewWidth = Math.max(20, (stdout?.columns ?? 80) - 6);
@@ -155,13 +167,19 @@ export function CommandInput({
   }, [value, onDoubleSlash]);
 
   // Slash command filtering
-  const showSlashMenu = value.startsWith("/") && !value.startsWith("//") && !value.includes(" ") && !paste;
+  const showSlashMenu =
+    value.startsWith("/") &&
+    !value.startsWith("//") &&
+    !value.includes(" ") &&
+    !paste;
   const query = showSlashMenu ? value.slice(1).toLowerCase() : "";
 
   const filteredCommands = useMemo(() => {
     if (!showSlashMenu) return [];
     if (query === "") return slashCommands;
-    return slashCommands.filter((cmd) => cmd.name.toLowerCase().includes(query));
+    return slashCommands.filter((cmd) =>
+      cmd.name.toLowerCase().includes(query),
+    );
   }, [showSlashMenu, query, slashCommands]);
 
   if (query !== lastQuery) {
@@ -176,7 +194,7 @@ export function CommandInput({
 
   useEffect(() => {
     setCursorVisible(true);
-  }, [value, cursor]);
+  }, []);
 
   useEffect(() => {
     const beforeCursor = displayValue.slice(0, displayCursor);
@@ -217,7 +235,9 @@ export function CommandInput({
         return;
       }
       if (key.downArrow) {
-        setSelectedCmd((prev) => Math.min(filteredCommands.length - 1, prev + 1));
+        setSelectedCmd((prev) =>
+          Math.min(filteredCommands.length - 1, prev + 1),
+        );
         return;
       }
       if (key.return || key.tab) {
@@ -294,7 +314,10 @@ export function CommandInput({
             // Deletion crossed into paste territory — remove paste
             setPaste(null);
           } else {
-            setPaste({ start: paste.start - deleted, end: paste.end - deleted });
+            setPaste({
+              start: paste.start - deleted,
+              end: paste.end - deleted,
+            });
           }
         }
       }
@@ -326,7 +349,12 @@ export function CommandInput({
         if (paste && cursor > paste.start && cursor <= paste.end) {
           // Cursor is at end of or inside paste block — remove entire block
           removePasteBlock();
-        } else if (paste && cursor === paste.start && displayCursor > 0 && isInAlias(displayCursor)) {
+        } else if (
+          paste &&
+          cursor === paste.start &&
+          displayCursor > 0 &&
+          isInAlias(displayCursor)
+        ) {
           // Display cursor is inside alias from left side
           removePasteBlock();
         } else {
@@ -346,7 +374,11 @@ export function CommandInput({
     }
 
     if (input && !key.ctrl && !key.meta) {
-      if (value.length === 0 && promptInfo.detected && /^[1-9yn]$/.test(input)) {
+      if (
+        value.length === 0 &&
+        promptInfo.detected &&
+        /^[1-9yn]$/.test(input)
+      ) {
         onQuickKey(input);
         return;
       }
@@ -378,7 +410,10 @@ export function CommandInput({
       // Adjust paste range if inserting before or at paste start
       if (paste) {
         if (cursor <= paste.start) {
-          setPaste({ start: paste.start + sanitized.length, end: paste.end + sanitized.length });
+          setPaste({
+            start: paste.start + sanitized.length,
+            end: paste.end + sanitized.length,
+          });
         } else if (cursor >= paste.end) {
           // After paste — no change to range
         } else {
@@ -425,12 +460,26 @@ export function CommandInput({
     const visibleCursorChar = visibleAfter.length > 0 ? visibleAfter[0] : " ";
     const visibleAfterText = visibleAfter.slice(visibleCursorChar.length);
 
-    return { visibleBefore, visibleCursorChar, visibleAfterText, visStartCharIndex: skipChars };
+    return {
+      visibleBefore,
+      visibleCursorChar,
+      visibleAfterText,
+      visStartCharIndex: skipChars,
+    };
   };
 
   const rendered = isEmpty ? null : renderText();
-  const { visibleBefore, visibleCursorChar, visibleAfterText, visStartCharIndex } = rendered
-    ?? { visibleBefore: "", visibleCursorChar: "", visibleAfterText: "", visStartCharIndex: 0 };
+  const {
+    visibleBefore,
+    visibleCursorChar,
+    visibleAfterText,
+    visStartCharIndex,
+  } = rendered ?? {
+    visibleBefore: "",
+    visibleCursorChar: "",
+    visibleAfterText: "",
+    visStartCharIndex: 0,
+  };
 
   // Render with alias coloring
   const renderContent = () => {
@@ -438,7 +487,9 @@ export function CommandInput({
       return (
         <>
           {cursorVisible ? (
-            <Text backgroundColor="cyan" color="black">{PLACEHOLDER[0]}</Text>
+            <Text backgroundColor="cyan" color="black">
+              {PLACEHOLDER[0]}
+            </Text>
           ) : (
             <Text dimColor>{PLACEHOLDER[0]}</Text>
           )}
@@ -464,7 +515,9 @@ export function CommandInput({
           const inAlias = pos >= aliasDisplayStart && pos < aliasDisplayEnd;
           // Batch consecutive chars of same type
           parts.push(
-            <Text key={pos} color={inAlias ? "yellow" : undefined}>{ch}</Text>
+            <Text key={pos} color={inAlias ? "yellow" : undefined}>
+              {ch}
+            </Text>,
           );
           pos += ch.length;
         }
@@ -480,7 +533,9 @@ export function CommandInput({
           {scrollOffset > 0 && <Text dimColor>{"…"}</Text>}
           {renderSegment(visibleBefore, vbPos)}
           {cursorVisible ? (
-            <Text backgroundColor="cyan" color="black">{visibleCursorChar}</Text>
+            <Text backgroundColor="cyan" color="black">
+              {visibleCursorChar}
+            </Text>
           ) : vcPos >= aliasDisplayStart && vcPos < aliasDisplayEnd ? (
             <Text color="yellow">{visibleCursorChar}</Text>
           ) : (
@@ -496,7 +551,9 @@ export function CommandInput({
         {scrollOffset > 0 && <Text dimColor>{"…"}</Text>}
         <Text>{visibleBefore}</Text>
         {cursorVisible ? (
-          <Text backgroundColor="cyan" color="black">{visibleCursorChar}</Text>
+          <Text backgroundColor="cyan" color="black">
+            {visibleCursorChar}
+          </Text>
         ) : (
           <Text>{visibleCursorChar}</Text>
         )}
@@ -528,10 +585,12 @@ export function CommandInput({
           marginBottom={0}
         >
           <Box marginBottom={0}>
-            <Text bold color="cyan">Commands</Text>
+            <Text bold color="cyan">
+              Commands
+            </Text>
             <Text dimColor> ({filteredCommands.length})</Text>
           </Box>
-          {visibleStart > 0 && <Text dimColor>  ...</Text>}
+          {visibleStart > 0 && <Text dimColor> ...</Text>}
           {visibleCommands.map((cmd, i) => {
             const actualIndex = visibleStart + i;
             const isSelected = actualIndex === selectedCmd;
@@ -545,10 +604,10 @@ export function CommandInput({
             );
           })}
           {visibleStart + MAX_VISIBLE_COMMANDS < filteredCommands.length && (
-            <Text dimColor>  ...</Text>
+            <Text dimColor> ...</Text>
           )}
           <Box marginTop={0}>
-            <Text dimColor>↑↓ select  Enter/Tab complete</Text>
+            <Text dimColor>↑↓ select Enter/Tab complete</Text>
           </Box>
         </Box>
       )}
@@ -568,13 +627,19 @@ export function CommandInput({
         {promptInfo.detected && (
           <Box flexDirection="column" gap={0}>
             <Box gap={1}>
-              <Text color="yellow" bold>⚡ Action required:</Text>
+              <Text color="yellow" bold>
+                ⚡ Action required:
+              </Text>
               {promptInfo.options.length > 0
                 ? promptInfo.options.map((opt) => (
-                    <Text key={opt} color="cyan">[{opt}]</Text>
+                    <Text key={opt} color="cyan">
+                      [{opt}]
+                    </Text>
                   ))
                 : QUICK_KEYS.map((qk) => (
-                    <Text key={qk.label} color={qk.color} bold>[{qk.label}]</Text>
+                    <Text key={qk.label} color={qk.color} bold>
+                      [{qk.label}]
+                    </Text>
                   ))}
             </Box>
             <Text dimColor>Press a key to respond (input must be empty)</Text>
@@ -582,7 +647,9 @@ export function CommandInput({
         )}
 
         <Box justifyContent="space-between" marginTop={0}>
-          <Text color="cyan" bold>→ {targetLabel}</Text>
+          <Text color="cyan" bold>
+            → {targetLabel}
+          </Text>
           <Box gap={3}>
             <Text dimColor>Esc back</Text>
             <Text dimColor>Enter send</Text>

@@ -1,8 +1,11 @@
-import React, { useState } from "react";
 import { Box, Text, useInput, useStdout } from "ink";
-import { loadQuickCommands } from "../lib/quick-commands.js";
-import { saveQuickCommand, deleteQuickCommand } from "../lib/quick-commands.js";
+import { useState } from "react";
 import type { QuickCommand } from "../lib/quick-commands.js";
+import {
+  deleteQuickCommand,
+  loadQuickCommands,
+  saveQuickCommand,
+} from "../lib/quick-commands.js";
 
 interface QuickCommandEditorProps {
   onBack: () => void;
@@ -27,7 +30,12 @@ interface PromptEditorProps {
   onCancel: () => void;
 }
 
-function PromptEditor({ commandName, initialValue, onSave, onCancel }: PromptEditorProps) {
+function PromptEditor({
+  commandName,
+  initialValue,
+  onSave,
+  onCancel,
+}: PromptEditorProps) {
   const { stdout } = useStdout();
   const [lines, setLines] = useState<string[]>(() => {
     const parts = initialValue.split("\n");
@@ -153,7 +161,8 @@ function PromptEditor({ commandName, initialValue, onSave, onCancel }: PromptEdi
     if (input && !key.ctrl && !key.meta) {
       const sanitized = input.replace(/[\r]/g, "");
       const line = lines[cursorRow];
-      const newLine = line.slice(0, cursorCol) + sanitized + line.slice(cursorCol);
+      const newLine =
+        line.slice(0, cursorCol) + sanitized + line.slice(cursorCol);
       const newLines = [...lines];
       newLines[cursorRow] = newLine;
       setLines(newLines);
@@ -161,7 +170,10 @@ function PromptEditor({ commandName, initialValue, onSave, onCancel }: PromptEdi
     }
   });
 
-  const displayLines = lines.slice(adjustedScroll, adjustedScroll + visibleLines);
+  const displayLines = lines.slice(
+    adjustedScroll,
+    adjustedScroll + visibleLines,
+  );
 
   return (
     <Box flexDirection="column" paddingX={1}>
@@ -179,7 +191,9 @@ function PromptEditor({ commandName, initialValue, onSave, onCancel }: PromptEdi
             Line {cursorRow + 1}/{lines.length} Col {cursorCol + 1}
           </Text>
         </Box>
-        <Text dimColor>Ctrl+S save | Esc cancel | Enter new line | Ctrl+K delete line</Text>
+        <Text dimColor>
+          Ctrl+S save | Esc cancel | Enter new line | Ctrl+K delete line
+        </Text>
 
         <Box
           marginTop={1}
@@ -204,7 +218,9 @@ function PromptEditor({ commandName, initialValue, onSave, onCancel }: PromptEdi
                 <Box key={`line-${actualRow}`}>
                   <Text color="gray">{lineNum} </Text>
                   <Text>{before}</Text>
-                  <Text backgroundColor="cyan" color="black">{cursorChar}</Text>
+                  <Text backgroundColor="cyan" color="black">
+                    {cursorChar}
+                  </Text>
                   <Text>{after}</Text>
                 </Box>
               );
@@ -223,7 +239,9 @@ function PromptEditor({ commandName, initialValue, onSave, onCancel }: PromptEdi
           <Text dimColor>↑ {adjustedScroll} more lines above</Text>
         )}
         {adjustedScroll + visibleLines < lines.length && (
-          <Text dimColor>↓ {lines.length - adjustedScroll - visibleLines} more lines below</Text>
+          <Text dimColor>
+            ↓ {lines.length - adjustedScroll - visibleLines} more lines below
+          </Text>
         )}
       </Box>
     </Box>
@@ -247,7 +265,8 @@ export function QuickCommandEditor({ onBack }: QuickCommandEditorProps) {
 
   // Collect existing categories for selection
   const existingCategories = [...new Set(commands.map((c) => c.category))];
-  if (!existingCategories.includes("general")) existingCategories.unshift("general");
+  if (!existingCategories.includes("general"))
+    existingCategories.unshift("general");
 
   useInput(
     (input, key) => {
@@ -309,7 +328,11 @@ export function QuickCommandEditor({ onBack }: QuickCommandEditorProps) {
         }
         return;
       }
-      if (input === "d" && selectedRow < commands.length && commands.length > 0) {
+      if (
+        input === "d" &&
+        selectedRow < commands.length &&
+        commands.length > 0
+      ) {
         const cmd = commands[selectedRow];
         deleteQuickCommand(process.cwd(), cmd.name);
         setCommands((prev) => prev.filter((_, i) => i !== selectedRow));
@@ -342,8 +365,7 @@ export function QuickCommandEditor({ onBack }: QuickCommandEditorProps) {
       if (key.backspace || key.delete) {
         if (editCursor > 0) {
           setEditValue(
-            (prev) =>
-              prev.slice(0, editCursor - 1) + prev.slice(editCursor),
+            (prev) => prev.slice(0, editCursor - 1) + prev.slice(editCursor),
           );
           setEditCursor((prev) => prev - 1);
         }
@@ -367,8 +389,7 @@ export function QuickCommandEditor({ onBack }: QuickCommandEditorProps) {
       }
       if (input && !key.ctrl && !key.meta) {
         setEditValue(
-          (prev) =>
-            prev.slice(0, editCursor) + input + prev.slice(editCursor),
+          (prev) => prev.slice(0, editCursor) + input + prev.slice(editCursor),
         );
         setEditCursor((prev) => prev + input.length);
       }
@@ -446,7 +467,9 @@ export function QuickCommandEditor({ onBack }: QuickCommandEditorProps) {
         {/* Header */}
         <Box marginTop={1} gap={1}>
           <Text dimColor>{"  "}</Text>
-          <Text bold color="gray">{"#".padEnd(3)}</Text>
+          <Text bold color="gray">
+            {"#".padEnd(3)}
+          </Text>
           {FIELDS.map((f) => (
             <Text key={f.key} bold color="gray">
               {f.label.padEnd(f.width)}
@@ -464,9 +487,11 @@ export function QuickCommandEditor({ onBack }: QuickCommandEditorProps) {
               {FIELDS.map((f, colIdx) => {
                 const isCellSelected = isRowSelected && selectedCol === colIdx;
                 const isEditing = isCellSelected && mode === "edit-field";
-                const isSelecting = isCellSelected && mode === "select-category";
+                const isSelecting =
+                  isCellSelected && mode === "select-category";
                 const val = cmd[f.key];
-                const displayVal = val.length > f.width ? val.slice(0, f.width - 1) + "…" : val;
+                const displayVal =
+                  val.length > f.width ? `${val.slice(0, f.width - 1)}…` : val;
 
                 if (isEditing) {
                   const before = editValue.slice(0, editCursor);
@@ -475,7 +500,9 @@ export function QuickCommandEditor({ onBack }: QuickCommandEditorProps) {
                   return (
                     <Box key={f.key}>
                       <Text color="cyan">{before}</Text>
-                      <Text backgroundColor="cyan" color="black">{cursorChar}</Text>
+                      <Text backgroundColor="cyan" color="black">
+                        {cursorChar}
+                      </Text>
                       <Text color="cyan">
                         {after.padEnd(Math.max(0, f.width - editValue.length))}
                       </Text>
@@ -491,9 +518,12 @@ export function QuickCommandEditor({ onBack }: QuickCommandEditorProps) {
                           key={cat}
                           bold={catIdx === selectIndex}
                           color={catIdx === selectIndex ? "yellow" : "gray"}
-                          backgroundColor={catIdx === selectIndex ? "gray" : undefined}
+                          backgroundColor={
+                            catIdx === selectIndex ? "gray" : undefined
+                          }
                         >
-                          {(catIdx === selectIndex ? "▸ " : "  ") + cat.padEnd(f.width - 2)}
+                          {(catIdx === selectIndex ? "▸ " : "  ") +
+                            cat.padEnd(f.width - 2)}
                         </Text>
                       ))}
                     </Box>

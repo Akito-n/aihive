@@ -1,7 +1,7 @@
 import { execSync } from "node:child_process";
+import { buildAgentCommand } from "./cli-registry.js";
 import type { AgentConfig, AihiveConfig } from "./config.js";
 import { getPaneTarget } from "./config.js";
-import { buildAgentCommand } from "./cli-registry.js";
 
 export type AgentStatus = "pending" | "running" | "done" | "error";
 
@@ -72,10 +72,7 @@ export function startSession(
 
     // Launch claude in each pane with role-specific config
     for (let i = 0; i < agents.length; i++) {
-      const target =
-        agents.length > 1
-          ? `${windowName}.${i}`
-          : windowName;
+      const target = agents.length > 1 ? `${windowName}.${i}` : windowName;
       sendKeys(session, target, buildAgentCommand(agents[i]));
     }
   }
@@ -101,10 +98,9 @@ export function resizePane(
 ): void {
   try {
     const windowName = paneTarget.split(".")[0];
-    execSync(
-      `tmux resize-window -t ${sessionName}:${windowName} -x ${width}`,
-      { stdio: "ignore" },
-    );
+    execSync(`tmux resize-window -t ${sessionName}:${windowName} -x ${width}`, {
+      stdio: "ignore",
+    });
   } catch {
     // ignore resize errors
   }
@@ -154,21 +150,12 @@ const PASTE_THRESHOLD = 100;
 function sendKeys(session: string, target: string, text: string): void {
   if (text.length >= PASTE_THRESHOLD) {
     // Long text: use load-buffer + paste-buffer to show [N chars pasted]
-    execSync(
-      `tmux load-buffer -b _aihive_paste - <<< ${JSON.stringify(text)}`,
-    );
-    execSync(
-      `tmux paste-buffer -b _aihive_paste -t ${session}:${target}`,
-    );
-    execSync(
-      "tmux delete-buffer -b _aihive_paste",
-      { stdio: "ignore" },
-    );
+    execSync(`tmux load-buffer -b _aihive_paste - <<< ${JSON.stringify(text)}`);
+    execSync(`tmux paste-buffer -b _aihive_paste -t ${session}:${target}`);
+    execSync("tmux delete-buffer -b _aihive_paste", { stdio: "ignore" });
     execSync(`tmux send-keys -t ${session}:${target} Enter`);
   } else {
-    execSync(
-      `tmux send-keys -t ${session}:${target} ${JSON.stringify(text)}`,
-    );
+    execSync(`tmux send-keys -t ${session}:${target} ${JSON.stringify(text)}`);
     execSync(`tmux send-keys -t ${session}:${target} Enter`);
   }
 }

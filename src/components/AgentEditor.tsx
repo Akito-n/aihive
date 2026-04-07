@@ -1,8 +1,8 @@
-import React, { useState } from "react";
 import { Box, Text, useInput } from "ink";
+import { useState } from "react";
+import { getCliKeys, getCliModels } from "../lib/cli-registry.js";
 import type { AgentConfig, AihiveConfig } from "../lib/config.js";
 import { resolveWindowLayout } from "../lib/config.js";
-import { getCliKeys, getCliModels } from "../lib/cli-registry.js";
 
 interface AgentEditorProps {
   config: AihiveConfig;
@@ -20,11 +20,20 @@ const FIELDS: { key: EditField; label: string }[] = [
   { key: "model", label: "Model" },
 ];
 
-const ROLE_OPTIONS = ["orchestrator", "coordinator", "worker", "reviewer", "scout"];
+const ROLE_OPTIONS = [
+  "orchestrator",
+  "coordinator",
+  "worker",
+  "reviewer",
+  "scout",
+];
 const CLI_OPTIONS = getCliKeys();
 
 /** Get the select options for a field, considering the agent's CLI for model */
-function getSelectOptions(field: EditField, agent: AgentConfig): string[] | undefined {
+function getSelectOptions(
+  field: EditField,
+  agent: AgentConfig,
+): string[] | undefined {
   if (field === "role") return ROLE_OPTIONS;
   if (field === "cli") return CLI_OPTIONS;
   if (field === "model") return getCliModels(agent.cli ?? "claude");
@@ -146,8 +155,7 @@ export function AgentEditor({ config, onSave, onCancel }: AgentEditorProps) {
       if (key.backspace || key.delete) {
         if (editCursor > 0) {
           setEditValue(
-            (prev) =>
-              prev.slice(0, editCursor - 1) + prev.slice(editCursor),
+            (prev) => prev.slice(0, editCursor - 1) + prev.slice(editCursor),
           );
           setEditCursor((prev) => prev - 1);
         }
@@ -171,8 +179,7 @@ export function AgentEditor({ config, onSave, onCancel }: AgentEditorProps) {
       }
       if (input && !key.ctrl && !key.meta) {
         setEditValue(
-          (prev) =>
-            prev.slice(0, editCursor) + input + prev.slice(editCursor),
+          (prev) => prev.slice(0, editCursor) + input + prev.slice(editCursor),
         );
         setEditCursor((prev) => prev + input.length);
       }
@@ -192,9 +199,7 @@ export function AgentEditor({ config, onSave, onCancel }: AgentEditorProps) {
         return;
       }
       if (key.downArrow || input === "j") {
-        setSelectIndex((prev) =>
-          Math.min(selectOptions.length - 1, prev + 1),
-        );
+        setSelectIndex((prev) => Math.min(selectOptions.length - 1, prev + 1));
         return;
       }
       if (key.return) {
@@ -221,7 +226,12 @@ export function AgentEditor({ config, onSave, onCancel }: AgentEditorProps) {
     { isActive: mode === "select-option" },
   );
 
-  const colWidths: Record<EditField, number> = { name: 18, role: 14, cli: 10, model: 16 };
+  const colWidths: Record<EditField, number> = {
+    name: 18,
+    role: 14,
+    cli: 10,
+    model: 16,
+  };
 
   return (
     <Box flexDirection="column" alignItems="center" paddingY={1}>
@@ -235,9 +245,7 @@ export function AgentEditor({ config, onSave, onCancel }: AgentEditorProps) {
         <Text bold color="cyan">
           Agent Configuration
         </Text>
-        <Text dimColor>
-          ↑↓←→ navigate | Enter edit | d delete | Esc back
-        </Text>
+        <Text dimColor>↑↓←→ navigate | Enter edit | d delete | Esc back</Text>
 
         {/* Header */}
         <Box marginTop={1} gap={1}>
@@ -260,12 +268,9 @@ export function AgentEditor({ config, onSave, onCancel }: AgentEditorProps) {
               <Text color="cyan">{isRowSelected ? "▶" : " "}</Text>
               <Text dimColor>{String(rowIdx + 1).padEnd(3)}</Text>
               {FIELDS.map((f, colIdx) => {
-                const isCellSelected =
-                  isRowSelected && selectedCol === colIdx;
-                const isEditing =
-                  isCellSelected && mode === "edit-field";
-                const isSelecting =
-                  isCellSelected && mode === "select-option";
+                const isCellSelected = isRowSelected && selectedCol === colIdx;
+                const isEditing = isCellSelected && mode === "edit-field";
+                const isSelecting = isCellSelected && mode === "select-option";
                 const val = String(agent[f.key] ?? "");
 
                 if (isEditing) {
@@ -312,9 +317,7 @@ export function AgentEditor({ config, onSave, onCancel }: AgentEditorProps) {
                     key={f.key}
                     bold={isCellSelected}
                     color={isCellSelected ? "cyan" : undefined}
-                    backgroundColor={
-                      isCellSelected ? "gray" : undefined
-                    }
+                    backgroundColor={isCellSelected ? "gray" : undefined}
                   >
                     {val.padEnd(colWidths[f.key])}
                   </Text>
@@ -326,9 +329,7 @@ export function AgentEditor({ config, onSave, onCancel }: AgentEditorProps) {
 
         {/* Add Agent row */}
         <Box marginTop={1} gap={1}>
-          <Text color="cyan">
-            {selectedRow === agents.length ? "▶" : " "}
-          </Text>
+          <Text color="cyan">{selectedRow === agents.length ? "▶" : " "}</Text>
           <Text
             bold={selectedRow === agents.length}
             color={selectedRow === agents.length ? "green" : "gray"}

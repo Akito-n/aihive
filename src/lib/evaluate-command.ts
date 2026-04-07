@@ -6,17 +6,20 @@
 // 4. Store results and update character
 
 import {
-  initGameDb,
-  getCharacter,
   addXp,
+  getCharacter,
+  initGameDb,
   isSessionEvaluated,
   markSessionEvaluated,
-  calculateLevel,
   xpForLevel,
 } from "./game-db.js";
-import { findHistoryFiles, extractSessions, formatForEvaluation } from "./history-parser.js";
-import { evaluateConversation } from "./xp-evaluator.js";
 import type { Session } from "./history-parser.js";
+import {
+  extractSessions,
+  findHistoryFiles,
+  formatForEvaluation,
+} from "./history-parser.js";
+import { evaluateConversation } from "./xp-evaluator.js";
 
 // ─── Constants ───────────────────────────────────────────────────────
 
@@ -77,7 +80,9 @@ export async function runEvaluation(): Promise<void> {
   for (const session of toProcess) {
     const turnCount = session.turns.length;
     const shortId = session.sessionId.slice(0, 8);
-    console.log(`  [${evaluated + 1}/${toProcess.length}] Session ${shortId}... (${turnCount} turns)`);
+    console.log(
+      `  [${evaluated + 1}/${toProcess.length}] Session ${shortId}... (${turnCount} turns)`,
+    );
 
     const conversationText = formatForEvaluation(session);
     const scores = evaluateConversation(conversationText);
@@ -92,13 +97,18 @@ export async function runEvaluation(): Promise<void> {
     const updatedChar = addXp(scores);
 
     const sessionXp =
-      scores.articulation + scores.comprehension + scores.review +
-      scores.collaboration + scores.inquiry;
+      scores.articulation +
+      scores.comprehension +
+      scores.review +
+      scores.collaboration +
+      scores.inquiry;
 
     totalXpGained += sessionXp;
     evaluated++;
 
-    console.log(`    → +${sessionXp} XP (伝:${scores.articulation} 理:${scores.comprehension} 検:${scores.review} 協:${scores.collaboration} 探:${scores.inquiry})`);
+    console.log(
+      `    → +${sessionXp} XP (伝:${scores.articulation} 理:${scores.comprehension} 検:${scores.review} 協:${scores.collaboration} 探:${scores.inquiry})`,
+    );
 
     // Check for level up
     if (updatedChar.level > prevLevel) {
@@ -114,10 +124,14 @@ export async function runEvaluation(): Promise<void> {
   console.log("\n  ─── Summary ───");
   console.log(`  Sessions evaluated: ${evaluated}`);
   console.log(`  XP gained: +${totalXpGained}`);
-  console.log(`  ${charAfter.name} Lv.${charAfter.level} (${charAfter.totalXp} / ${nextLevelXp} XP)`);
+  console.log(
+    `  ${charAfter.name} Lv.${charAfter.level} (${charAfter.totalXp} / ${nextLevelXp} XP)`,
+  );
 
   if (remaining > 0) {
-    console.log(`\n  ${remaining} sessions remaining. Run again to evaluate more.`);
+    console.log(
+      `\n  ${remaining} sessions remaining. Run again to evaluate more.`,
+    );
   }
 
   console.log();
