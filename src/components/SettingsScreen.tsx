@@ -1,9 +1,11 @@
-import React, { useState } from "react";
 import { Box, Text, useInput } from "ink";
-import { AgentEditor } from "./AgentEditor.js";
-import { QuickCommandEditor } from "./QuickCommandEditor.js";
-import { CharacterScreen } from "./CharacterScreen.js";
+import { useState } from "react";
 import type { AihiveConfig } from "../lib/config.js";
+import { t } from "../lib/i18n.js";
+import { AgentEditor } from "./AgentEditor.js";
+import { CharacterScreen } from "./CharacterScreen.js";
+import { LanguageScreen } from "./LanguageScreen.js";
+import { QuickCommandEditor } from "./QuickCommandEditor.js";
 
 interface SettingsScreenProps {
   config: AihiveConfig;
@@ -13,41 +15,51 @@ interface SettingsScreenProps {
 
 interface MenuItem {
   key: string;
-  label: string;
-  description: string;
+  labelKey: string;
+  descKey: string;
   color: string;
 }
 
 const MENU_ITEMS: MenuItem[] = [
   {
     key: "agents",
-    label: "Agent Names",
-    description: "Edit agent names and roles",
+    labelKey: "settings.agentNames",
+    descKey: "settings.agentNames.desc",
     color: "cyan",
   },
   {
     key: "commands",
-    label: "Quick Commands",
-    description: "Edit // quick commands",
+    labelKey: "settings.quickCommands",
+    descKey: "settings.quickCommands.desc",
     color: "yellow",
   },
   {
     key: "character",
-    label: "Character",
-    description: "View RPG character stats",
+    labelKey: "settings.character",
+    descKey: "settings.character.desc",
     color: "magenta",
   },
   {
+    key: "language",
+    labelKey: "settings.language",
+    descKey: "settings.language.desc",
+    color: "green",
+  },
+  {
     key: "back",
-    label: "Back",
-    description: "Return to main menu",
+    labelKey: "settings.back",
+    descKey: "settings.back.desc",
     color: "gray",
   },
 ];
 
-type SettingsView = "menu" | "agents" | "commands" | "character";
+type SettingsView = "menu" | "agents" | "commands" | "character" | "language";
 
-export function SettingsScreen({ config, onSave, onBack }: SettingsScreenProps) {
+export function SettingsScreen({
+  config,
+  onSave,
+  onBack,
+}: SettingsScreenProps) {
   const [view, setView] = useState<SettingsView>("menu");
   const [selectedIndex, setSelectedIndex] = useState(0);
 
@@ -69,6 +81,8 @@ export function SettingsScreen({ config, onSave, onBack }: SettingsScreenProps) 
           setView("commands");
         } else if (item.key === "character") {
           setView("character");
+        } else if (item.key === "language") {
+          setView("language");
         } else if (item.key === "back") {
           onBack();
         }
@@ -101,6 +115,10 @@ export function SettingsScreen({ config, onSave, onBack }: SettingsScreenProps) 
     return <CharacterScreen onBack={() => setView("menu")} />;
   }
 
+  if (view === "language") {
+    return <LanguageScreen onBack={() => setView("menu")} />;
+  }
+
   return (
     <Box flexDirection="column" alignItems="center" paddingY={1}>
       <Box
@@ -111,7 +129,7 @@ export function SettingsScreen({ config, onSave, onBack }: SettingsScreenProps) 
         paddingY={1}
       >
         <Text bold color="yellow">
-          Settings
+          {t("settings.title")}
         </Text>
       </Box>
 
@@ -128,17 +146,16 @@ export function SettingsScreen({ config, onSave, onBack }: SettingsScreenProps) 
           return (
             <Box key={item.key} gap={1}>
               <Text color="cyan">{isSelected ? "▶" : " "}</Text>
-              <Text
-                bold={isSelected}
-                color={isSelected ? item.color : "white"}
-              >
-                {item.label.padEnd(16)}
+              <Text bold={isSelected} color={isSelected ? item.color : "white"}>
+                {t(item.labelKey as import("../locales/en.js").TransKey).padEnd(
+                  16,
+                )}
               </Text>
               <Text
                 dimColor={!isSelected}
                 color={isSelected ? "gray" : undefined}
               >
-                {item.description}
+                {t(item.descKey as import("../locales/en.js").TransKey)}
               </Text>
             </Box>
           );
@@ -146,9 +163,9 @@ export function SettingsScreen({ config, onSave, onBack }: SettingsScreenProps) 
       </Box>
 
       <Box marginTop={1} gap={2}>
-        <Text dimColor>↑↓ Select</Text>
-        <Text dimColor>Enter Confirm</Text>
-        <Text dimColor>Esc Back</Text>
+        <Text dimColor>↑↓ {t("common.select")}</Text>
+        <Text dimColor>Enter {t("common.confirm")}</Text>
+        <Text dimColor>Esc {t("common.back")}</Text>
       </Box>
     </Box>
   );
