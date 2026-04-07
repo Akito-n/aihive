@@ -1,12 +1,13 @@
 {
   "name": "aihive",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "description": "tmux + Claude Code multi-agent orchestration system with React Ink TUI",
   "bin": {
     "aihive": "./dist/bin/aihive.js"
   },
   "scripts": {
+    "prepare": "tsc",
     "build": "tsc",
     "dev": "tsx src/bin/aihive.tsx",
     "start": "node dist/bin/aihive.js",
