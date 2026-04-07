@@ -1,16 +1,20 @@
-import React, { useState, useEffect } from "react";
 import { Box, Text, useInput } from "ink";
+import { useEffect, useState } from "react";
+import type {
+  BattleStats,
+  Character,
+  EvaluationRecord,
+} from "../lib/game-db.js";
 import {
-  initGameDb,
+  calculateBattleStats,
   getCharacter,
   getEvaluationHistory,
-  updateCharacterJob,
-  calculateBattleStats,
-  xpForLevel,
-  JOBS,
+  initGameDb,
   JOB_KEYS,
+  JOBS,
+  updateCharacterJob,
+  xpForLevel,
 } from "../lib/game-db.js";
-import type { Character, EvaluationRecord, BattleStats, JobType } from "../lib/game-db.js";
 
 interface CharacterScreenProps {
   onBack: () => void;
@@ -19,17 +23,39 @@ interface CharacterScreenProps {
 type ScreenMode = "view" | "select-job";
 
 interface SkillStatDef {
-  key: keyof Pick<Character, "statArticulation" | "statComprehension" | "statReview" | "statCollaboration" | "statInquiry">;
+  key: keyof Pick<
+    Character,
+    | "statArticulation"
+    | "statComprehension"
+    | "statReview"
+    | "statCollaboration"
+    | "statInquiry"
+  >;
   label: string;
   jaLabel: string;
   color: string;
 }
 
 const SKILL_STATS: SkillStatDef[] = [
-  { key: "statArticulation", label: "Articulation", jaLabel: "伝達力", color: "cyan" },
-  { key: "statComprehension", label: "Comprehension", jaLabel: "理解力", color: "green" },
+  {
+    key: "statArticulation",
+    label: "Articulation",
+    jaLabel: "伝達力",
+    color: "cyan",
+  },
+  {
+    key: "statComprehension",
+    label: "Comprehension",
+    jaLabel: "理解力",
+    color: "green",
+  },
   { key: "statReview", label: "Review", jaLabel: "検証力", color: "yellow" },
-  { key: "statCollaboration", label: "Collaboration", jaLabel: "協調力", color: "blue" },
+  {
+    key: "statCollaboration",
+    label: "Collaboration",
+    jaLabel: "協調力",
+    color: "blue",
+  },
   { key: "statInquiry", label: "Inquiry", jaLabel: "探究力", color: "magenta" },
 ];
 
@@ -49,11 +75,19 @@ const BATTLE_STATS: BattleStatDef[] = [
 
 function statBar(value: number, max: number, width: number = 20): string {
   const safeMax = max > 0 ? max : 1;
-  const filled = Math.max(0, Math.min(width, Math.round((value / safeMax) * width)));
+  const filled = Math.max(
+    0,
+    Math.min(width, Math.round((value / safeMax) * width)),
+  );
   return "█".repeat(filled) + "░".repeat(width - filled);
 }
 
-function xpBar(current: number, nextLevel: number, prevLevel: number, width: number = 24): string {
+function xpBar(
+  current: number,
+  nextLevel: number,
+  prevLevel: number,
+  width: number = 24,
+): string {
   const range = nextLevel - prevLevel;
   const progress = current - prevLevel;
   const ratio = range > 0 ? progress / range : 0;
@@ -168,23 +202,33 @@ export function CharacterScreen({ onBack }: CharacterScreenProps) {
               return (
                 <Box key={jobKey} gap={1}>
                   <Text color="yellow">{isSelected ? "▶" : " "}</Text>
-                  <Text bold={isSelected} color={isSelected ? "yellow" : "white"}>
+                  <Text
+                    bold={isSelected}
+                    color={isSelected ? "yellow" : "white"}
+                  >
                     {job.icon} {job.name.padEnd(10)}
                   </Text>
-                  <Text dimColor={!isSelected}>
-                    {job.description}
-                  </Text>
+                  <Text dimColor={!isSelected}>{job.description}</Text>
                   {isCurrent && <Text color="green"> (current)</Text>}
                 </Box>
               );
             })}
           </Box>
           <Box marginTop={1} gap={1}>
-            <Text backgroundColor="gray" color="black" bold> ↑↓ </Text>
+            <Text backgroundColor="gray" color="black" bold>
+              {" "}
+              ↑↓{" "}
+            </Text>
             <Text> Select </Text>
-            <Text backgroundColor="green" color="black" bold> Enter </Text>
+            <Text backgroundColor="green" color="black" bold>
+              {" "}
+              Enter{" "}
+            </Text>
             <Text> Confirm </Text>
-            <Text backgroundColor="gray" color="black" bold> Esc </Text>
+            <Text backgroundColor="gray" color="black" bold>
+              {" "}
+              Esc{" "}
+            </Text>
             <Text> Cancel </Text>
           </Box>
         </Box>
@@ -198,11 +242,22 @@ export function CharacterScreen({ onBack }: CharacterScreenProps) {
   const currentLevelXp = xpForLevel(character.level);
   const progressPercent =
     nextLevelXp > currentLevelXp
-      ? Math.round(((character.totalXp - currentLevelXp) / (nextLevelXp - currentLevelXp)) * 100)
+      ? Math.round(
+          ((character.totalXp - currentLevelXp) /
+            (nextLevelXp - currentLevelXp)) *
+            100,
+        )
       : 100;
 
   const battle = calculateBattleStats(character);
-  const maxBattle = Math.max(battle.hp, battle.mp, battle.str, battle.int, battle.dex, 1);
+  const maxBattle = Math.max(
+    battle.hp,
+    battle.mp,
+    battle.str,
+    battle.int,
+    battle.dex,
+    1,
+  );
 
   const maxSkill = Math.max(
     character.statArticulation,
@@ -234,7 +289,9 @@ export function CharacterScreen({ onBack }: CharacterScreenProps) {
           </Box>
           <Box gap={1}>
             <Text bold>Job:</Text>
-            <Text color="yellow">{jobDef.icon} {jobDef.name}</Text>
+            <Text color="yellow">
+              {jobDef.icon} {jobDef.name}
+            </Text>
             <Text color="gray"> ─ {jobDef.description}</Text>
           </Box>
           <Box gap={1}>
@@ -265,9 +322,7 @@ export function CharacterScreen({ onBack }: CharacterScreenProps) {
                 <Text bold color={stat.color}>
                   {stat.label}
                 </Text>
-                <Text color={stat.color}>
-                  {statBar(value, maxBattle, 16)}
-                </Text>
+                <Text color={stat.color}>{statBar(value, maxBattle, 16)}</Text>
                 <Text> {String(value).padStart(4)}</Text>
               </Box>
             );
@@ -283,15 +338,9 @@ export function CharacterScreen({ onBack }: CharacterScreenProps) {
             const value = character[stat.key];
             return (
               <Box key={stat.key} gap={1}>
-                <Text color={stat.color}>
-                  {stat.jaLabel}
-                </Text>
-                <Text dimColor>
-                  {stat.label.padEnd(14)}
-                </Text>
-                <Text color={stat.color}>
-                  {statBar(value, maxSkill, 16)}
-                </Text>
+                <Text color={stat.color}>{stat.jaLabel}</Text>
+                <Text dimColor>{stat.label.padEnd(14)}</Text>
+                <Text color={stat.color}>{statBar(value, maxSkill, 16)}</Text>
                 <Text> {String(value).padStart(4)}</Text>
               </Box>
             );
@@ -306,13 +355,11 @@ export function CharacterScreen({ onBack }: CharacterScreenProps) {
             </Text>
             {history.map((record) => (
               <Box key={record.id} gap={1}>
-                <Text dimColor>
-                  {record.evaluatedAt.slice(0, 10)}
+                <Text dimColor>{record.evaluatedAt.slice(0, 10)}</Text>
+                <Text color="green">
+                  +{String(record.xpTotal).padStart(3)} XP
                 </Text>
-                <Text color="green">+{String(record.xpTotal).padStart(3)} XP</Text>
-                <Text dimColor>
-                  {record.sessionId.slice(0, 8)}
-                </Text>
+                <Text dimColor>{record.sessionId.slice(0, 8)}</Text>
               </Box>
             ))}
           </Box>
@@ -320,17 +367,21 @@ export function CharacterScreen({ onBack }: CharacterScreenProps) {
 
         {history.length === 0 && (
           <Box marginTop={1}>
-            <Text dimColor>
-              No evaluations yet. Run: aihive --evaluate
-            </Text>
+            <Text dimColor>No evaluations yet. Run: aihive --evaluate</Text>
           </Box>
         )}
       </Box>
 
       <Box marginTop={1} gap={1}>
-        <Text backgroundColor={blink ? "yellow" : "gray"} color="black" bold> Enter </Text>
+        <Text backgroundColor={blink ? "yellow" : "gray"} color="black" bold>
+          {" "}
+          Enter{" "}
+        </Text>
         <Text> Change Job </Text>
-        <Text backgroundColor="gray" color="black" bold> Esc </Text>
+        <Text backgroundColor="gray" color="black" bold>
+          {" "}
+          Esc{" "}
+        </Text>
         <Text> Back </Text>
       </Box>
     </Box>

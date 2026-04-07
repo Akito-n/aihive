@@ -1,7 +1,6 @@
-import React from "react";
 import { Box, Text } from "ink";
-import type { AgentInfo } from "../lib/tmux.js";
 import type { Task, TaskState } from "../lib/tasks.js";
+import type { AgentInfo } from "../lib/tmux.js";
 
 interface SkillCounts {
   proposed: number;
@@ -65,7 +64,13 @@ const TASK_COLOR: Record<TaskState, string> = {
   error: "red",
 };
 
-export function Dashboard({ agents, selectedIndex, tasks = [], skillCounts, memoryCount = 0 }: DashboardProps) {
+export function Dashboard({
+  agents,
+  selectedIndex,
+  tasks = [],
+  skillCounts,
+  memoryCount = 0,
+}: DashboardProps) {
   return (
     <Box flexDirection="column">
       <Text bold underline>
@@ -80,7 +85,9 @@ export function Dashboard({ agents, selectedIndex, tasks = [], skillCounts, memo
             <Box key={agent.name} gap={1}>
               <Text color="cyan">{isSelected ? "▶" : " "}</Text>
               <Text>{roleIcon}</Text>
-              <Text color={STATUS_COLOR[agent.status]}>{STATUS_ICON[agent.status]}</Text>
+              <Text color={STATUS_COLOR[agent.status]}>
+                {STATUS_ICON[agent.status]}
+              </Text>
               <Text
                 color={isSelected ? "cyan" : roleColor}
                 bold={isSelected || agent.role !== "worker"}
@@ -88,51 +95,57 @@ export function Dashboard({ agents, selectedIndex, tasks = [], skillCounts, memo
                 {agent.name}
               </Text>
               {agent.model && (
-                <Text dimColor>[{agent.cli && agent.cli !== "claude" ? `${agent.cli}:` : ""}{agent.model}]</Text>
+                <Text dimColor>
+                  [{agent.cli && agent.cli !== "claude" ? `${agent.cli}:` : ""}
+                  {agent.model}]
+                </Text>
               )}
             </Box>
           );
         })}
       </Box>
 
-      {tasks.length > 0 && (() => {
-        const counts: Partial<Record<TaskState, number>> = {};
-        for (const t of tasks) {
-          counts[t.state] = (counts[t.state] ?? 0) + 1;
-        }
-        const entries = (Object.entries(counts) as [TaskState, number][])
-          .filter(([, c]) => c > 0);
-        return (
+      {tasks.length > 0 &&
+        (() => {
+          const counts: Partial<Record<TaskState, number>> = {};
+          for (const t of tasks) {
+            counts[t.state] = (counts[t.state] ?? 0) + 1;
+          }
+          const entries = (
+            Object.entries(counts) as [TaskState, number][]
+          ).filter(([, c]) => c > 0);
+          return (
+            <Box marginTop={1} flexDirection="column">
+              <Text bold underline>
+                Tasks
+              </Text>
+              <Box marginTop={1} gap={2} flexWrap="wrap">
+                {entries.map(([state, count]) => (
+                  <Text key={state} color={TASK_COLOR[state]}>
+                    {TASK_ICON[state]} {count} {state}
+                  </Text>
+                ))}
+              </Box>
+            </Box>
+          );
+        })()}
+
+      {skillCounts &&
+        (skillCounts.approved > 0 || skillCounts.proposed > 0) && (
           <Box marginTop={1} flexDirection="column">
             <Text bold underline>
-              Tasks
+              Skills
             </Text>
-            <Box marginTop={1} gap={2} flexWrap="wrap">
-              {entries.map(([state, count]) => (
-                <Text key={state} color={TASK_COLOR[state]}>
-                  {TASK_ICON[state]} {count} {state}
-                </Text>
-              ))}
+            <Box marginTop={1} gap={2}>
+              {skillCounts.approved > 0 && (
+                <Text color="green">✓ {skillCounts.approved} approved</Text>
+              )}
+              {skillCounts.proposed > 0 && (
+                <Text color="yellow">○ {skillCounts.proposed} pending</Text>
+              )}
             </Box>
           </Box>
-        );
-      })()}
-
-      {skillCounts && (skillCounts.approved > 0 || skillCounts.proposed > 0) && (
-        <Box marginTop={1} flexDirection="column">
-          <Text bold underline>
-            Skills
-          </Text>
-          <Box marginTop={1} gap={2}>
-            {skillCounts.approved > 0 && (
-              <Text color="green">✓ {skillCounts.approved} approved</Text>
-            )}
-            {skillCounts.proposed > 0 && (
-              <Text color="yellow">○ {skillCounts.proposed} pending</Text>
-            )}
-          </Box>
-        </Box>
-      )}
+        )}
 
       {memoryCount > 0 && (
         <Box marginTop={1} flexDirection="column">

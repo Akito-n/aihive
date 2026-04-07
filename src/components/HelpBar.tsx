@@ -1,4 +1,3 @@
-import React from "react";
 import { Box, Text } from "ink";
 
 interface HelpBarProps {
@@ -10,30 +9,51 @@ export function HelpBar({ state }: HelpBarProps) {
     <Box gap={2}>
       {state === "idle" && (
         <Text>
-          <Text bold color="green">[s]</Text> Start
+          <Text bold color="green">
+            [s]
+          </Text>{" "}
+          Start
         </Text>
       )}
       {state === "running" && (
         <>
           <Text>
-            <Text bold color="yellow">[j/k]</Text> Select
+            <Text bold color="yellow">
+              [j/k]
+            </Text>{" "}
+            Select
           </Text>
           <Text>
-            <Text bold color="cyan">[Enter/i]</Text> Send command
+            <Text bold color="cyan">
+              [Enter/i]
+            </Text>{" "}
+            Send command
           </Text>
           <Text>
-            <Text bold color="blue">[O]</Text> Overview
+            <Text bold color="blue">
+              [O]
+            </Text>{" "}
+            Overview
           </Text>
           <Text>
-            <Text bold color="gray">[L]</Text> Log
+            <Text bold color="gray">
+              [L]
+            </Text>{" "}
+            Log
           </Text>
           <Text>
-            <Text bold color="red">[x]</Text> Stop
+            <Text bold color="red">
+              [x]
+            </Text>{" "}
+            Stop
           </Text>
         </>
       )}
       <Text>
-        <Text bold color="gray">[q]</Text> Quit
+        <Text bold color="gray">
+          [q]
+        </Text>{" "}
+        Quit
       </Text>
     </Box>
   );

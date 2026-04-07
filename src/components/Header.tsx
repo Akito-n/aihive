@@ -1,4 +1,3 @@
-import React from "react";
 import { Box, Text } from "ink";
 import type { AgentInfo } from "../lib/tmux.js";
 
@@ -18,7 +17,13 @@ const STATUS_MAP = {
   stopping: { label: "STOPPING", color: "yellow" },
 } as const;
 
-export function Header({ state, agents, taskCount = 0, skillCount = 0, memoryCount = 0 }: HeaderProps) {
+export function Header({
+  state,
+  agents,
+  taskCount = 0,
+  skillCount = 0,
+  memoryCount = 0,
+}: HeaderProps) {
   const status = STATUS_MAP[state];
 
   // Model distribution summary (includes CLI prefix for non-claude)
@@ -46,7 +51,10 @@ export function Header({ state, agents, taskCount = 0, skillCount = 0, memoryCou
         </Text>
       </Box>
       <Text dimColor>
-        Agents: {agents.length}{modelSummary ? ` (${modelSummary})` : ""} | Tasks: {taskCount}{skillCount > 0 ? ` | Skills: ${skillCount}` : ""}{memoryCount > 0 ? ` | Memory: ${memoryCount}` : ""} | Session: aihive
+        Agents: {agents.length}
+        {modelSummary ? ` (${modelSummary})` : ""} | Tasks: {taskCount}
+        {skillCount > 0 ? ` | Skills: ${skillCount}` : ""}
+        {memoryCount > 0 ? ` | Memory: ${memoryCount}` : ""} | Session: aihive
       </Text>
     </Box>
   );

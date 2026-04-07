@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { initInstructions } from "./config.js";
 import type { AihiveConfig } from "./config.js";
+import { initInstructions } from "./config.js";
 import { MessageBus } from "./mailbox.js";
 
 export function initWorkspace(config: AihiveConfig): MessageBus {

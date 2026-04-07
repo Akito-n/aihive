@@ -1,5 +1,5 @@
-import React from "react";
 import { Text } from "ink";
+import React from "react";
 
 export interface AnsiSpan {
   text: string;
@@ -58,10 +58,22 @@ function color256ToHex(n: number): string {
   if (n < 16) {
     // Standard colors - map to names
     const map: Record<number, string> = {
-      0: "#000000", 1: "#aa0000", 2: "#00aa00", 3: "#aa5500",
-      4: "#0000aa", 5: "#aa00aa", 6: "#00aaaa", 7: "#aaaaaa",
-      8: "#555555", 9: "#ff5555", 10: "#55ff55", 11: "#ffff55",
-      12: "#5555ff", 13: "#ff55ff", 14: "#55ffff", 15: "#ffffff",
+      0: "#000000",
+      1: "#aa0000",
+      2: "#00aa00",
+      3: "#aa5500",
+      4: "#0000aa",
+      5: "#aa00aa",
+      6: "#00aaaa",
+      7: "#aaaaaa",
+      8: "#555555",
+      9: "#ff5555",
+      10: "#55ff55",
+      11: "#ffff55",
+      12: "#5555ff",
+      13: "#ff55ff",
+      14: "#55ffff",
+      15: "#ffffff",
     };
     return map[n] ?? "#ffffff";
   }
@@ -217,7 +229,10 @@ export function stripAnsi(text: string): string {
 }
 
 /** Create React elements from ANSI spans */
-export function ansiToElements(spans: AnsiSpan[], keyPrefix: string): React.ReactNode[] {
+export function ansiToElements(
+  spans: AnsiSpan[],
+  keyPrefix: string,
+): React.ReactNode[] {
   return spans.map((span, i) => {
     const props: Record<string, unknown> = { key: `${keyPrefix}-${i}` };
     if (span.fg) props.color = span.fg;

@@ -1,6 +1,6 @@
 import fs from "node:fs";
-import path from "node:path";
 import { homedir } from "node:os";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse, stringify } from "yaml";
 
@@ -27,13 +27,18 @@ export interface AihiveConfig {
 const CONFIG_DIR = path.join(homedir(), ".aihive");
 const CONFIG_FILE = path.join(CONFIG_DIR, "config.yaml");
 const INSTRUCTIONS_DIR = path.join(CONFIG_DIR, "instructions");
-const BUNDLED_INSTRUCTIONS_DIR = path.join(__dirname, "..", "..", "instructions");
+const BUNDLED_INSTRUCTIONS_DIR = path.join(
+  __dirname,
+  "..",
+  "..",
+  "instructions",
+);
 
 // ─── Default config ──────────────────────────────────────────────────
 
 function defaultConfig(): AihiveConfig {
   const agents = [
-    { name: "Orchestrator", role: "orchestrator", model: "opus", window: "", },
+    { name: "Orchestrator", role: "orchestrator", model: "opus", window: "" },
     { name: "Coordinator", role: "coordinator", model: "sonnet", window: "" },
     { name: "Worker 1", role: "worker", model: "sonnet", window: "" },
     { name: "Worker 2", role: "worker", model: "sonnet", window: "" },
@@ -59,7 +64,7 @@ export function loadConfig(): AihiveConfig {
   const raw = fs.readFileSync(CONFIG_FILE, "utf8");
   const parsed = parse(raw) as AihiveConfig | null;
 
-  if (!parsed || !parsed.agents || parsed.agents.length === 0) {
+  if (!parsed?.agents || parsed.agents.length === 0) {
     return defaultConfig();
   }
 
@@ -171,7 +176,12 @@ function defaultModelForRole(role: string): string {
 // ─── Window Layout ───────────────────────────────────────────────────
 
 /** Singleton roles that get their own dedicated tmux window */
-const SOLO_ROLES = new Set(["orchestrator", "coordinator", "reviewer", "scout"]);
+const SOLO_ROLES = new Set([
+  "orchestrator",
+  "coordinator",
+  "reviewer",
+  "scout",
+]);
 
 /**
  * Auto-derive window/pane assignment from agent roles.

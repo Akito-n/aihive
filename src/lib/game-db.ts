@@ -1,9 +1,9 @@
 // ─── Game Database (sql.js / SQLite WASM) ─────────────────────────────
 // Manages character data and evaluation history in ~/.aihive/game.db
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
+import { join } from "node:path";
 import initSqlJs, { type Database } from "sql.js";
 
 const AIHIVE_DIR = join(homedir(), ".aihive");
@@ -20,8 +20,8 @@ export interface JobDefinition {
   icon: string;
   /** Weight matrix: how each XP category contributes to battle stats */
   weights: {
-    hp:  [number, number, number, number, number]; // [art, comp, rev, collab, inq]
-    mp:  [number, number, number, number, number];
+    hp: [number, number, number, number, number]; // [art, comp, rev, collab, inq]
+    mp: [number, number, number, number, number];
     str: [number, number, number, number, number];
     int: [number, number, number, number, number];
     dex: [number, number, number, number, number];
@@ -35,11 +35,11 @@ export const JOBS: Record<JobType, JobDefinition> = {
     description: "Clear instructions, strong execution",
     icon: "⚔",
     weights: {
-      hp:  [0.30, 0.10, 0.10, 0.30, 0.20],
-      mp:  [0.10, 0.30, 0.10, 0.10, 0.40],
-      str: [0.50, 0.10, 0.10, 0.20, 0.10],
-      int: [0.10, 0.20, 0.10, 0.10, 0.50],
-      dex: [0.10, 0.10, 0.50, 0.20, 0.10],
+      hp: [0.3, 0.1, 0.1, 0.3, 0.2],
+      mp: [0.1, 0.3, 0.1, 0.1, 0.4],
+      str: [0.5, 0.1, 0.1, 0.2, 0.1],
+      int: [0.1, 0.2, 0.1, 0.1, 0.5],
+      dex: [0.1, 0.1, 0.5, 0.2, 0.1],
     },
   },
   mage: {
@@ -48,11 +48,11 @@ export const JOBS: Record<JobType, JobDefinition> = {
     description: "Deep inquiry, knowledge seeker",
     icon: "🔮",
     weights: {
-      hp:  [0.10, 0.30, 0.10, 0.30, 0.20],
-      mp:  [0.10, 0.10, 0.10, 0.20, 0.50],
-      str: [0.40, 0.10, 0.10, 0.20, 0.20],
-      int: [0.05, 0.20, 0.10, 0.10, 0.55],
-      dex: [0.10, 0.15, 0.45, 0.15, 0.15],
+      hp: [0.1, 0.3, 0.1, 0.3, 0.2],
+      mp: [0.1, 0.1, 0.1, 0.2, 0.5],
+      str: [0.4, 0.1, 0.1, 0.2, 0.2],
+      int: [0.05, 0.2, 0.1, 0.1, 0.55],
+      dex: [0.1, 0.15, 0.45, 0.15, 0.15],
     },
   },
   scout: {
@@ -61,11 +61,11 @@ export const JOBS: Record<JobType, JobDefinition> = {
     description: "Sharp reviewer, bug hunter",
     icon: "🗡",
     weights: {
-      hp:  [0.15, 0.10, 0.25, 0.30, 0.20],
-      mp:  [0.10, 0.30, 0.10, 0.10, 0.40],
-      str: [0.35, 0.10, 0.20, 0.20, 0.15],
-      int: [0.10, 0.20, 0.15, 0.10, 0.45],
-      dex: [0.05, 0.10, 0.55, 0.15, 0.15],
+      hp: [0.15, 0.1, 0.25, 0.3, 0.2],
+      mp: [0.1, 0.3, 0.1, 0.1, 0.4],
+      str: [0.35, 0.1, 0.2, 0.2, 0.15],
+      int: [0.1, 0.2, 0.15, 0.1, 0.45],
+      dex: [0.05, 0.1, 0.55, 0.15, 0.15],
     },
   },
   sage: {
@@ -74,11 +74,11 @@ export const JOBS: Record<JobType, JobDefinition> = {
     description: "Balanced, constructive collaborator",
     icon: "📖",
     weights: {
-      hp:  [0.20, 0.20, 0.15, 0.25, 0.20],
-      mp:  [0.15, 0.20, 0.10, 0.25, 0.30],
-      str: [0.30, 0.15, 0.15, 0.20, 0.20],
-      int: [0.15, 0.20, 0.15, 0.15, 0.35],
-      dex: [0.15, 0.15, 0.35, 0.20, 0.15],
+      hp: [0.2, 0.2, 0.15, 0.25, 0.2],
+      mp: [0.15, 0.2, 0.1, 0.25, 0.3],
+      str: [0.3, 0.15, 0.15, 0.2, 0.2],
+      int: [0.15, 0.2, 0.15, 0.15, 0.35],
+      dex: [0.15, 0.15, 0.35, 0.2, 0.15],
     },
   },
 };
@@ -227,7 +227,9 @@ export async function initGameDb(): Promise<Database> {
   if (tableInfo.length > 0) {
     const colNames = tableInfo[0].values.map((row) => row[1] as string);
     if (!colNames.includes("job")) {
-      db.run("ALTER TABLE character ADD COLUMN job TEXT NOT NULL DEFAULT 'sage'");
+      db.run(
+        "ALTER TABLE character ADD COLUMN job TEXT NOT NULL DEFAULT 'sage'",
+      );
     }
   }
 
@@ -242,7 +244,8 @@ export async function initGameDb(): Promise<Database> {
 }
 
 export function getDb(): Database {
-  if (!db) throw new Error("Game database not initialized. Call initGameDb() first.");
+  if (!db)
+    throw new Error("Game database not initialized. Call initGameDb() first.");
   return db;
 }
 
@@ -269,38 +272,47 @@ export function getCharacter(): Character {
   }
 
   return {
-    id: row["id"] as number,
-    name: row["name"] as string,
+    id: row.id as number,
+    name: row.name as string,
     job: (row.job as JobType) ?? "sage",
-    level: row["level"] as number,
-    totalXp: row["total_xp"] as number,
-    statArticulation: row["stat_articulation"] as number,
-    statComprehension: row["stat_comprehension"] as number,
-    statReview: row["stat_review"] as number,
-    statCollaboration: row["stat_collaboration"] as number,
-    statInquiry: row["stat_inquiry"] as number,
-    createdAt: row["created_at"] as string,
-    updatedAt: row["updated_at"] as string,
+    level: row.level as number,
+    totalXp: row.total_xp as number,
+    statArticulation: row.stat_articulation as number,
+    statComprehension: row.stat_comprehension as number,
+    statReview: row.stat_review as number,
+    statCollaboration: row.stat_collaboration as number,
+    statInquiry: row.stat_inquiry as number,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
   };
 }
 
 export function updateCharacterName(name: string): void {
   const d = getDb();
-  d.run("UPDATE character SET name = ?, updated_at = datetime('now') WHERE id = 1", [name]);
+  d.run(
+    "UPDATE character SET name = ?, updated_at = datetime('now') WHERE id = 1",
+    [name],
+  );
   saveDb();
 }
 
 export function updateCharacterJob(job: JobType): void {
   const d = getDb();
-  d.run("UPDATE character SET job = ?, updated_at = datetime('now') WHERE id = 1", [job]);
+  d.run(
+    "UPDATE character SET job = ?, updated_at = datetime('now') WHERE id = 1",
+    [job],
+  );
   saveDb();
 }
 
 export function addXp(scores: XpScores): Character {
   const d = getDb();
   const totalGained =
-    scores.articulation + scores.comprehension + scores.review +
-    scores.collaboration + scores.inquiry;
+    scores.articulation +
+    scores.comprehension +
+    scores.review +
+    scores.collaboration +
+    scores.inquiry;
 
   d.run(
     `UPDATE character SET
@@ -335,7 +347,10 @@ export function addXp(scores: XpScores): Character {
 
 // ─── Evaluation History ──────────────────────────────────────────────
 
-export function isSessionEvaluated(filePath: string, sessionId: string): boolean {
+export function isSessionEvaluated(
+  filePath: string,
+  sessionId: string,
+): boolean {
   const d = getDb();
   const result = d.exec(
     "SELECT id FROM evaluated_session WHERE file_path = ? AND session_id = ?",
@@ -351,8 +366,11 @@ export function markSessionEvaluated(
 ): void {
   const d = getDb();
   const total =
-    scores.articulation + scores.comprehension + scores.review +
-    scores.collaboration + scores.inquiry;
+    scores.articulation +
+    scores.comprehension +
+    scores.review +
+    scores.collaboration +
+    scores.inquiry;
 
   d.run(
     `INSERT INTO evaluated_session
@@ -388,16 +406,16 @@ export function getEvaluationHistory(limit: number = 10): EvaluationRecord[] {
       row[cols[i]] = vals[i];
     }
     return {
-      id: row["id"] as number,
-      filePath: row["file_path"] as string,
-      sessionId: row["session_id"] as string,
-      evaluatedAt: row["evaluated_at"] as string,
-      xpArticulation: row["xp_articulation"] as number,
-      xpComprehension: row["xp_comprehension"] as number,
-      xpReview: row["xp_review"] as number,
-      xpCollaboration: row["xp_collaboration"] as number,
-      xpInquiry: row["xp_inquiry"] as number,
-      xpTotal: row["xp_total"] as number,
+      id: row.id as number,
+      filePath: row.file_path as string,
+      sessionId: row.session_id as string,
+      evaluatedAt: row.evaluated_at as string,
+      xpArticulation: row.xp_articulation as number,
+      xpComprehension: row.xp_comprehension as number,
+      xpReview: row.xp_review as number,
+      xpCollaboration: row.xp_collaboration as number,
+      xpInquiry: row.xp_inquiry as number,
+      xpTotal: row.xp_total as number,
     };
   });
 }

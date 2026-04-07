@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
 import { Box, Text } from "ink";
+import { useEffect, useState } from "react";
 
 interface StartupScreenProps {
   onComplete: () => void;
@@ -73,7 +73,8 @@ export function StartupScreen({ onComplete }: StartupScreenProps) {
 
   const filled = Math.round(smoothProgress * BAR_WIDTH);
   // Sine-based glow that sweeps across the bar
-  const glowCenter = (tick * 0.6) % (BAR_WIDTH + GLOW_RADIUS * 2) - GLOW_RADIUS;
+  const glowCenter =
+    ((tick * 0.6) % (BAR_WIDTH + GLOW_RADIUS * 2)) - GLOW_RADIUS;
 
   const FILL_CHARS = ["░", "▒", "▓", "█"];
 
@@ -88,7 +89,8 @@ export function StartupScreen({ onComplete }: StartupScreenProps) {
         const charIdx = Math.min(3, 3 + Math.round(glow * 0));
         chars.push({
           char: FILL_CHARS[charIdx],
-          color: glow > 0.5 ? "whiteBright" : glow > 0.2 ? "cyanBright" : "cyan",
+          color:
+            glow > 0.5 ? "whiteBright" : glow > 0.2 ? "cyanBright" : "cyan",
         });
       } else if (i === filled) {
         // Leading edge: partial fill
@@ -98,7 +100,8 @@ export function StartupScreen({ onComplete }: StartupScreenProps) {
         // Empty portion: subtle shimmer
         chars.push({
           char: glow > 0.6 ? "▒" : glow > 0.3 ? "░" : "·",
-          color: glow > 0.6 ? "gray" : glow > 0.3 ? "blackBright" : "blackBright",
+          color:
+            glow > 0.6 ? "gray" : glow > 0.3 ? "blackBright" : "blackBright",
         });
       }
     }
@@ -174,7 +177,10 @@ export function StartupScreen({ onComplete }: StartupScreenProps) {
           <Text color="gray">{"["}</Text>
           <Text color="green">{"█".repeat(BAR_WIDTH)}</Text>
           <Text color="gray">{"]"}</Text>
-          <Text color="green" bold> 100%</Text>
+          <Text color="green" bold>
+            {" "}
+            100%
+          </Text>
         </Box>
       )}
     </Box>

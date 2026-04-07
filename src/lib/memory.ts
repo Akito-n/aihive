@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { stringify, parse } from "yaml";
+import { parse, stringify } from "yaml";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -89,10 +89,7 @@ export class MemoryManager {
     const dir = path.join(this.baseDir, scope);
     fs.mkdirSync(dir, { recursive: true });
     const filename = `${entry.id}.yaml`;
-    fs.writeFileSync(
-      path.join(dir, filename),
-      stringify(entry, { indent: 2 }),
-    );
+    fs.writeFileSync(path.join(dir, filename), stringify(entry, { indent: 2 }));
     // Also save to shared if tagged with "shared"
     if (entry.tags.includes("shared") && scope !== "shared") {
       const sharedDir = path.join(this.baseDir, "shared");

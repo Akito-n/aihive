@@ -1,37 +1,37 @@
-import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { Box, Text, useApp, useInput, useStdout } from "ink";
-import { Header } from "./Header.js";
-import { Dashboard } from "./Dashboard.js";
-import { PaneView } from "./PaneView.js";
-import type { PromptInfo } from "./PaneView.js";
-import { LogView } from "./LogView.js";
-import { HelpBar } from "./HelpBar.js";
-import { CommandInput } from "./CommandInput.js";
-import { StartupScreen } from "./StartupScreen.js";
-import { MainMenu } from "./MainMenu.js";
-import { SettingsScreen } from "./SettingsScreen.js";
-import { OverviewMode } from "./OverviewMode.js";
-import { QuickCommandMenu } from "./QuickCommandMenu.js";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { loadSlashCommands } from "../lib/commands.js";
+import type { AihiveConfig } from "../lib/config.js";
+import { loadConfig, saveConfig } from "../lib/config.js";
+import type { MessageBus } from "../lib/mailbox.js";
+import { MemoryManager } from "../lib/memory.js";
+import type { QuickCommand } from "../lib/quick-commands.js";
+import { groupByCategory, loadQuickCommands } from "../lib/quick-commands.js";
+import type { SkillState } from "../lib/skills.js";
+import { SkillManager } from "../lib/skills.js";
+import type { Task } from "../lib/tasks.js";
+import { TaskManager } from "../lib/tasks.js";
+import type { AgentInfo } from "../lib/tmux.js";
 import {
+  buildAgentList,
+  sendToPane,
+  sessionExists,
   startSession,
   stopSession,
-  sessionExists,
-  sendToPane,
-  buildAgentList,
 } from "../lib/tmux.js";
 import { initWorkspace } from "../lib/workspace.js";
-import { loadSlashCommands } from "../lib/commands.js";
-import { loadQuickCommands, groupByCategory } from "../lib/quick-commands.js";
-import type { QuickCommand } from "../lib/quick-commands.js";
-import type { MessageBus, NudgeConfig } from "../lib/mailbox.js";
-import { TaskManager } from "../lib/tasks.js";
-import type { Task } from "../lib/tasks.js";
-import { SkillManager } from "../lib/skills.js";
-import type { SkillState } from "../lib/skills.js";
-import { MemoryManager } from "../lib/memory.js";
-import { loadConfig, saveConfig } from "../lib/config.js";
-import type { AihiveConfig } from "../lib/config.js";
-import type { AgentInfo } from "../lib/tmux.js";
+import { CommandInput } from "./CommandInput.js";
+import { Dashboard } from "./Dashboard.js";
+import { Header } from "./Header.js";
+import { HelpBar } from "./HelpBar.js";
+import { LogView } from "./LogView.js";
+import { MainMenu } from "./MainMenu.js";
+import { OverviewMode } from "./OverviewMode.js";
+import type { PromptInfo } from "./PaneView.js";
+import { PaneView } from "./PaneView.js";
+import { QuickCommandMenu } from "./QuickCommandMenu.js";
+import { SettingsScreen } from "./SettingsScreen.js";
+import { StartupScreen } from "./StartupScreen.js";
 
 type AppState = "idle" | "settings" | "starting" | "running" | "stopping";
 type Mode = "normal" | "input" | "quickcmd";
@@ -51,17 +51,27 @@ export function App() {
   const [mode, setMode] = useState<Mode>("normal");
   const [showLog, setShowLog] = useState(false);
   const [showOverview, setShowOverview] = useState(false);
-  const [promptInfo, setPromptInfo] = useState<PromptInfo>({ detected: false, options: [] });
+  const [promptInfo, setPromptInfo] = useState<PromptInfo>({
+    detected: false,
+    options: [],
+  });
   const slashCommands = useMemo(() => loadSlashCommands(process.cwd()), []);
   const quickCommands = useMemo(() => loadQuickCommands(process.cwd()), []);
-  const quickCategories = useMemo(() => groupByCategory(quickCommands), [quickCommands]);
+  const quickCategories = useMemo(
+    () => groupByCategory(quickCommands),
+    [quickCommands],
+  );
 
   const messageBusRef = useRef<MessageBus | null>(null);
   const taskManagerRef = useRef<TaskManager>(new TaskManager());
   const skillManagerRef = useRef<SkillManager | null>(null);
   const memoryManagerRef = useRef<MemoryManager | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [skillCounts, setSkillCounts] = useState<Record<SkillState, number>>({ proposed: 0, approved: 0, rejected: 0 });
+  const [skillCounts, setSkillCounts] = useState<Record<SkillState, number>>({
+    proposed: 0,
+    approved: 0,
+    rejected: 0,
+  });
   const [memoryCount, setMemoryCount] = useState(0);
   const selectedAgent = agents[selectedIndex];
 
@@ -108,7 +118,9 @@ export function App() {
     });
 
     bus.onMessage((msg) => {
-      addLog(`[${msg.from} → ${msg.to}] ${msg.type}: ${msg.payload.slice(0, 60)}`);
+      addLog(
+        `[${msg.from} → ${msg.to}] ${msg.type}: ${msg.payload.slice(0, 60)}`,
+      );
       tm.handleMessage(msg);
 
       if (msg.type === "result") {
@@ -170,9 +182,19 @@ export function App() {
       } else if (msg.type === "memory-read") {
         const mm = memoryManagerRef.current;
         if (mm && messageBusRef.current) {
-          const results = mm.search(msg.payload.trim(), msg.from.toLowerCase().replace(/\s+/g, "-"));
-          messageBusRef.current.send("system", msg.from, "memory-response", JSON.stringify(results));
-          addLog(`Memory query: "${msg.payload.trim()}" → ${results.length} results for ${msg.from}`);
+          const results = mm.search(
+            msg.payload.trim(),
+            msg.from.toLowerCase().replace(/\s+/g, "-"),
+          );
+          messageBusRef.current.send(
+            "system",
+            msg.from,
+            "memory-response",
+            JSON.stringify(results),
+          );
+          addLog(
+            `Memory query: "${msg.payload.trim()}" → ${results.length} results for ${msg.from}`,
+          );
         }
       }
     });
@@ -196,7 +218,9 @@ export function App() {
     setSkillCounts(sm.getCounts());
 
     const mm = new MemoryManager(process.cwd());
-    const agentSlugs = config.agents.map((a) => a.name.toLowerCase().replace(/\s+/g, "-"));
+    const agentSlugs = config.agents.map((a) =>
+      a.name.toLowerCase().replace(/\s+/g, "-"),
+    );
     mm.init(agentSlugs);
     memoryManagerRef.current = mm;
     setMemoryCount(mm.getCount());
@@ -328,7 +352,13 @@ export function App() {
     for (const a of config.agents) {
       roleCounts[a.role] = (roleCounts[a.role] ?? 0) + 1;
     }
-    return <MainMenu onSelect={handleMenuSelect} agents={config.agents.length} roleCounts={roleCounts} />;
+    return (
+      <MainMenu
+        onSelect={handleMenuSelect}
+        agents={config.agents.length}
+        roleCounts={roleCounts}
+      />
+    );
   }
 
   // Settings screen
@@ -358,7 +388,13 @@ export function App() {
   if (showOverview) {
     return (
       <Box flexDirection="column" padding={1} height={termHeight}>
-        <Header state={state} agents={agents} taskCount={tasks.length} skillCount={skillCounts.approved} memoryCount={memoryCount} />
+        <Header
+          state={state}
+          agents={agents}
+          taskCount={tasks.length}
+          skillCount={skillCounts.approved}
+          memoryCount={memoryCount}
+        />
         <Box marginTop={1} flexGrow={1} overflow="hidden">
           <OverviewMode sessionName={config.session} agents={agents} />
         </Box>
@@ -371,12 +407,23 @@ export function App() {
 
   return (
     <Box flexDirection="column" padding={1} height={termHeight}>
-      <Header state={state} agents={agents} taskCount={tasks.length} skillCount={skillCounts.approved} />
+      <Header
+        state={state}
+        agents={agents}
+        taskCount={tasks.length}
+        skillCount={skillCounts.approved}
+      />
 
       <Box marginTop={1} flexGrow={1}>
         {mode !== "input" && (
           <Box flexDirection="column" width={34} marginRight={1}>
-            <Dashboard agents={agents} selectedIndex={selectedIndex} tasks={tasks} skillCounts={skillCounts} memoryCount={memoryCount} />
+            <Dashboard
+              agents={agents}
+              selectedIndex={selectedIndex}
+              tasks={tasks}
+              skillCounts={skillCounts}
+              memoryCount={memoryCount}
+            />
           </Box>
         )}
         <Box flexDirection="column" flexGrow={1} marginRight={showLog ? 1 : 0}>
@@ -386,11 +433,19 @@ export function App() {
               paneTarget={selectedAgent.paneTarget}
               label={selectedAgent.name}
               active={true}
-              lines={Math.max(10, (stdout?.rows ?? 40) - (mode === "input" ? 15 : 10))}
+              lines={Math.max(
+                10,
+                (stdout?.rows ?? 40) - (mode === "input" ? 15 : 10),
+              )}
               onPromptChange={setPromptInfo}
             />
           ) : (
-            <Box borderStyle="single" borderColor="gray" paddingX={1} flexGrow={1}>
+            <Box
+              borderStyle="single"
+              borderColor="gray"
+              paddingX={1}
+              flexGrow={1}
+            >
               <Text dimColor>No agent selected</Text>
             </Box>
           )}

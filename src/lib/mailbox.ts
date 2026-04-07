@@ -1,7 +1,7 @@
+import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { execSync } from "node:child_process";
-import { stringify, parse } from "yaml";
+import { parse, stringify } from "yaml";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -9,7 +9,20 @@ export interface Message {
   id: string;
   from: string;
   to: string;
-  type: "task" | "result" | "error" | "status" | "info" | "consult" | "advice" | "skill-proposal" | "skill-approved" | "skill-rejected" | "memory-write" | "memory-read" | "memory-response";
+  type:
+    | "task"
+    | "result"
+    | "error"
+    | "status"
+    | "info"
+    | "consult"
+    | "advice"
+    | "skill-proposal"
+    | "skill-approved"
+    | "skill-rejected"
+    | "memory-write"
+    | "memory-read"
+    | "memory-response";
   payload: string;
   timestamp: string;
   blocked_by?: string[]; // task IDs that must complete before this message is actionable
@@ -70,7 +83,12 @@ export class MessageBus {
   }
 
   /** Send a message: write to sender's outbox AND recipient's inbox */
-  send(from: string, to: string, type: Message["type"], payload: string): Message {
+  send(
+    from: string,
+    to: string,
+    type: Message["type"],
+    payload: string,
+  ): Message {
     const msg: Message = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       from,
@@ -120,7 +138,7 @@ export class MessageBus {
       }
 
       const watcher = fs.watch(inboxDir, (_event, filename) => {
-        if (!filename || !filename.endsWith(".yaml")) return;
+        if (!filename?.endsWith(".yaml")) return;
         this.processNewFile(slug, filename);
       });
 
@@ -183,7 +201,9 @@ export class MessageBus {
     const inboxDir = path.join(this.baseDir, agentSlug, "inbox");
     let count = 0;
     try {
-      count = fs.readdirSync(inboxDir).filter((f) => f.endsWith(".yaml")).length;
+      count = fs
+        .readdirSync(inboxDir)
+        .filter((f) => f.endsWith(".yaml")).length;
     } catch {
       count = 1;
     }
@@ -191,18 +211,16 @@ export class MessageBus {
     const nudgeText = `[inbox: ${count}件の新着 from ${msg.from}] .aihive/mailbox/${agentSlug}/inbox/ を確認してください`;
     try {
       // Clear any stale input first (needed for codex CLI which preserves input)
-      execSync(
-        `tmux send-keys -t ${sessionName}:${target} C-u`,
-        { stdio: "ignore" },
-      );
+      execSync(`tmux send-keys -t ${sessionName}:${target} C-u`, {
+        stdio: "ignore",
+      });
       execSync(
         `tmux send-keys -t ${sessionName}:${target} ${JSON.stringify(nudgeText)}`,
         { stdio: "ignore" },
       );
-      execSync(
-        `tmux send-keys -t ${sessionName}:${target} Enter`,
-        { stdio: "ignore" },
-      );
+      execSync(`tmux send-keys -t ${sessionName}:${target} Enter`, {
+        stdio: "ignore",
+      });
     } catch {
       // Pane may not exist yet or session ended
     }

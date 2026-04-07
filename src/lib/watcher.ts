@@ -22,7 +22,7 @@ export function watchTaskFiles(
   }
 
   const watcher = fs.watch(tasksDir, (_event, filename) => {
-    if (!filename || !filename.endsWith(".yaml")) return;
+    if (!filename?.endsWith(".yaml")) return;
 
     try {
       const filePath = path.join(tasksDir, filename);

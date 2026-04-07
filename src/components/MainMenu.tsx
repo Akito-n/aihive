@@ -1,5 +1,5 @@
-import React, { useState } from "react";
 import { Box, Text, useInput } from "ink";
+import { useState } from "react";
 
 interface MenuItem {
   key: string;
@@ -57,7 +57,9 @@ export function MainMenu({ onSelect, agents, roleCounts = {} }: MainMenuProps) {
 
   useInput((_input, key) => {
     if (key.upArrow) {
-      setSelectedIndex((prev) => (prev - 1 + MENU_ITEMS.length) % MENU_ITEMS.length);
+      setSelectedIndex(
+        (prev) => (prev - 1 + MENU_ITEMS.length) % MENU_ITEMS.length,
+      );
     }
     if (key.downArrow) {
       setSelectedIndex((prev) => (prev + 1) % MENU_ITEMS.length);
@@ -97,7 +99,9 @@ export function MainMenu({ onSelect, agents, roleCounts = {} }: MainMenuProps) {
         v0.1.0 | Agents: {agents}
         {Object.keys(roleCounts).length > 0 &&
           ` (${Object.entries(roleCounts)
-            .map(([role, count]) => `${ROLE_ICON[role] ?? "⬡"} ${count} ${role}`)
+            .map(
+              ([role, count]) => `${ROLE_ICON[role] ?? "⬡"} ${count} ${role}`,
+            )
             .join(", ")})`}
       </Text>
 
@@ -118,7 +122,10 @@ export function MainMenu({ onSelect, agents, roleCounts = {} }: MainMenuProps) {
               <Text bold={isSelected} color={isSelected ? item.color : "white"}>
                 {item.label.padEnd(14)}
               </Text>
-              <Text dimColor={!isSelected} color={isSelected ? "gray" : undefined}>
+              <Text
+                dimColor={!isSelected}
+                color={isSelected ? "gray" : undefined}
+              >
                 {item.description}
               </Text>
             </Box>

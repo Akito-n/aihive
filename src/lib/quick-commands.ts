@@ -1,4 +1,10 @@
-import { readdirSync, readFileSync, writeFileSync, unlinkSync, mkdirSync } from "node:fs";
+import {
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 
@@ -44,12 +50,18 @@ export function loadQuickCommands(projectDir: string): QuickCommand[] {
     }
   }
 
-  commands.sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
+  commands.sort(
+    (a, b) =>
+      a.category.localeCompare(b.category) || a.name.localeCompare(b.name),
+  );
   return commands;
 }
 
 function toSlug(name: string): string {
-  return name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+  return name
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "");
 }
 
 export function saveQuickCommand(projectDir: string, cmd: QuickCommand): void {
@@ -75,7 +87,9 @@ export function deleteQuickCommand(projectDir: string, name: string): void {
   }
 }
 
-export function groupByCategory(commands: QuickCommand[]): QuickCommandCategory[] {
+export function groupByCategory(
+  commands: QuickCommand[],
+): QuickCommandCategory[] {
   const map = new Map<string, QuickCommand[]>();
   for (const cmd of commands) {
     const list = map.get(cmd.category) ?? [];

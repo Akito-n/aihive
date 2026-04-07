@@ -1,9 +1,8 @@
 #!/usr/bin/env node
-import React from "react";
 import { render } from "ink";
 import { App } from "../components/App.js";
-import { checkDependencies } from "../lib/dependencies.js";
 import { getConfigPath } from "../lib/config.js";
+import { checkDependencies } from "../lib/dependencies.js";
 
 const args = process.argv.slice(2);
 

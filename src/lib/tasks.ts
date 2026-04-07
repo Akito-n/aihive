@@ -2,7 +2,13 @@ import type { Message } from "./mailbox.js";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
-export type TaskState = "pending" | "blocked" | "running" | "review" | "done" | "error";
+export type TaskState =
+  | "pending"
+  | "blocked"
+  | "running"
+  | "review"
+  | "done"
+  | "error";
 
 export interface Task {
   id: string;
@@ -29,7 +35,12 @@ export class TaskManager {
   }
 
   /** Create a new task, auto-determining if it's blocked */
-  add(id: string, description: string, assignedTo: string, blockedBy: string[] = []): Task {
+  add(
+    id: string,
+    description: string,
+    assignedTo: string,
+    blockedBy: string[] = [],
+  ): Task {
     const now = new Date().toISOString();
     const hasUnresolved = blockedBy.some((depId) => {
       const dep = this.tasks.get(depId);
@@ -169,5 +180,8 @@ function extractField(payload: string, field: string): string | undefined {
 function extractList(payload: string, field: string): string[] {
   const match = payload.match(new RegExp(`${field}:\\s*\\[([^\\]]+)\\]`));
   if (!match) return [];
-  return match[1].split(",").map((s) => s.trim().replace(/"/g, "")).filter(Boolean);
+  return match[1]
+    .split(",")
+    .map((s) => s.trim().replace(/"/g, ""))
+    .filter(Boolean);
 }

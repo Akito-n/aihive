@@ -1,6 +1,9 @@
-import React, { useState } from "react";
 import { Box, Text, useInput } from "ink";
-import type { QuickCommandCategory, QuickCommand } from "../lib/quick-commands.js";
+import { useState } from "react";
+import type {
+  QuickCommand,
+  QuickCommandCategory,
+} from "../lib/quick-commands.js";
 
 interface QuickCommandMenuProps {
   categories: QuickCommandCategory[];
@@ -37,7 +40,9 @@ export function QuickCommandMenu({
         return;
       }
       if (key.downArrow || input === "j") {
-        setSelectedCategory((prev) => Math.min(categories.length - 1, prev + 1));
+        setSelectedCategory((prev) =>
+          Math.min(categories.length - 1, prev + 1),
+        );
         return;
       }
       if (key.return) {
@@ -77,8 +82,12 @@ export function QuickCommandMenu({
         paddingX={2}
         paddingY={1}
       >
-        <Text bold color="yellow">Quick Commands</Text>
-        <Text dimColor>No commands found. Add .yml files to .aihive/commands/</Text>
+        <Text bold color="yellow">
+          Quick Commands
+        </Text>
+        <Text dimColor>
+          No commands found. Add .yml files to .aihive/commands/
+        </Text>
         <Text dimColor>Esc to close</Text>
       </Box>
     );
@@ -95,7 +104,9 @@ export function QuickCommandMenu({
           width="100%"
         >
           <Box marginBottom={1}>
-            <Text bold color="yellow">Quick Commands</Text>
+            <Text bold color="yellow">
+              Quick Commands
+            </Text>
           </Box>
           {categories.map((cat, i) => {
             const isSelected = i === selectedCategory;
@@ -105,14 +116,15 @@ export function QuickCommandMenu({
                   color={isSelected ? "yellow" : undefined}
                   bold={isSelected}
                 >
-                  {isSelected ? "▶ " : "  "}{cat.name}
+                  {isSelected ? "▶ " : "  "}
+                  {cat.name}
                 </Text>
                 <Text dimColor> ({cat.commands.length})</Text>
               </Box>
             );
           })}
           <Box marginTop={1}>
-            <Text dimColor>↑↓ select  Enter open  Esc close</Text>
+            <Text dimColor>↑↓ select Enter open Esc close</Text>
           </Box>
         </Box>
       ) : (
@@ -124,7 +136,9 @@ export function QuickCommandMenu({
           width="100%"
         >
           <Box marginBottom={1}>
-            <Text bold color="cyan">{currentCategory?.name ?? ""}</Text>
+            <Text bold color="cyan">
+              {currentCategory?.name ?? ""}
+            </Text>
           </Box>
           {commands.map((cmd, i) => {
             const isSelected = i === selectedCommand;
@@ -135,7 +149,8 @@ export function QuickCommandMenu({
                     color={isSelected ? "cyan" : undefined}
                     bold={isSelected}
                   >
-                    {isSelected ? "▶ " : "  "}{cmd.name}
+                    {isSelected ? "▶ " : "  "}
+                    {cmd.name}
                   </Text>
                 </Box>
                 {isSelected && cmd.description && (
@@ -147,7 +162,7 @@ export function QuickCommandMenu({
             );
           })}
           <Box marginTop={1}>
-            <Text dimColor>↑↓ select  Enter cast  Esc back</Text>
+            <Text dimColor>↑↓ select Enter cast Esc back</Text>
           </Box>
         </Box>
       )}
