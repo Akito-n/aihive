@@ -1,5 +1,6 @@
 import { Box, Text } from "ink";
 import { useEffect, useState } from "react";
+import { VERSION } from "../lib/version.js";
 
 interface StartupScreenProps {
   onComplete: () => void;
@@ -122,7 +123,7 @@ export function StartupScreen({ onComplete }: StartupScreenProps) {
       )}
 
       {/* Version */}
-      <Text dimColor>v0.1.0</Text>
+      <Text dimColor>v{VERSION}</Text>
 
       {/* Progress steps */}
       <Box flexDirection="column" marginTop={1} paddingX={6}>

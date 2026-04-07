@@ -1,6 +1,7 @@
 import { Box, Text } from "ink";
 import { t } from "../lib/i18n.js";
 import type { AgentInfo } from "../lib/tmux.js";
+import { VERSION } from "../lib/version.js";
 
 type AppState = "idle" | "settings" | "starting" | "running" | "stopping";
 
@@ -50,7 +51,7 @@ export function Header({
           {"🐝 aihive"}
         </Text>
         <Text> </Text>
-        <Text dimColor>v0.1.0</Text>
+        <Text dimColor>v{VERSION}</Text>
         <Text> </Text>
         <Text bold color={status.color}>
           [{t(status.labelKey)}]
