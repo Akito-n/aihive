@@ -1,6 +1,7 @@
 import { Box, Text, useInput } from "ink";
 import { useState } from "react";
 import { t } from "../lib/i18n.js";
+import { VERSION } from "../lib/version.js";
 import type { TransKey } from "../locales/en.js";
 
 interface MenuItem {
@@ -90,6 +91,7 @@ export function MainMenu({ onSelect, agents, roleCounts = {} }: MainMenuProps) {
             </Text>
           ))}
         </Box>
+        <Text dimColor>v{VERSION}</Text>
         <Box marginTop={1}>
           <Text color="yellow" bold>
             {t("mainMenu.tagline")}
@@ -98,7 +100,7 @@ export function MainMenu({ onSelect, agents, roleCounts = {} }: MainMenuProps) {
       </Box>
 
       <Text dimColor>
-        v0.1.0 | Agents: {agents}
+        Agents: {agents}
         {Object.keys(roleCounts).length > 0 &&
           ` (${Object.entries(roleCounts)
             .map(
