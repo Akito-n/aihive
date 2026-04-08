@@ -171,13 +171,13 @@ export class TaskManager {
 // ─── Helpers ─────────────────────────────────────────────────────────
 
 /** Extract a simple field value from payload text */
-function extractField(payload: string, field: string): string | undefined {
+export function extractField(payload: string, field: string): string | undefined {
   const match = payload.match(new RegExp(`${field}:\\s*"?([^"\\n]+)"?`));
   return match?.[1]?.trim();
 }
 
 /** Extract a list field from payload text (e.g., blocked_by: [id1, id2]) */
-function extractList(payload: string, field: string): string[] {
+export function extractList(payload: string, field: string): string[] {
   const match = payload.match(new RegExp(`${field}:\\s*\\[([^\\]]+)\\]`));
   if (!match) return [];
   return match[1]
