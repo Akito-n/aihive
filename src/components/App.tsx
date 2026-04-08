@@ -240,7 +240,9 @@ export function App() {
 
     addLog("Starting tmux session...");
     try {
-      startSession(config, stdout?.columns ?? 200, stdout?.rows ?? 50);
+      // Subtract Dashboard(34) + margin(1) + border(2) + paddingX(2) + outer padding(2) = ~41
+      const paneWidth = Math.max(80, (stdout?.columns ?? 200) - 41);
+      startSession(config, paneWidth, stdout?.rows ?? 50);
       addLog(`All ${config.agents.length} agents started`);
       setState("running");
     } catch (e) {

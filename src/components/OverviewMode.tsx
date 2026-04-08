@@ -1,8 +1,8 @@
 import { Box, Text, useStdout } from "ink";
 import React, { useEffect, useRef, useState } from "react";
-import { parseAnsi, stripAnsi } from "../lib/ansi.js";
+import { parseAnsi } from "../lib/ansi.js";
 import type { AgentInfo } from "../lib/tmux.js";
-import { capturePane, resizePane } from "../lib/tmux.js";
+import { capturePane } from "../lib/tmux.js";
 
 const ROLE_COLOR: Record<string, string> = {
   orchestrator: "magenta",
@@ -51,13 +51,6 @@ export function OverviewMode({
 
   const totalWidth = stdout?.columns ?? 120;
   const paneWidth = Math.max(30, Math.floor((totalWidth - 4) / COLS) - 2);
-
-  // Resize all panes to fit
-  useEffect(() => {
-    for (const agent of agents) {
-      resizePane(sessionName, agent.paneTarget, paneWidth);
-    }
-  }, [sessionName, agents, paneWidth]);
 
   // Capture all panes periodically
   useEffect(() => {
@@ -124,16 +117,14 @@ export function OverviewMode({
                 </Box>
                 <Box paddingX={1} flexDirection="column">
                   {lines.length > 0 ? (
-                    lines.map((line) => {
-                      const lineKey = `${pane.agent.name}-${stripAnsi(line).slice(0, 30)}`;
-                      const spans = parseAnsi(line.slice(0, paneWidth * 3));
+                    lines.map((line, lineIdx) => {
+                      const spans = parseAnsi(line);
                       return (
-                        <Box key={lineKey}>
+                        <Box key={`${pane.agent.name}-${lineIdx}`}>
                           <Text wrap="truncate">
-                            {spans.map((span) => {
-                              const spanKey = `${span.text.slice(0, 15)}-${span.fg ?? ""}`;
+                            {spans.map((span, spanIdx) => {
                               const props: Record<string, unknown> = {
-                                key: spanKey,
+                                key: `${lineIdx}-${spanIdx}`,
                               };
                               if (span.fg) props.color = span.fg;
                               if (span.bg) props.backgroundColor = span.bg;

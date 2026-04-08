@@ -17,7 +17,7 @@ interface CommandInputProps {
 const PLACEHOLDER = "Send a message...";
 
 // Get display width of a string (CJK chars = 2, others = 1)
-function displayWidth(str: string): number {
+export function displayWidth(str: string): number {
   let w = 0;
   for (const ch of str) {
     const code = ch.codePointAt(0) ?? 0;
@@ -37,7 +37,7 @@ function displayWidth(str: string): number {
 }
 
 // Slice string by display width
-function sliceByWidth(str: string, maxWidth: number): string {
+export function sliceByWidth(str: string, maxWidth: number): string {
   let w = 0;
   let i = 0;
   for (const ch of str) {
@@ -67,21 +67,21 @@ const QUICK_KEYS = [
 
 const MAX_VISIBLE_COMMANDS = 8;
 
-const BURST_THRESHOLD = 5;
+const BURST_THRESHOLD = 60;
 const BURST_WINDOW_MS = 50;
 
 // Paste range in the real value string
-interface PasteRange {
+export interface PasteRange {
   start: number;
   end: number; // exclusive
 }
 
-function pasteAlias(charCount: number): string {
+export function pasteAlias(charCount: number): string {
   return `[${charCount} chars pasted]`;
 }
 
 // Build the display string from real value + paste range
-function buildDisplay(value: string, paste: PasteRange | null): string {
+export function buildDisplay(value: string, paste: PasteRange | null): string {
   if (!paste) return value;
   const before = value.slice(0, paste.start);
   const alias = pasteAlias(paste.end - paste.start);
@@ -90,7 +90,7 @@ function buildDisplay(value: string, paste: PasteRange | null): string {
 }
 
 // Convert display cursor position to real value cursor position
-function displayToReal(
+export function displayToReal(
   dCursor: number,
   _value: string,
   paste: PasteRange | null,
@@ -113,7 +113,7 @@ function displayToReal(
 }
 
 // Convert real cursor to display cursor
-function realToDisplay(
+export function realToDisplay(
   rCursor: number,
   _value: string,
   paste: PasteRange | null,
