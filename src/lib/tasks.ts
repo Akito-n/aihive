@@ -171,7 +171,10 @@ export class TaskManager {
 // ─── Helpers ─────────────────────────────────────────────────────────
 
 /** Extract a simple field value from payload text */
-export function extractField(payload: string, field: string): string | undefined {
+export function extractField(
+  payload: string,
+  field: string,
+): string | undefined {
   const match = payload.match(new RegExp(`${field}:\\s*"?([^"\\n]+)"?`));
   return match?.[1]?.trim();
 }

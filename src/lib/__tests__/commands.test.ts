@@ -86,8 +86,7 @@ describe("loadSlashCommands()", () => {
 
   it("sorts commands alphabetically by name", () => {
     vi.mocked(readdirSync).mockImplementation((p) => {
-      if (String(p).includes("home"))
-        return ["z-cmd.md", "a-cmd.md"] as never;
+      if (String(p).includes("home")) return ["z-cmd.md", "a-cmd.md"] as never;
       throw new Error("ENOENT");
     });
     vi.mocked(readFileSync).mockReturnValue("# Heading");

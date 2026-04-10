@@ -47,10 +47,22 @@ describe("MemoryManager", () => {
 
     it("既存IDの場合 updated_at を更新し created_at は変えない", () => {
       const originalTime = "2024-01-01T00:00:00.000Z";
-      mm.write(makeEntry({ id: "e1", created_at: originalTime, updated_at: originalTime }));
+      mm.write(
+        makeEntry({
+          id: "e1",
+          created_at: originalTime,
+          updated_at: originalTime,
+        }),
+      );
 
       const before = Date.now();
-      mm.write(makeEntry({ id: "e1", created_at: originalTime, updated_at: originalTime }));
+      mm.write(
+        makeEntry({
+          id: "e1",
+          created_at: originalTime,
+          updated_at: originalTime,
+        }),
+      );
       const after = Date.now();
 
       const stored = mm.read("e1")!;
@@ -63,7 +75,9 @@ describe("MemoryManager", () => {
 
   describe("search()", () => {
     it("keyのマッチでエントリを返す", () => {
-      mm.write(makeEntry({ id: "e1", key: "database-url", value: "postgres://..." }));
+      mm.write(
+        makeEntry({ id: "e1", key: "database-url", value: "postgres://..." }),
+      );
       mm.write(makeEntry({ id: "e2", key: "api-key", value: "secret" }));
       const results = mm.search("database");
       expect(results).toHaveLength(1);
@@ -71,18 +85,31 @@ describe("MemoryManager", () => {
     });
 
     it("valueのマッチでエントリを返す", () => {
-      mm.write(makeEntry({ id: "e1", key: "k1", value: "important configuration" }));
+      mm.write(
+        makeEntry({ id: "e1", key: "k1", value: "important configuration" }),
+      );
       expect(mm.search("important")).toHaveLength(1);
     });
 
     it("tagsのマッチでエントリを返す", () => {
-      mm.write(makeEntry({ id: "e1", key: "k1", value: "v1", tags: ["production", "critical"] }));
+      mm.write(
+        makeEntry({
+          id: "e1",
+          key: "k1",
+          value: "v1",
+          tags: ["production", "critical"],
+        }),
+      );
       expect(mm.search("production")).toHaveLength(1);
     });
 
     it("agentSlug指定時、他エージェントのエントリを除外する", () => {
-      mm.write(makeEntry({ id: "e1", key: "k1", value: "v", created_by: "agent-1" }));
-      mm.write(makeEntry({ id: "e2", key: "k2", value: "v", created_by: "agent-2" }));
+      mm.write(
+        makeEntry({ id: "e1", key: "k1", value: "v", created_by: "agent-1" }),
+      );
+      mm.write(
+        makeEntry({ id: "e2", key: "k2", value: "v", created_by: "agent-2" }),
+      );
       const ids = mm.search("v", "agent-1").map((e) => e.id);
       expect(ids).toContain("e1");
       expect(ids).not.toContain("e2");
@@ -90,9 +117,25 @@ describe("MemoryManager", () => {
 
     it('"shared"スコープのエントリはagentSlug指定時も表示される', () => {
       // created_by: 'shared' → getEntryScope returns 'shared'
-      mm.write(makeEntry({ id: "s1", key: "common", value: "v", created_by: "shared" }));
-      mm.write(makeEntry({ id: "o1", key: "own", value: "v", created_by: "agent-1" }));
-      mm.write(makeEntry({ id: "x1", key: "other", value: "v", created_by: "agent-2" }));
+      mm.write(
+        makeEntry({
+          id: "s1",
+          key: "common",
+          value: "v",
+          created_by: "shared",
+        }),
+      );
+      mm.write(
+        makeEntry({ id: "o1", key: "own", value: "v", created_by: "agent-1" }),
+      );
+      mm.write(
+        makeEntry({
+          id: "x1",
+          key: "other",
+          value: "v",
+          created_by: "agent-2",
+        }),
+      );
       const ids = mm.search("v", "agent-1").map((e) => e.id);
       expect(ids).toContain("s1");
       expect(ids).toContain("o1");
@@ -102,7 +145,9 @@ describe("MemoryManager", () => {
 
   describe("save() via write()", () => {
     it('"shared"タグ付きエントリを shared/ にも保存する', () => {
-      mm.write(makeEntry({ id: "se1", created_by: "agent-1", tags: ["shared"] }));
+      mm.write(
+        makeEntry({ id: "se1", created_by: "agent-1", tags: ["shared"] }),
+      );
       const paths = mockFs.writeFileSync.mock.calls.map((c) => c[0] as string);
       expect(paths.some((p) => p.includes("/agent-1/"))).toBe(true);
       expect(paths.some((p) => p.includes("/shared/"))).toBe(true);
@@ -118,7 +163,11 @@ describe("MemoryManager", () => {
 
   describe("loadAll() via init()", () => {
     it("サブディレクトリを再帰的に走査してエントリを読み込む", () => {
-      const entry = makeEntry({ id: "loaded-1", key: "loaded-key", value: "loaded-value" });
+      const entry = makeEntry({
+        id: "loaded-1",
+        key: "loaded-key",
+        value: "loaded-value",
+      });
       mockFs.existsSync.mockReturnValue(true);
       mockFs.readdirSync
         .mockReturnValueOnce(["agent-1"] as unknown as string[])
@@ -130,8 +179,16 @@ describe("MemoryManager", () => {
     });
 
     it("重複IDの場合は後から読んだエントリが勝つ", () => {
-      const first = makeEntry({ id: "dup", value: "first", created_by: "alpha" });
-      const second = makeEntry({ id: "dup", value: "second", created_by: "beta" });
+      const first = makeEntry({
+        id: "dup",
+        value: "first",
+        created_by: "alpha",
+      });
+      const second = makeEntry({
+        id: "dup",
+        value: "second",
+        created_by: "beta",
+      });
 
       mockFs.existsSync.mockReturnValue(true);
       mockFs.readdirSync

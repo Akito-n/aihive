@@ -12,14 +12,20 @@ vi.mock("node:fs", () => {
   return { default: m, ...m };
 });
 
-import { mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
+import type { QuickCommand } from "../quick-commands.js";
 import {
   deleteQuickCommand,
   groupByCategory,
   loadQuickCommands,
   saveQuickCommand,
 } from "../quick-commands.js";
-import type { QuickCommand } from "../quick-commands.js";
 
 beforeEach(() => {
   vi.mocked(mkdirSync).mockClear();
@@ -45,7 +51,12 @@ describe("loadQuickCommands()", () => {
   });
 
   it("parses a valid command file", () => {
-    const data = { name: "my-cmd", category: "general", description: "desc", prompt: "do it" };
+    const data = {
+      name: "my-cmd",
+      category: "general",
+      description: "desc",
+      prompt: "do it",
+    };
     vi.mocked(readdirSync).mockReturnValue(["my-cmd.yml"] as never);
     vi.mocked(readFileSync).mockReturnValue(stringify(data) as never);
 
@@ -98,7 +109,9 @@ describe("loadQuickCommands()", () => {
 
     vi.mocked(readdirSync).mockReturnValue(files as never);
     let callCount = 0;
-    vi.mocked(readFileSync).mockImplementation(() => contents[callCount++] as never);
+    vi.mocked(readFileSync).mockImplementation(
+      () => contents[callCount++] as never,
+    );
 
     const result = loadQuickCommands("/project");
     // alpha/a-cmd → alpha/b-cmd → beta/z-cmd
@@ -124,14 +137,24 @@ describe("saveQuickCommand()", () => {
   });
 
   it("slugifies the name to build the filename (spaces → hyphens)", () => {
-    const cmd: QuickCommand = { name: "My Command", category: "g", description: "", prompt: "p" };
+    const cmd: QuickCommand = {
+      name: "My Command",
+      category: "g",
+      description: "",
+      prompt: "p",
+    };
     saveQuickCommand("/project", cmd);
     const [filePath] = vi.mocked(writeFileSync).mock.calls[0];
     expect(String(filePath)).toContain("my-command.yml");
   });
 
   it("strips special characters from filename", () => {
-    const cmd: QuickCommand = { name: "Test (Special)!", category: "g", description: "", prompt: "p" };
+    const cmd: QuickCommand = {
+      name: "Test (Special)!",
+      category: "g",
+      description: "",
+      prompt: "p",
+    };
     saveQuickCommand("/project", cmd);
     const [filePath] = vi.mocked(writeFileSync).mock.calls[0];
     // Only alphanumeric and hyphens remain
@@ -169,11 +192,7 @@ describe("groupByCategory()", () => {
   });
 
   it("groups commands by category", () => {
-    const commands = [
-      cmd("a", "alpha"),
-      cmd("b", "beta"),
-      cmd("c", "alpha"),
-    ];
+    const commands = [cmd("a", "alpha"), cmd("b", "beta"), cmd("c", "alpha")];
     const result = groupByCategory(commands);
     expect(result).toHaveLength(2);
     const alpha = result.find((g) => g.name === "alpha");

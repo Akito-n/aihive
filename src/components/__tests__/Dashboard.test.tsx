@@ -1,9 +1,8 @@
 import { render } from "ink-testing-library";
-import React from "react";
-import { beforeEach, describe, expect, it } from "vitest";
-import { Dashboard } from "../Dashboard.js";
-import type { AgentInfo } from "../../lib/tmux.js";
+import { describe, expect, it } from "vitest";
 import type { Task } from "../../lib/tasks.js";
+import type { AgentInfo } from "../../lib/tmux.js";
+import { Dashboard } from "../Dashboard.js";
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 
@@ -245,7 +244,9 @@ describe("Dashboard model display", () => {
   });
 
   it("does not show cli prefix when cli is 'claude'", () => {
-    const agents = [makeAgent({ cli: "claude", model: "sonnet", name: "Claude" })];
+    const agents = [
+      makeAgent({ cli: "claude", model: "sonnet", name: "Claude" }),
+    ];
     const { lastFrame } = render(
       <Dashboard agents={agents} selectedIndex={0} />,
     );

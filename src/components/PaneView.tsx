@@ -104,7 +104,9 @@ export function PaneView({
               <Box key={`${paneTarget}-${lineIdx}`}>
                 <Text wrap="truncate">
                   {spans.map((span, spanIdx) => {
-                    const props: Record<string, unknown> = { key: `${lineIdx}-${spanIdx}` };
+                    const props: Record<string, unknown> = {
+                      key: `${lineIdx}-${spanIdx}`,
+                    };
                     if (span.fg) props.color = span.fg;
                     if (span.bg) props.backgroundColor = span.bg;
                     if (span.bold) props.bold = true;

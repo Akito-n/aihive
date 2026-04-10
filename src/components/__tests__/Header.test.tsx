@@ -1,9 +1,8 @@
 import { render } from "ink-testing-library";
-import React from "react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { setLocale } from "../../lib/i18n.js";
-import { Header } from "../Header.js";
 import type { AgentInfo } from "../../lib/tmux.js";
+import { Header } from "../Header.js";
 
 // Use English locale for predictable assertions
 beforeEach(() => {
@@ -31,9 +30,7 @@ describe("Header modelCounts", () => {
       makeAgent({ model: "sonnet" }),
       makeAgent({ model: "sonnet", name: "Worker 2" }),
     ];
-    const { lastFrame } = render(
-      <Header state="running" agents={agents} />,
-    );
+    const { lastFrame } = render(<Header state="running" agents={agents} />);
     expect(lastFrame()).toContain("2x sonnet");
   });
 
@@ -43,9 +40,7 @@ describe("Header modelCounts", () => {
       makeAgent({ model: "sonnet", name: "Worker 2" }),
       makeAgent({ model: "opus", name: "Boss", role: "orchestrator" }),
     ];
-    const { lastFrame } = render(
-      <Header state="running" agents={agents} />,
-    );
+    const { lastFrame } = render(<Header state="running" agents={agents} />);
     const frame = lastFrame() ?? "";
     expect(frame).toContain("2x sonnet");
     expect(frame).toContain("1x opus");
@@ -55,17 +50,13 @@ describe("Header modelCounts", () => {
     const agents = [
       makeAgent({ cli: "codex", model: "o3", name: "Codex Agent" }),
     ];
-    const { lastFrame } = render(
-      <Header state="running" agents={agents} />,
-    );
+    const { lastFrame } = render(<Header state="running" agents={agents} />);
     expect(lastFrame()).toContain("codex:o3");
   });
 
   it("does not add cli prefix for claude CLI", () => {
     const agents = [makeAgent({ cli: "claude", model: "sonnet" })];
-    const { lastFrame } = render(
-      <Header state="running" agents={agents} />,
-    );
+    const { lastFrame } = render(<Header state="running" agents={agents} />);
     const frame = lastFrame() ?? "";
     expect(frame).toContain("1x sonnet");
     expect(frame).not.toContain("claude:sonnet");
@@ -73,9 +64,7 @@ describe("Header modelCounts", () => {
 
   it("shows 'default' when model is undefined", () => {
     const agents = [makeAgent({ model: undefined })];
-    const { lastFrame } = render(
-      <Header state="running" agents={agents} />,
-    );
+    const { lastFrame } = render(<Header state="running" agents={agents} />);
     expect(lastFrame()).toContain("1x default");
   });
 });
@@ -110,9 +99,7 @@ describe("Header state label", () => {
 describe("Header agent count", () => {
   it("shows correct agent count", () => {
     const agents = [makeAgent(), makeAgent({ name: "Worker 2" })];
-    const { lastFrame } = render(
-      <Header state="running" agents={agents} />,
-    );
+    const { lastFrame } = render(<Header state="running" agents={agents} />);
     // "Agents: 2"
     expect(lastFrame()).toContain("Agents");
     expect(lastFrame()).toContain("2");
@@ -188,18 +175,14 @@ describe("Header conditional sections", () => {
 describe("Header modelSummary format", () => {
   it("wraps summary in parentheses", () => {
     const agents = [makeAgent({ model: "sonnet" })];
-    const { lastFrame } = render(
-      <Header state="running" agents={agents} />,
-    );
+    const { lastFrame } = render(<Header state="running" agents={agents} />);
     // Should appear as "(1x sonnet)"
     expect(lastFrame()).toContain("(1x sonnet)");
   });
 
   it("shows no parentheses when agents have no model info", () => {
     // agents array is empty → no modelSummary
-    const { lastFrame } = render(
-      <Header state="running" agents={[]} />,
-    );
+    const { lastFrame } = render(<Header state="running" agents={[]} />);
     expect(lastFrame()).not.toContain("(");
   });
 
@@ -208,9 +191,7 @@ describe("Header modelSummary format", () => {
       makeAgent({ model: "sonnet" }),
       makeAgent({ cli: "codex", model: "o3", name: "Codex" }),
     ];
-    const { lastFrame } = render(
-      <Header state="running" agents={agents} />,
-    );
+    const { lastFrame } = render(<Header state="running" agents={agents} />);
     const frame = lastFrame() ?? "";
     expect(frame).toContain("1x sonnet");
     expect(frame).toContain("1x codex:o3");

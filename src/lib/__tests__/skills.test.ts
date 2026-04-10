@@ -155,7 +155,11 @@ describe("SkillManager.findByTrigger()", () => {
   it("matches on description field", () => {
     const sm = makeSm();
     sm.propose(
-      makeSkill({ id: "s1", description: "helps with code review", trigger: "x" }),
+      makeSkill({
+        id: "s1",
+        description: "helps with code review",
+        trigger: "x",
+      }),
     );
     sm.approve("s1", "reviewer");
     expect(sm.findByTrigger("code review")).toHaveLength(1);

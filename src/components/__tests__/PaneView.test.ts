@@ -26,11 +26,7 @@ describe("detectPrompt()", () => {
   it("extracts numbered options", () => {
     const text = "  › 1. Yes\n  › 2. Yes, allow all\n  › 3. No";
     const result = detectPrompt(text);
-    expect(result.options).toEqual([
-      "1. Yes",
-      "2. Yes, allow all",
-      "3. No",
-    ]);
+    expect(result.options).toEqual(["1. Yes", "2. Yes, allow all", "3. No"]);
   });
 
   it("detects > 1. Yes style prompt (angle bracket)", () => {
@@ -91,11 +87,9 @@ describe("detectPrompt()", () => {
   // ─── Mixed patterns ───────────────────────────────────────────────────
 
   it("handles mixed prompt text with numbered options and Esc to cancel", () => {
-    const text = [
-      "  › 1. Yes",
-      "  › 2. No, skip",
-      "  Esc to cancel",
-    ].join("\n");
+    const text = ["  › 1. Yes", "  › 2. No, skip", "  Esc to cancel"].join(
+      "\n",
+    );
     const result = detectPrompt(text);
     expect(result.detected).toBe(true);
     expect(result.options).toEqual(["1. Yes", "2. No, skip"]);

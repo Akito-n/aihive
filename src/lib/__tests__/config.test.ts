@@ -13,6 +13,7 @@ vi.mock("node:fs", () => ({
 }));
 
 import fs from "node:fs";
+import type { AgentConfig } from "../config.js";
 import {
   defaultModelForRole,
   getPaneTarget,
@@ -20,7 +21,6 @@ import {
   resolveWindowLayout,
   saveConfig,
 } from "../config.js";
-import type { AgentConfig } from "../config.js";
 
 function makeAgent(
   overrides: Partial<AgentConfig> & { role: string; name: string },
@@ -49,7 +49,9 @@ describe("resolveWindowLayout", () => {
   });
 
   it("single worker gets pane=undefined", () => {
-    const [a] = resolveWindowLayout([makeAgent({ name: "W1", role: "worker" })]);
+    const [a] = resolveWindowLayout([
+      makeAgent({ name: "W1", role: "worker" }),
+    ]);
     expect(a.window).toBe("workers");
     expect(a.pane).toBeUndefined();
   });
@@ -64,9 +66,7 @@ describe("resolveWindowLayout", () => {
   });
 
   it("single custom role agent gets pane=undefined", () => {
-    const [a] = resolveWindowLayout([
-      makeAgent({ name: "C1", role: "coder" }),
-    ]);
+    const [a] = resolveWindowLayout([makeAgent({ name: "C1", role: "coder" })]);
     expect(a.window).toBe("coder");
     expect(a.pane).toBeUndefined();
   });
@@ -88,17 +88,31 @@ describe("defaultModelForRole", () => {
 
 describe("getPaneTarget", () => {
   it("returns 'windowName.pane' when pane is set", () => {
-    const agent = makeAgent({ name: "W", role: "worker", window: "workers", pane: 2 });
+    const agent = makeAgent({
+      name: "W",
+      role: "worker",
+      window: "workers",
+      pane: 2,
+    });
     expect(getPaneTarget(agent)).toBe("workers.2");
   });
 
   it("returns 'windowName' when pane is undefined", () => {
-    const agent = makeAgent({ name: "O", role: "orchestrator", window: "orchestrator" });
+    const agent = makeAgent({
+      name: "O",
+      role: "orchestrator",
+      window: "orchestrator",
+    });
     expect(getPaneTarget(agent)).toBe("orchestrator");
   });
 
   it("returns 'windowName' when pane is null-ish (pane=0 still includes pane)", () => {
-    const agent = makeAgent({ name: "W", role: "worker", window: "workers", pane: 0 });
+    const agent = makeAgent({
+      name: "W",
+      role: "worker",
+      window: "workers",
+      pane: 0,
+    });
     expect(getPaneTarget(agent)).toBe("workers.0");
   });
 });
@@ -153,7 +167,13 @@ describe("saveConfig", () => {
     saveConfig({
       session: "aihive",
       agents: [
-        makeAgent({ name: "W", role: "worker", window: "workers", cli: "claude", model: "sonnet" }),
+        makeAgent({
+          name: "W",
+          role: "worker",
+          window: "workers",
+          cli: "claude",
+          model: "sonnet",
+        }),
       ],
     });
     const written = vi.mocked(fs.writeFileSync).mock.calls[0][1] as string;
@@ -165,7 +185,13 @@ describe("saveConfig", () => {
     saveConfig({
       session: "aihive",
       agents: [
-        makeAgent({ name: "W", role: "worker", window: "workers", cli: "codex", model: "o3" }),
+        makeAgent({
+          name: "W",
+          role: "worker",
+          window: "workers",
+          cli: "codex",
+          model: "o3",
+        }),
       ],
     });
     const written = vi.mocked(fs.writeFileSync).mock.calls[0][1] as string;

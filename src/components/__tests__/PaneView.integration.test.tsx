@@ -1,4 +1,3 @@
-import React from "react";
 import { render } from "ink-testing-library";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PaneView } from "../PaneView.js";
@@ -59,7 +58,10 @@ describe("PaneView (integration)", () => {
     );
 
     // 初回: plain text は変化あり → onPromptChange 呼ばれる (detected: false)
-    expect(onPromptChange).toHaveBeenCalledWith({ detected: false, options: [] });
+    expect(onPromptChange).toHaveBeenCalledWith({
+      detected: false,
+      options: [],
+    });
 
     vi.advanceTimersByTime(1000);
 

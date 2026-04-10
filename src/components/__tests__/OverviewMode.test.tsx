@@ -1,13 +1,16 @@
-import React from "react";
 import { render } from "ink-testing-library";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { OverviewMode } from "../OverviewMode.js";
 import type { AgentInfo } from "../../lib/tmux.js";
+import { OverviewMode } from "../OverviewMode.js";
 
 const mockCapturePane = vi.hoisted(() => vi.fn());
 vi.mock("../../lib/tmux.js", () => ({ capturePane: mockCapturePane }));
 
-function makeAgent(name: string, paneTarget: string, role = "worker"): AgentInfo {
+function makeAgent(
+  name: string,
+  paneTarget: string,
+  role = "worker",
+): AgentInfo {
   return { name, role, status: "running", paneTarget };
 }
 
@@ -20,7 +23,7 @@ describe("paneWidth 計算", () => {
 
   it("Math.max(30, floor((columns - 4) / 3) - 2) が正しい", () => {
     expect(computePaneWidth(120)).toBe(36); // floor(116/3)-2 = 38-2 = 36
-    expect(computePaneWidth(80)).toBe(30);  // floor(76/3)-2 = 25-2 = 23 → max(30,23)=30
+    expect(computePaneWidth(80)).toBe(30); // floor(76/3)-2 = 25-2 = 23 → max(30,23)=30
     expect(computePaneWidth(100)).toBe(30); // floor(96/3)-2 = 32-2 = 30 → max(30,30)=30
     expect(computePaneWidth(200)).toBe(63); // floor(196/3)-2 = 65-2 = 63
   });
@@ -43,16 +46,16 @@ describe("ROLE_COLOR フォールバック", () => {
   };
 
   it("既知の role は正しい色を返す", () => {
-    expect(ROLE_COLOR["orchestrator"] ?? "white").toBe("magenta");
-    expect(ROLE_COLOR["coordinator"] ?? "white").toBe("blue");
-    expect(ROLE_COLOR["worker"] ?? "white").toBe("yellow");
-    expect(ROLE_COLOR["reviewer"] ?? "white").toBe("green");
-    expect(ROLE_COLOR["scout"] ?? "white").toBe("cyan");
+    expect(ROLE_COLOR.orchestrator ?? "white").toBe("magenta");
+    expect(ROLE_COLOR.coordinator ?? "white").toBe("blue");
+    expect(ROLE_COLOR.worker ?? "white").toBe("yellow");
+    expect(ROLE_COLOR.reviewer ?? "white").toBe("green");
+    expect(ROLE_COLOR.scout ?? "white").toBe("cyan");
   });
 
   it("未知の role は 'white' にフォールバックする", () => {
     expect(ROLE_COLOR["unknown-role"] ?? "white").toBe("white");
-    expect(ROLE_COLOR["custom"] ?? "white").toBe("white");
+    expect(ROLE_COLOR.custom ?? "white").toBe("white");
     expect(ROLE_COLOR[""] ?? "white").toBe("white");
   });
 });
@@ -108,10 +111,7 @@ describe("OverviewMode (integration)", () => {
   });
 
   it("capturePane が各エージェントに対して呼ばれる", () => {
-    const agents = [
-      makeAgent("agent-1", "p1"),
-      makeAgent("agent-2", "p2"),
-    ];
+    const agents = [makeAgent("agent-1", "p1"), makeAgent("agent-2", "p2")];
     render(<OverviewMode sessionName="test-session" agents={agents} />);
 
     expect(mockCapturePane).toHaveBeenCalledWith("test-session", "p1", 12);

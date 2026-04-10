@@ -49,9 +49,19 @@ const mocks = vi.hoisted(() => {
 
   return {
     capturedMsgHandlerRef,
-    tmOnChange, tmHandleMessage, tmGetAll, tmClear,
-    smInit, smPropose, smApprove, smReject, smGetCounts,
-    mmInit, mmWrite, mmSearch, mmGetCount,
+    tmOnChange,
+    tmHandleMessage,
+    tmGetAll,
+    tmClear,
+    smInit,
+    smPropose,
+    smApprove,
+    smReject,
+    smGetCounts,
+    mmInit,
+    mmWrite,
+    mmSearch,
+    mmGetCount,
     mockBus,
     initWorkspaceMock,
     sessionExistsMock,
@@ -265,11 +275,11 @@ describe("App - message handlers", () => {
     mocks.tmHandleMessage.mockReset();
     mocks.smPropose.mockReset();
     mocks.mmWrite.mockReset();
-    mocks.mockBus.onMessage.mockReset().mockImplementation(
-      (h: (msg: unknown) => void) => {
+    mocks.mockBus.onMessage
+      .mockReset()
+      .mockImplementation((h: (msg: unknown) => void) => {
         mocks.capturedMsgHandlerRef.value = h;
-      },
-    );
+      });
     await advanceToRunningState();
   });
 

@@ -65,7 +65,9 @@ describe("MessageBus", () => {
         return !(p as string).includes("outbox");
       }) as () => boolean);
 
-      expect(() => bus.send("coordinator", "worker-1", "task", "payload")).not.toThrow();
+      expect(() =>
+        bus.send("coordinator", "worker-1", "task", "payload"),
+      ).not.toThrow();
       const paths = mockFs.writeFileSync.mock.calls.map((c) => c[0] as string);
       expect(paths.some((p) => p.includes("/coordinator/outbox/"))).toBe(false);
       expect(paths.some((p) => p.includes("/worker-1/inbox/"))).toBe(true);
@@ -77,12 +79,25 @@ describe("MessageBus", () => {
       const handler = vi.fn();
       bus.onMessage(handler);
 
-      const msg: Message = { id: "m1", from: "a", to: "b", type: "info", payload: "p", timestamp: "t" };
+      const msg: Message = {
+        id: "m1",
+        from: "a",
+        to: "b",
+        type: "info",
+        payload: "p",
+        timestamp: "t",
+      };
       mockFs.existsSync.mockReturnValue(true);
       mockFs.readFileSync.mockReturnValue(stringify(msg));
 
-      (bus as unknown as Record<string, Function>).processNewFile("worker-1", "m1.yaml");
-      (bus as unknown as Record<string, Function>).processNewFile("worker-1", "m1.yaml");
+      (bus as unknown as Record<string, Function>).processNewFile(
+        "worker-1",
+        "m1.yaml",
+      );
+      (bus as unknown as Record<string, Function>).processNewFile(
+        "worker-1",
+        "m1.yaml",
+      );
 
       expect(handler).toHaveBeenCalledOnce();
     });
@@ -91,17 +106,32 @@ describe("MessageBus", () => {
       const handler = vi.fn();
       bus.onMessage(handler);
 
-      const validMsg: Message = { id: "m2", from: "a", to: "b", type: "info", payload: "p", timestamp: "t" };
+      const validMsg: Message = {
+        id: "m2",
+        from: "a",
+        to: "b",
+        type: "info",
+        payload: "p",
+        timestamp: "t",
+      };
       mockFs.existsSync.mockReturnValue(true);
       mockFs.readFileSync
         .mockReturnValueOnce("[invalid: yaml: {{{")
         .mockReturnValueOnce(stringify(validMsg));
 
-      (bus as unknown as Record<string, Function>).processNewFile("worker-1", "invalid.yaml");
-      (bus as unknown as Record<string, Function>).processNewFile("worker-1", "m2.yaml");
+      (bus as unknown as Record<string, Function>).processNewFile(
+        "worker-1",
+        "invalid.yaml",
+      );
+      (bus as unknown as Record<string, Function>).processNewFile(
+        "worker-1",
+        "m2.yaml",
+      );
 
       expect(handler).toHaveBeenCalledOnce();
-      expect(handler).toHaveBeenCalledWith(expect.objectContaining({ id: "m2" }));
+      expect(handler).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "m2" }),
+      );
     });
 
     it("全handlerを呼び出す", () => {
@@ -110,19 +140,40 @@ describe("MessageBus", () => {
       bus.onMessage(handler1);
       bus.onMessage(handler2);
 
-      const msg: Message = { id: "m3", from: "a", to: "b", type: "info", payload: "p", timestamp: "t" };
+      const msg: Message = {
+        id: "m3",
+        from: "a",
+        to: "b",
+        type: "info",
+        payload: "p",
+        timestamp: "t",
+      };
       mockFs.existsSync.mockReturnValue(true);
       mockFs.readFileSync.mockReturnValue(stringify(msg));
 
-      (bus as unknown as Record<string, Function>).processNewFile("worker-1", "m3.yaml");
+      (bus as unknown as Record<string, Function>).processNewFile(
+        "worker-1",
+        "m3.yaml",
+      );
 
-      expect(handler1).toHaveBeenCalledWith(expect.objectContaining({ id: "m3" }));
-      expect(handler2).toHaveBeenCalledWith(expect.objectContaining({ id: "m3" }));
+      expect(handler1).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "m3" }),
+      );
+      expect(handler2).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "m3" }),
+      );
     });
   });
 
   describe("sendNudge()", () => {
-    const msg: Message = { id: "n1", from: "coordinator", to: "worker-1", type: "task", payload: "p", timestamp: "t" };
+    const msg: Message = {
+      id: "n1",
+      from: "coordinator",
+      to: "worker-1",
+      type: "task",
+      payload: "p",
+      timestamp: "t",
+    };
 
     it("nudgeConfig=nullのとき何もしない", () => {
       (bus as unknown as Record<string, Function>).sendNudge("worker-1", msg);
@@ -146,7 +197,7 @@ describe("MessageBus", () => {
       });
 
       expect(() =>
-        (bus as unknown as Record<string, Function>).sendNudge("worker-1", msg)
+        (bus as unknown as Record<string, Function>).sendNudge("worker-1", msg),
       ).not.toThrow();
     });
   });

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { PasteRange } from "../CommandInput.js";
 import {
   buildDisplay,
   displayToReal,
@@ -7,7 +8,6 @@ import {
   realToDisplay,
   sliceByWidth,
 } from "../CommandInput.js";
-import type { PasteRange } from "../CommandInput.js";
 
 describe("displayWidth", () => {
   it("returns 1 for each ASCII character", () => {

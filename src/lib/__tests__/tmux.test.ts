@@ -23,6 +23,7 @@ vi.mock("../cli-registry.js", () => ({
 
 import { execSync } from "node:child_process";
 import fs from "node:fs";
+import type { AihiveConfig } from "../config.js";
 import {
   buildAgentList,
   capturePane,
@@ -30,7 +31,6 @@ import {
   sessionExists,
   startSession,
 } from "../tmux.js";
-import type { AihiveConfig } from "../config.js";
 
 const mockExecSync = vi.mocked(execSync);
 const mockFsWrite = vi.mocked(fs.writeFileSync);
@@ -122,7 +122,9 @@ describe("sendKeys", () => {
     const lbIdx = calls.findIndex((c) => c.includes("load-buffer"));
     const pbIdx = calls.findIndex((c) => c.includes("paste-buffer"));
     const dbIdx = calls.findIndex((c) => c.includes("delete-buffer"));
-    const skIdx = calls.findIndex((c) => c.includes("send-keys") && c.includes("Enter"));
+    const skIdx = calls.findIndex(
+      (c) => c.includes("send-keys") && c.includes("Enter"),
+    );
 
     expect(lbIdx).toBeGreaterThanOrEqual(0);
     expect(pbIdx).toBeGreaterThan(lbIdx);
@@ -193,8 +195,21 @@ describe("buildAgentList", () => {
     const config: AihiveConfig = {
       session: "aihive",
       agents: [
-        { name: "Orchestrator", role: "orchestrator", cli: "claude", model: "opus", window: "orchestrator" },
-        { name: "Worker 1", role: "worker", cli: "claude", model: "sonnet", window: "workers", pane: 0 },
+        {
+          name: "Orchestrator",
+          role: "orchestrator",
+          cli: "claude",
+          model: "opus",
+          window: "orchestrator",
+        },
+        {
+          name: "Worker 1",
+          role: "worker",
+          cli: "claude",
+          model: "sonnet",
+          window: "workers",
+          pane: 0,
+        },
       ],
     };
     const agents = buildAgentList(config);

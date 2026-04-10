@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import { TaskManager, extractField, extractList } from "../tasks.js";
 import type { Message } from "../mailbox.js";
+import { extractField, extractList, TaskManager } from "../tasks.js";
 
 // ─── extractField ─────────────────────────────────────────────────────
 
 describe("extractField", () => {
   it('returns the value for "task_id: abc"', () => {
-    expect(extractField('task_id: abc', "task_id")).toBe("abc");
+    expect(extractField("task_id: abc", "task_id")).toBe("abc");
   });
 
   it("returns the value when quoted", () => {
@@ -63,7 +63,7 @@ describe("TaskManager.add()", () => {
 
   it("creates a pending task when all dependencies are done", () => {
     const tm = new TaskManager();
-    const dep = tm.add("dep", "dependency", "agent-1", []);
+    const _dep = tm.add("dep", "dependency", "agent-1", []);
     tm.complete("dep");
     const task = tm.add("t1", "child", "agent-2", ["dep"]);
     expect(task.state).toBe("pending");
@@ -176,7 +176,9 @@ describe("TaskManager.handleMessage()", () => {
   it('type="result" falls back to msg.id when task_id absent', () => {
     const tm = new TaskManager();
     tm.add("msg-42", "desc", "worker-1");
-    tm.handleMessage(makeMsg({ type: "result", id: "msg-42", payload: "done" }));
+    tm.handleMessage(
+      makeMsg({ type: "result", id: "msg-42", payload: "done" }),
+    );
     expect(tm.get("msg-42")?.state).toBe("done");
   });
 
