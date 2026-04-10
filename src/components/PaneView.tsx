@@ -1,7 +1,7 @@
-import { Box, Text, useStdout } from "ink";
+import { Box, Text } from "ink";
 import React, { useEffect, useRef, useState } from "react";
 import { parseAnsi, stripAnsi } from "../lib/ansi.js";
-import { capturePane, resizePane } from "../lib/tmux.js";
+import { capturePane } from "../lib/tmux.js";
 
 // Patterns that indicate Claude Code is waiting for user choice
 const PROMPT_PATTERNS = [
@@ -60,16 +60,6 @@ export function PaneView({
 }: PaneViewProps) {
   const [output, setOutput] = useState("");
   const prevOutputRef = useRef("");
-  const { stdout } = useStdout();
-
-  // Resize tmux pane to match available width
-  // border(2) + paddingX(1)*2 + outer padding = ~6 chars overhead
-  const paneWidth = Math.max(40, (stdout?.columns ?? 80) - 6);
-
-  useEffect(() => {
-    resizePane(sessionName, paneTarget, paneWidth);
-  }, [sessionName, paneTarget, paneWidth]);
-
   useEffect(() => {
     const update = () => {
       const captured = capturePane(sessionName, paneTarget, lines);
@@ -108,15 +98,15 @@ export function PaneView({
       </Text>
       <Box marginTop={1} flexDirection="column">
         {visibleLines.length > 0 ? (
-          visibleLines.map((line) => {
-            const lineKey = `${paneTarget}-${stripAnsi(line).slice(0, 40)}`;
+          visibleLines.map((line, lineIdx) => {
             const spans = parseAnsi(line);
             return (
-              <Box key={lineKey}>
+              <Box key={`${paneTarget}-${lineIdx}`}>
                 <Text wrap="truncate">
-                  {spans.map((span) => {
-                    const spanKey = `${span.text.slice(0, 20)}-${span.fg ?? ""}${span.bold ? "b" : ""}`;
-                    const props: Record<string, unknown> = { key: spanKey };
+                  {spans.map((span, spanIdx) => {
+                    const props: Record<string, unknown> = {
+                      key: `${lineIdx}-${spanIdx}`,
+                    };
                     if (span.fg) props.color = span.fg;
                     if (span.bg) props.backgroundColor = span.bg;
                     if (span.bold) props.bold = true;

@@ -249,6 +249,6 @@ export class MessageBus {
 // ─── Helpers ─────────────────────────────────────────────────────────
 
 /** Convert agent name to filesystem-safe slug */
-function toSlug(name: string): string {
+export function toSlug(name: string): string {
   return name.toLowerCase().replace(/\s+/g, "-");
 }

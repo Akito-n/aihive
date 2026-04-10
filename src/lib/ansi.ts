@@ -54,7 +54,7 @@ const ANSI_BG_COLORS: Record<number, string> = {
 };
 
 // 256-color to hex lookup for the 6x6x6 cube (indices 16-231)
-function color256ToHex(n: number): string {
+export function color256ToHex(n: number): string {
   if (n < 16) {
     // Standard colors - map to names
     const map: Record<number, string> = {

@@ -168,7 +168,7 @@ export function initInstructions(): void {
 
 // ─── Model Defaults ──────────────────────────────────────────────────
 
-function defaultModelForRole(role: string): string {
+export function defaultModelForRole(role: string): string {
   if (role === "orchestrator" || role === "scout") return "opus";
   return "sonnet";
 }
