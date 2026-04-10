@@ -61,9 +61,9 @@ describe("MessageBus", () => {
     });
 
     it("outboxが存在しない場合はスキップしエラーを出さない", () => {
-      mockFs.existsSync.mockImplementation((p: unknown) => {
+      mockFs.existsSync.mockImplementation(((p: unknown) => {
         return !(p as string).includes("outbox");
-      });
+      }) as () => boolean);
 
       expect(() => bus.send("coordinator", "worker-1", "task", "payload")).not.toThrow();
       const paths = mockFs.writeFileSync.mock.calls.map((c) => c[0] as string);

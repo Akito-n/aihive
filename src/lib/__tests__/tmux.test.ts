@@ -99,11 +99,11 @@ describe("capturePane", () => {
 
   it("returns trimmed output when capture succeeds", () => {
     let callCount = 0;
-    mockExecSync.mockImplementation(() => {
+    mockExecSync.mockImplementation(((_cmd: string) => {
       callCount++;
       if (callCount === 1) return Buffer.from(""); // has-session
-      return "some output\n\n" as unknown as Buffer; // capture-pane
-    });
+      return "some output\n\n"; // capture-pane
+    }) as unknown as typeof execSync);
     expect(capturePane("test-session", "orchestrator")).toBe("some output");
   });
 });
