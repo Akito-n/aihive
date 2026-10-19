@@ -23,6 +23,9 @@ interface SkillEntry {
   state: SkillState;
 }
 
+/** Generated list of approved skills that agents read before working */
+export const APPROVED_INDEX_FILE = "APPROVED.md";
+
 // ─── SkillManager ────────────────────────────────────────────────────
 
 export class SkillManager {
@@ -37,13 +40,16 @@ export class SkillManager {
   init(): void {
     fs.mkdirSync(this.skillsDir, { recursive: true });
     this.loadAll();
+    this.writeIndex();
   }
 
   /** Propose a new skill (state = proposed) */
   propose(skill: Skill): void {
+    const wasApproved = this.entries.get(skill.id)?.state === "approved";
     const entry: SkillEntry = { skill, state: "proposed" };
     this.entries.set(skill.id, entry);
     this.save(entry);
+    if (wasApproved) this.writeIndex();
   }
 
   /** Approve a proposed skill */
@@ -55,6 +61,7 @@ export class SkillManager {
     entry.skill.approved_by = approvedBy;
     entry.skill.updated_at = new Date().toISOString();
     this.save(entry);
+    this.writeIndex();
     return true;
   }
 
@@ -112,6 +119,14 @@ export class SkillManager {
 
   // ─── Persistence ────────────────────────────────────────────────
 
+  /** Regenerate APPROVED.md so agents only see approved skills */
+  private writeIndex(): void {
+    fs.writeFileSync(
+      path.join(this.skillsDir, APPROVED_INDEX_FILE),
+      renderApprovedIndex(this.getApproved()),
+    );
+  }
+
   private save(entry: SkillEntry): void {
     const data = { ...entry.skill, state: entry.state };
     const filename = `${entry.skill.id}.yaml`;
@@ -139,4 +154,38 @@ export class SkillManager {
       }
     }
   }
+}
+
+// ─── Index rendering ─────────────────────────────────────────────────
+
+/** Render approved skills as Markdown for agents to read */
+export function renderApprovedIndex(skills: Skill[]): string {
+  const header =
+    "# 承認済みスキル\n\n" +
+    "このファイルは aihive が自動生成します。編集しないでください。\n" +
+    "作業内容が「適用条件」に当てはまるスキルがあれば、その手順に従ってください。\n";
+
+  if (skills.length === 0) {
+    return `${header}\n承認済みスキルはまだありません。\n`;
+  }
+
+  const sections = [...skills]
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .map((s) => {
+      const steps = s.steps.map((step, i) => `${i + 1}. ${step}`).join("\n");
+      return [
+        `## ${s.name} (\`${s.id}\`)`,
+        "",
+        s.description,
+        "",
+        `- 適用条件: ${s.trigger}`,
+        `- 提案: ${s.created_by}${s.approved_by ? ` / 承認: ${s.approved_by}` : ""}`,
+        "",
+        "### 手順",
+        "",
+        steps,
+      ].join("\n");
+    });
+
+  return `${header}\n${sections.join("\n\n")}\n`;
 }

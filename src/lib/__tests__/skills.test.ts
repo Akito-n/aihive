@@ -15,7 +15,11 @@ vi.mock("node:fs", () => {
 });
 
 import fs from "node:fs";
-import { SkillManager } from "../skills.js";
+import {
+  APPROVED_INDEX_FILE,
+  renderApprovedIndex,
+  SkillManager,
+} from "../skills.js";
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 
@@ -245,6 +249,96 @@ describe("SkillManager.loadAll() (via init())", () => {
     sm.init();
 
     expect(vi.mocked(fs.readdirSync)).not.toHaveBeenCalled();
+    expect(sm.getAll()).toHaveLength(0);
+  });
+});
+
+// ─── Approved index (APPROVED.md) ─────────────────────────────────────
+
+function indexWrites(): string[] {
+  return vi
+    .mocked(fs.writeFileSync)
+    .mock.calls.filter(([p]) => String(p).endsWith(APPROVED_INDEX_FILE))
+    .map(([, content]) => String(content));
+}
+
+describe("renderApprovedIndex", () => {
+  it("says there are no skills yet when the list is empty", () => {
+    expect(renderApprovedIndex([])).toContain("承認済みスキルはまだありません");
+  });
+
+  it("renders name, id, trigger and numbered steps sorted by id", () => {
+    const out = renderApprovedIndex([
+      makeSkill({ id: "b-skill", name: "B", steps: ["first", "second"] }),
+      makeSkill({ id: "a-skill", name: "A", trigger: "when A applies" }),
+    ]);
+    expect(out).toContain("## A (`a-skill`)");
+    expect(out).toContain("- 適用条件: when A applies");
+    expect(out).toContain("1. first\n2. second");
+    expect(out.indexOf("a-skill")).toBeLessThan(out.indexOf("b-skill"));
+  });
+
+  it("shows the approver when present", () => {
+    const out = renderApprovedIndex([
+      makeSkill({ created_by: "worker-1", approved_by: "coordinator" }),
+    ]);
+    expect(out).toContain("提案: worker-1 / 承認: coordinator");
+  });
+});
+
+describe("SkillManager approved index", () => {
+  beforeEach(() => {
+    vi.mocked(fs.writeFileSync).mockClear();
+    vi.mocked(fs.readdirSync).mockReturnValue([]);
+  });
+
+  it("init() writes the index", () => {
+    const sm = makeSm();
+    sm.init();
+    expect(indexWrites()).toHaveLength(1);
+  });
+
+  it("approve() rewrites the index including the approved skill", () => {
+    const sm = makeSm();
+    sm.propose(makeSkill({ id: "s1", name: "Approved One" }));
+    expect(indexWrites()).toHaveLength(0);
+
+    sm.approve("s1", "coordinator");
+    const writes = indexWrites();
+    expect(writes).toHaveLength(1);
+    expect(writes[0]).toContain("Approved One");
+  });
+
+  it("proposed and rejected skills are not listed", () => {
+    const sm = makeSm();
+    sm.propose(makeSkill({ id: "ok", name: "Kept" }));
+    sm.propose(makeSkill({ id: "no", name: "Dropped" }));
+    sm.propose(makeSkill({ id: "wait", name: "Pending" }));
+    sm.reject("no");
+    sm.approve("ok", "coordinator");
+
+    const latest = indexWrites().at(-1) ?? "";
+    expect(latest).toContain("Kept");
+    expect(latest).not.toContain("Dropped");
+    expect(latest).not.toContain("Pending");
+  });
+
+  it("re-proposing an approved skill removes it from the index", () => {
+    const sm = makeSm();
+    sm.propose(makeSkill({ id: "s1", name: "Again" }));
+    sm.approve("s1", "coordinator");
+    sm.propose(makeSkill({ id: "s1", name: "Again" }));
+
+    const latest = indexWrites().at(-1) ?? "";
+    expect(latest).not.toContain("Again");
+  });
+
+  it("the index file itself is not loaded as a skill", () => {
+    vi.mocked(fs.readdirSync).mockReturnValue([
+      APPROVED_INDEX_FILE,
+    ] as unknown as ReturnType<typeof fs.readdirSync>);
+    const sm = makeSm();
+    sm.init();
     expect(sm.getAll()).toHaveLength(0);
   });
 });
