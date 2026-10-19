@@ -2,7 +2,7 @@ import { Box, Text, useApp, useInput, useWindowSize } from "ink";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { loadSlashCommands } from "../lib/commands.js";
 import type { AihiveConfig } from "../lib/config.js";
-import { loadConfig, saveConfig } from "../lib/config.js";
+import { initInstructions, loadConfig, saveConfig } from "../lib/config.js";
 import type { MessageBus } from "../lib/mailbox.js";
 import { MemoryManager } from "../lib/memory.js";
 import type { QuickCommand } from "../lib/quick-commands.js";
@@ -108,6 +108,15 @@ export function App() {
   const setupRuntime = useCallback(
     (reset: boolean): MessageBus => {
       const bus = initWorkspace(config, { reset });
+      const synced = initInstructions();
+      if (synced.updated.length > 0) {
+        addLog(`Instructions updated: ${synced.updated.join(", ")}`);
+      }
+      if (synced.kept.length > 0) {
+        addLog(
+          `Instructions kept (edited locally, not updated): ${synced.kept.join(", ")}`,
+        );
+      }
       messageBusRef.current = bus;
       taskManagerRef.current.clear();
       setTasks([]);
@@ -138,7 +147,7 @@ export function App() {
 
       return bus;
     },
-    [config],
+    [config, addLog],
   );
 
   // Watch mailbox messages for status changes
