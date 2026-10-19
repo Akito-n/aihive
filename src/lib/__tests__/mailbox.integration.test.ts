@@ -3,7 +3,8 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { stringify } from "yaml";
-import { type Message, MessageBus } from "../mailbox.js";
+import { type Message, MessageBus, SYSTEM_MAILBOX } from "../mailbox.js";
+import { MemoryManager, normalizeMemoryEntry } from "../memory.js";
 
 // Uses the real filesystem (no fs mock) to exercise watch + poll behaviour.
 
@@ -98,5 +99,55 @@ describe("MessageBus (real filesystem)", () => {
 
     expect(kept).toHaveBeenCalledTimes(1);
     expect(removed).not.toHaveBeenCalled();
+  });
+
+  it("delivers messages sent to the system mailbox, as the instructions describe", () => {
+    // Same shape as the memory-write example in instructions/worker.md
+    const memory = new MemoryManager(tmpDir);
+    memory.init(["worker-1", "worker-2"]);
+    bus.onMessage((msg) => {
+      if (msg.type !== "memory-write") return;
+      const entry = normalizeMemoryEntry(JSON.parse(msg.payload), msg.from);
+      if (entry) memory.write(entry);
+    });
+    bus.startWatching(agents);
+
+    const systemInbox = path.join(
+      tmpDir,
+      ".aihive",
+      "mailbox",
+      SYSTEM_MAILBOX,
+      "inbox",
+    );
+    fs.writeFileSync(
+      path.join(systemInbox, "memory-write-001.yaml"),
+      [
+        'id: "memory-write-001"',
+        'from: "worker-1"',
+        'to: "system"',
+        'type: "memory-write"',
+        "payload: |",
+        '  {"id": "mem-1", "key": "build", "value": "npm run build", "tags": ["shared"]}',
+        'timestamp: "2024-01-01T12:00:00Z"',
+      ].join("\n"),
+    );
+    poll();
+
+    expect(memory.search("build", "worker-2").map((e) => e.id)).toEqual([
+      "mem-1",
+    ]);
+  });
+
+  it("clear() also empties the system mailbox", () => {
+    const systemInbox = path.join(
+      tmpDir,
+      ".aihive",
+      "mailbox",
+      SYSTEM_MAILBOX,
+      "inbox",
+    );
+    fs.writeFileSync(path.join(systemInbox, "old.yaml"), "id: old\n");
+    bus.clear(agents);
+    expect(fs.readdirSync(systemInbox)).toEqual([]);
   });
 });

@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { parse, stringify } from "yaml";
+import { asString, asStringList, isSafeId } from "./validate.js";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -43,13 +44,16 @@ export class SkillManager {
     this.writeIndex();
   }
 
-  /** Propose a new skill (state = proposed) */
-  propose(skill: Skill): void {
+  /** Propose a new skill (state = proposed). Returns false if invalid. */
+  propose(data: unknown): boolean {
+    const skill = normalizeSkill(data);
+    if (!skill) return false;
     const wasApproved = this.entries.get(skill.id)?.state === "approved";
     const entry: SkillEntry = { skill, state: "proposed" };
     this.entries.set(skill.id, entry);
     this.save(entry);
     if (wasApproved) this.writeIndex();
+    return true;
   }
 
   /** Approve a proposed skill */
@@ -143,17 +147,43 @@ export class SkillManager {
       if (!file.endsWith(".yaml")) continue;
       try {
         const raw = fs.readFileSync(path.join(this.skillsDir, file), "utf8");
-        const data = parse(raw) as Skill & { state?: SkillState };
-        if (data?.id) {
-          const state = data.state ?? "approved";
-          const { state: _, ...skill } = data as Skill & { state?: SkillState };
-          this.entries.set(data.id, { skill: skill as Skill, state });
+        const data = parse(raw) as { state?: SkillState } | null;
+        const skill = normalizeSkill(data);
+        if (skill) {
+          const state = data?.state ?? "approved";
+          this.entries.set(skill.id, { skill, state });
         }
       } catch {
         // Skip malformed files
       }
     }
   }
+}
+
+// ─── Validation ──────────────────────────────────────────────────────
+
+/**
+ * Normalize a skill written by an agent. Returns null when the id is missing
+ * or unsafe as a file name; other fields fall back to defaults.
+ */
+export function normalizeSkill(data: unknown): Skill | null {
+  if (!data || typeof data !== "object") return null;
+  const d = data as Record<string, unknown>;
+  if (!isSafeId(d.id)) return null;
+  const now = new Date().toISOString();
+  return {
+    id: d.id,
+    name: asString(d.name, d.id),
+    description: asString(d.description),
+    trigger: asString(d.trigger),
+    steps: asStringList(d.steps),
+    created_by: asString(d.created_by, "unknown"),
+    ...(typeof d.approved_by === "string"
+      ? { approved_by: d.approved_by }
+      : {}),
+    created_at: asString(d.created_at, now),
+    updated_at: asString(d.updated_at, now),
+  };
 }
 
 // ─── Index rendering ─────────────────────────────────────────────────

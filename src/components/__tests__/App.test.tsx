@@ -132,7 +132,8 @@ vi.mock("../../lib/skills.js", () => ({
   }),
 }));
 
-vi.mock("../../lib/memory.js", () => ({
+vi.mock("../../lib/memory.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../lib/memory.js")>()),
   MemoryManager: vi.fn(function (this: Record<string, unknown>) {
     this.init = mocks.mmInit;
     this.write = mocks.mmWrite;
@@ -180,7 +181,12 @@ vi.mock("../StartupScreen.js", async () => {
   };
 });
 
-vi.mock("../Dashboard.js", () => ({ Dashboard: () => null }));
+vi.mock("../Dashboard.js", () => ({
+  Dashboard: (props: { agents: unknown }) => {
+    (globalThis as Record<string, unknown>).__dashboardAgents = props.agents;
+    return null;
+  },
+}));
 vi.mock("../Header.js", () => ({ Header: () => null }));
 vi.mock("../HelpBar.js", () => ({ HelpBar: () => null }));
 vi.mock("../LogView.js", () => ({ LogView: () => null }));
@@ -367,6 +373,43 @@ describe("App - message handlers", () => {
     });
     expect(() => mocks.capturedMsgHandlerRef.value?.(msg)).not.toThrow();
     expect(mocks.smPropose).not.toHaveBeenCalled();
+  });
+
+  it("matches protocol slugs to agent display names for status", async () => {
+    const statusOf = () =>
+      (
+        (globalThis as Record<string, unknown>).__dashboardAgents as {
+          name: string;
+          status: string;
+        }[]
+      ).find((a) => a.name === "Orchestrator")?.status;
+    expect(statusOf()).toBe("running");
+    await act(async () => {
+      mocks.capturedMsgHandlerRef.value?.(
+        makeMsg({ type: "result", from: "orchestrator", to: "user" }),
+      );
+      await Promise.resolve();
+    });
+    expect(statusOf()).toBe("done");
+  });
+
+  it("type='skill-proposal' rejected by SkillManager → not counted", () => {
+    mocks.smPropose.mockReturnValue(false);
+    const msg = makeMsg({
+      type: "skill-proposal",
+      payload: JSON.stringify({ id: "../evil" }),
+    });
+    expect(() => mocks.capturedMsgHandlerRef.value?.(msg)).not.toThrow();
+    expect(mocks.smGetCounts).not.toHaveBeenCalledAfter(mocks.smPropose);
+  });
+
+  it("type='memory-write' with an unsafe id → MemoryManager.write() is not called", () => {
+    const msg = makeMsg({
+      type: "memory-write",
+      payload: JSON.stringify({ id: "../../etc", key: "k", value: "v" }),
+    });
+    mocks.capturedMsgHandlerRef.value?.(msg);
+    expect(mocks.mmWrite).not.toHaveBeenCalled();
   });
 
   it("type='memory-write' with valid JSON → MemoryManager.write() is called", () => {
