@@ -4,7 +4,14 @@ import type { AihiveConfig } from "./config.js";
 import { initInstructions } from "./config.js";
 import { MessageBus } from "./mailbox.js";
 
-export function initWorkspace(config: AihiveConfig): MessageBus {
+/**
+ * Prepare .aihive/ and the mailbox. With `reset: false` (reattaching to a
+ * running session) existing messages and the dashboard are left untouched.
+ */
+export function initWorkspace(
+  config: AihiveConfig,
+  { reset = true }: { reset?: boolean } = {},
+): MessageBus {
   const projectDir = process.cwd();
 
   // Create directories under .aihive/
@@ -20,6 +27,7 @@ export function initWorkspace(config: AihiveConfig): MessageBus {
   const agentNames = config.agents.map((a) => a.name);
   const bus = new MessageBus(projectDir);
   bus.init(agentNames);
+  if (!reset) return bus;
   bus.clear(agentNames);
 
   // Init dashboard

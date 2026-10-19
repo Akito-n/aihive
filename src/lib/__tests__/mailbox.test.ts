@@ -74,6 +74,64 @@ describe("MessageBus", () => {
     });
   });
 
+  describe("processNewFile() partial writes", () => {
+    it("空ファイルは処理済みにせず、書き込み完了後に処理する", () => {
+      const handler = vi.fn();
+      bus.onMessage(handler);
+      const processNewFile = (
+        bus as unknown as {
+          processNewFile: (slug: string, file: string) => void;
+        }
+      ).processNewFile;
+      mockFs.existsSync.mockReturnValue(true);
+
+      mockFs.readFileSync.mockReturnValue("");
+      processNewFile.call(bus, "worker-1", "p1.yaml");
+      expect(handler).not.toHaveBeenCalled();
+
+      const msg: Message = {
+        id: "p1",
+        from: "a",
+        to: "b",
+        type: "info",
+        payload: "p",
+        timestamp: "t",
+      };
+      mockFs.readFileSync.mockReturnValue(stringify(msg));
+      processNewFile.call(bus, "worker-1", "p1.yaml");
+      expect(handler).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("onMessage()", () => {
+    it("返された unsubscribe を呼ぶとハンドラが呼ばれなくなる", () => {
+      const handler = vi.fn();
+      const unsubscribe = bus.onMessage(handler);
+      const msg: Message = {
+        id: "u1",
+        from: "a",
+        to: "b",
+        type: "info",
+        payload: "p",
+        timestamp: "t",
+      };
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readFileSync.mockReturnValue(stringify(msg));
+      const processNewFile = (
+        bus as unknown as {
+          processNewFile: (slug: string, file: string) => void;
+        }
+      ).processNewFile;
+
+      processNewFile.call(bus, "worker-1", "u1.yaml");
+      expect(handler).toHaveBeenCalledTimes(1);
+
+      unsubscribe();
+      processNewFile.call(bus, "worker-1", "u2.yaml");
+      expect(handler).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe("processNewFile()", () => {
     it("同一key（slug/filename）を二重処理しない（seen set）", () => {
       const handler = vi.fn();

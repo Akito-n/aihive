@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => {
   };
 
   // TaskManager instance methods
-  const tmOnChange = vi.fn();
+  const tmOnChange = vi.fn(() => vi.fn());
   const tmHandleMessage = vi.fn();
   const tmGetAll = vi.fn().mockReturnValue([]);
   const tmClear = vi.fn();
@@ -29,8 +29,10 @@ const mocks = vi.hoisted(() => {
   const mmGetCount = vi.fn().mockReturnValue(0);
 
   // MessageBus mock
+  const busUnsubscribe = vi.fn();
   const busOnMessage = vi.fn((h: (msg: unknown) => void) => {
     capturedMsgHandlerRef.value = h;
+    return busUnsubscribe;
   });
   const busStartWatching = vi.fn();
   const busStopWatching = vi.fn();
@@ -63,6 +65,7 @@ const mocks = vi.hoisted(() => {
     mmSearch,
     mmGetCount,
     mockBus,
+    busUnsubscribe,
     initWorkspaceMock,
     sessionExistsMock,
   };
@@ -267,6 +270,33 @@ describe("App - initial state", () => {
     expect(lastFrame()).not.toContain("MAINMENU");
     expect(lastFrame()).not.toContain("STARTUP");
   });
+
+  it("reattaches the mailbox without wiping it when sessionExists=true", async () => {
+    mocks.sessionExistsMock.mockReturnValue(true);
+    mocks.initWorkspaceMock.mockClear();
+    mocks.mockBus.onMessage.mockClear();
+    mocks.mockBus.startWatching.mockClear();
+    render(<App />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(mocks.initWorkspaceMock).toHaveBeenCalledWith(expect.anything(), {
+      reset: false,
+    });
+    expect(mocks.mockBus.onMessage).toHaveBeenCalledTimes(1);
+    expect(mocks.mockBus.startWatching).toHaveBeenCalledTimes(1);
+  });
+
+  it("unsubscribes handlers when unmounted", async () => {
+    mocks.sessionExistsMock.mockReturnValue(true);
+    mocks.busUnsubscribe.mockClear();
+    const { unmount } = render(<App />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    unmount();
+    expect(mocks.busUnsubscribe).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("App - message handlers", () => {
@@ -279,6 +309,7 @@ describe("App - message handlers", () => {
       .mockReset()
       .mockImplementation((h: (msg: unknown) => void) => {
         mocks.capturedMsgHandlerRef.value = h;
+        return mocks.busUnsubscribe;
       });
     await advanceToRunningState();
   });

@@ -29,9 +29,12 @@ export class TaskManager {
   private tasks = new Map<string, Task>();
   private handlers: TaskChangeHandler[] = [];
 
-  /** Register a change handler */
-  onChange(handler: TaskChangeHandler): void {
+  /** Register a change handler. Returns an unsubscribe function. */
+  onChange(handler: TaskChangeHandler): () => void {
     this.handlers.push(handler);
+    return () => {
+      this.handlers = this.handlers.filter((h) => h !== handler);
+    };
   }
 
   /** Create a new task, auto-determining if it's blocked */
