@@ -13,7 +13,7 @@ tmux + AI Coding CLI を使ったマルチエージェントオーケストレ�
 
 ## Prerequisites
 
-- Node.js >= 18
+- Node.js >= 22（推奨: 24 LTS。`.nvmrc` あり）
 - tmux
 - いずれかの AI Coding CLI:
   - [Claude Code](https://docs.anthropic.com/en/docs/claude-code)
@@ -84,6 +84,27 @@ agents:
 | worker | 実装・コーディング | sonnet |
 | reviewer | コードレビュー | sonnet |
 | scout | コードベース調査（読み取り専用） | opus |
+
+## Development
+
+```bash
+npm test            # テスト (Vitest)
+npm run typecheck   # 型チェック (TypeScript)
+npm run check       # Lint / Format チェック (Biome)
+npm run check:fix   # Lint / Format の自動修正
+```
+
+CI（GitHub Actions）では Node.js 22 / 24 で上記の型チェック・Lint・テストを実行します。
+
+### 主な技術スタック
+
+| 用途 | ライブラリ |
+|------|-----------|
+| TUI | [Ink](https://github.com/vadimdemedes/ink) 8 + React 19 |
+| 言語 | TypeScript 7 |
+| テスト | Vitest 5 |
+| Lint / Format | Biome 2.5 |
+| データ保存 | sql.js |
 
 ## Project Structure
 

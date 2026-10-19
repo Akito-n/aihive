@@ -49,7 +49,7 @@ export class SkillManager {
   /** Approve a proposed skill */
   approve(id: string, approvedBy: string): boolean {
     const entry = this.entries.get(id);
-    if (!entry || entry.state !== "proposed") return false;
+    if (entry?.state !== "proposed") return false;
 
     entry.state = "approved";
     entry.skill.approved_by = approvedBy;
@@ -61,7 +61,7 @@ export class SkillManager {
   /** Reject a proposed skill */
   reject(id: string): boolean {
     const entry = this.entries.get(id);
-    if (!entry || entry.state !== "proposed") return false;
+    if (entry?.state !== "proposed") return false;
 
     entry.state = "rejected";
     entry.skill.updated_at = new Date().toISOString();

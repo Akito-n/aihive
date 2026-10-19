@@ -1,4 +1,4 @@
-import { Box, Text, useStdout } from "ink";
+import { Box, Text, useWindowSize } from "ink";
 import React, { useEffect, useRef, useState } from "react";
 import { parseAnsi } from "../lib/ansi.js";
 import type { AgentInfo } from "../lib/tmux.js";
@@ -45,11 +45,11 @@ export function OverviewMode({
   agents,
   refreshMs = 2000,
 }: OverviewModeProps) {
-  const { stdout } = useStdout();
+  const { columns } = useWindowSize();
   const [panes, setPanes] = useState<PaneOutput[]>([]);
   const prevOutputsRef = useRef<Map<string, string>>(new Map());
 
-  const totalWidth = stdout?.columns ?? 120;
+  const totalWidth = columns;
   const paneWidth = Math.max(30, Math.floor((totalWidth - 4) / COLS) - 2);
 
   // Capture all panes periodically

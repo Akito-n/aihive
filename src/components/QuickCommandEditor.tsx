@@ -1,4 +1,4 @@
-import { Box, Text, useInput, useStdout } from "ink";
+import { Box, Text, useInput, useWindowSize } from "ink";
 import { useState } from "react";
 import type { QuickCommand } from "../lib/quick-commands.js";
 import {
@@ -36,7 +36,7 @@ function PromptEditor({
   onSave,
   onCancel,
 }: PromptEditorProps) {
-  const { stdout } = useStdout();
+  const { columns, rows } = useWindowSize();
   const [lines, setLines] = useState<string[]>(() => {
     const parts = initialValue.split("\n");
     return parts.length > 0 ? parts : [""];
@@ -46,8 +46,8 @@ function PromptEditor({
   const [scrollOffset, setScrollOffset] = useState(0);
 
   // Reserve lines for header (title, help text, top border, margin) + footer (bottom border)
-  const termRows = stdout?.rows ?? 24;
-  const termWidth = (stdout?.columns ?? 80) - 8;
+  const termRows = rows;
+  const termWidth = columns - 8;
   const visibleLines = Math.max(3, termRows - 10);
 
   // Keep cursor in view (synchronous, no useEffect needed)
