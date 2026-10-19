@@ -103,21 +103,63 @@ export function App() {
     [],
   );
 
+  // Create the mailbox / skill / memory runtime for the current config.
+  // `reset` wipes old mailbox contents (fresh start); reattaching keeps them.
+  const setupRuntime = useCallback(
+    (reset: boolean): MessageBus => {
+      const bus = initWorkspace(config, { reset });
+      messageBusRef.current = bus;
+      taskManagerRef.current.clear();
+      setTasks([]);
+
+      const sm = new SkillManager(process.cwd());
+      sm.init();
+      skillManagerRef.current = sm;
+      setSkillCounts(sm.getCounts());
+
+      const mm = new MemoryManager(process.cwd());
+      const agentSlugs = config.agents.map((a) =>
+        a.name.toLowerCase().replace(/\s+/g, "-"),
+      );
+      mm.init(agentSlugs);
+      memoryManagerRef.current = mm;
+      setMemoryCount(mm.getCount());
+
+      const agentInfos = buildAgentList(config);
+      setAgents(agentInfos.map((a) => ({ ...a, status: "running" })));
+
+      // Configure tmux nudge: notify agents when new messages arrive in their inbox
+      const paneTargets = new Map<string, string>();
+      for (const a of agentInfos) {
+        const slug = a.name.toLowerCase().replace(/\s+/g, "-");
+        paneTargets.set(slug, a.paneTarget);
+      }
+      bus.setNudgeConfig({ sessionName: config.session, paneTargets });
+
+      return bus;
+    },
+    [config],
+  );
+
   // Watch mailbox messages for status changes
   useEffect(() => {
     if (state !== "running") return;
-    const bus = messageBusRef.current;
-    if (!bus) return;
+    let bus = messageBusRef.current;
+    if (!bus) {
+      // aihive was relaunched while the tmux session was still alive
+      bus = setupRuntime(false);
+      addLog("Reattached to existing session");
+    }
 
     const tm = taskManagerRef.current;
-    tm.onChange((task) => {
+    const unsubscribeTasks = tm.onChange((task) => {
       setTasks(tm.getAll());
       if (task.state === "blocked") {
         addLog(`Task ${task.id} blocked by: ${task.blockedBy.join(", ")}`);
       }
     });
 
-    bus.onMessage((msg) => {
+    const unsubscribeMessages = bus.onMessage((msg) => {
       addLog(
         `[${msg.from} → ${msg.to}] ${msg.type}: ${msg.payload.slice(0, 60)}`,
       );
@@ -202,41 +244,17 @@ export function App() {
     const agentNames = config.agents.map((a) => a.name);
     bus.startWatching(agentNames);
 
-    return () => bus.stopWatching();
-  }, [state, config, addLog, updateAgentStatus]);
+    return () => {
+      unsubscribeMessages();
+      unsubscribeTasks();
+      bus.stopWatching();
+    };
+  }, [state, config, addLog, updateAgentStatus, setupRuntime]);
 
   // Handle startup completion
   const handleStartupComplete = useCallback(() => {
-    const bus = initWorkspace(config);
-    messageBusRef.current = bus;
-    taskManagerRef.current.clear();
-    setTasks([]);
-
-    const sm = new SkillManager(process.cwd());
-    sm.init();
-    skillManagerRef.current = sm;
-    setSkillCounts(sm.getCounts());
-
-    const mm = new MemoryManager(process.cwd());
-    const agentSlugs = config.agents.map((a) =>
-      a.name.toLowerCase().replace(/\s+/g, "-"),
-    );
-    mm.init(agentSlugs);
-    memoryManagerRef.current = mm;
-    setMemoryCount(mm.getCount());
-
+    setupRuntime(true);
     addLog("Workspace initialized");
-
-    const agentInfos = buildAgentList(config);
-    setAgents(agentInfos.map((a) => ({ ...a, status: "running" })));
-
-    // Configure tmux nudge: notify agents when new messages arrive in their inbox
-    const paneTargets = new Map<string, string>();
-    for (const a of agentInfos) {
-      const slug = a.name.toLowerCase().replace(/\s+/g, "-");
-      paneTargets.set(slug, a.paneTarget);
-    }
-    bus.setNudgeConfig({ sessionName: config.session, paneTargets });
 
     addLog("Starting tmux session...");
     try {
@@ -250,7 +268,7 @@ export function App() {
       setState("idle");
       setAgents(buildAgentList(config));
     }
-  }, [config, addLog, columns, rows]);
+  }, [config, addLog, columns, rows, setupRuntime]);
 
   // Menu selection handler
   const handleMenuSelect = useCallback(

@@ -116,9 +116,12 @@ export class MessageBus {
     return msg;
   }
 
-  /** Register a handler for incoming messages */
-  onMessage(handler: MessageHandler): void {
+  /** Register a handler for incoming messages. Returns an unsubscribe function. */
+  onMessage(handler: MessageHandler): () => void {
     this.handlers.push(handler);
+    return () => {
+      this.handlers = this.handlers.filter((h) => h !== handler);
+    };
   }
 
   /** Start watching all agent inboxes for new messages */
@@ -153,16 +156,18 @@ export class MessageBus {
   private processNewFile(slug: string, filename: string): void {
     const key = `${slug}/${filename}`;
     if (this.seen.has(key)) return;
-    this.seen.add(key);
 
     try {
       const filePath = path.join(this.baseDir, slug, "inbox", filename);
       if (!fs.existsSync(filePath)) return;
       const raw = fs.readFileSync(filePath, "utf8").trim();
+      // Empty or partial file (still being written): leave it unseen so the
+      // next watch event or poll picks it up once complete.
       if (!raw) return;
 
       const msg = parse(raw) as Message;
       if (msg?.id) {
+        this.seen.add(key);
         for (const handler of this.handlers) {
           handler(msg);
         }

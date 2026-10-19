@@ -214,3 +214,19 @@ describe("TaskManager.onChange()", () => {
     expect(handler.mock.calls[0][0].state).toBe("done");
   });
 });
+
+// ─── onChange unsubscribe ─────────────────────────────────────────────
+
+describe("TaskManager.onChange", () => {
+  it("stops notifying after the returned unsubscribe is called", () => {
+    const tm = new TaskManager();
+    const handler = vi.fn();
+    const unsubscribe = tm.onChange(handler);
+    tm.add("t1", "first", "worker-1");
+    expect(handler).toHaveBeenCalledTimes(1);
+
+    unsubscribe();
+    tm.add("t2", "second", "worker-1");
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+});
