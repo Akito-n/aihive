@@ -85,6 +85,10 @@ agents:
 | reviewer | コードレビュー | sonnet |
 | scout | コードベース調査（読み取り専用） | opus |
 
+### 指示ファイル
+
+各ロールの指示ファイルは起動時に `~/.aihive/instructions/{role}.md` へコピーされます。aihive を更新すると、自分で書き換えていない指示ファイルは新しい版に自動で置き換わります。書き換えたファイルはそのまま残り、ログに「Instructions kept」と表示されます。新しい版に戻したい場合は、そのファイルを削除して再起動してください。
+
 ## Development
 
 ```bash

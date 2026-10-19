@@ -87,6 +87,9 @@ vi.mock("../../lib/config.js", () => ({
     ],
   }),
   saveConfig: vi.fn(),
+  initInstructions: vi
+    .fn()
+    .mockReturnValue({ installed: [], updated: [], kept: [] }),
   getPaneTarget: vi.fn().mockReturnValue("orchestrator"),
 }));
 

@@ -3,6 +3,10 @@ import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse, stringify } from "yaml";
+import {
+  type InstructionSyncResult,
+  syncInstructions,
+} from "./instructions.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -148,22 +152,11 @@ export function getInstructionsPath(role: string): string | undefined {
 }
 
 /**
- * Copy bundled instructions to ~/.aihive/instructions/ if they don't exist yet.
+ * Sync bundled instructions into ~/.aihive/instructions/.
+ * Unedited copies are upgraded to the bundled version; edited ones are kept.
  */
-export function initInstructions(): void {
-  if (!fs.existsSync(INSTRUCTIONS_DIR)) {
-    fs.mkdirSync(INSTRUCTIONS_DIR, { recursive: true });
-  }
-
-  if (!fs.existsSync(BUNDLED_INSTRUCTIONS_DIR)) return;
-
-  for (const file of fs.readdirSync(BUNDLED_INSTRUCTIONS_DIR)) {
-    if (!file.endsWith(".md")) continue;
-    const dst = path.join(INSTRUCTIONS_DIR, file);
-    if (!fs.existsSync(dst)) {
-      fs.copyFileSync(path.join(BUNDLED_INSTRUCTIONS_DIR, file), dst);
-    }
-  }
+export function initInstructions(): InstructionSyncResult {
+  return syncInstructions(BUNDLED_INSTRUCTIONS_DIR, INSTRUCTIONS_DIR);
 }
 
 // ─── Model Defaults ──────────────────────────────────────────────────
