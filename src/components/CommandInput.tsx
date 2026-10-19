@@ -1,4 +1,4 @@
-import { Box, Text, useInput, useStdout } from "ink";
+import { Box, Text, useInput, useWindowSize } from "ink";
 import type React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { SlashCommand } from "../lib/commands.js";
@@ -146,9 +146,9 @@ export function CommandInput({
     count: 0,
     timer: null as ReturnType<typeof setTimeout> | null,
   });
-  const { stdout } = useStdout();
+  const { columns } = useWindowSize();
 
-  const viewWidth = Math.max(20, (stdout?.columns ?? 80) - 6);
+  const viewWidth = Math.max(20, columns - 6);
 
   const displayValue = buildDisplay(value, paste);
   const displayCursor = realToDisplay(cursor, value, paste);

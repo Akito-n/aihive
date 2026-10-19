@@ -44,7 +44,7 @@ export class TaskManager {
     const now = new Date().toISOString();
     const hasUnresolved = blockedBy.some((depId) => {
       const dep = this.tasks.get(depId);
-      return !dep || dep.state !== "done";
+      return dep?.state !== "done";
     });
 
     const task: Task = {
@@ -156,7 +156,7 @@ export class TaskManager {
 
       const stillBlocked = task.blockedBy.some((depId) => {
         const dep = this.tasks.get(depId);
-        return !dep || dep.state !== "done";
+        return dep?.state !== "done";
       });
 
       if (!stillBlocked) {

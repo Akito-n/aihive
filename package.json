@@ -1,6 +1,6 @@
 {
   "name": "aihive",
-  "version": "0.2.6",
+  "version": "0.3.0",
   "type": "module",
   "description": "tmux + Claude Code multi-agent orchestration system with React Ink TUI",
   "bin": {
@@ -31,20 +31,23 @@
     "tui"
   ],
   "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
   "dependencies": {
-    "ink": "^6.8.0",
-    "react": "^19.2.4",
-    "sql.js": "^1.14.1",
-    "yaml": "^2.8.3"
+    "ink": "^8.0.0",
+    "react": "^19.3.1",
+    "sql.js": "^1.15.0",
+    "yaml": "^2.9.1"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.10",
-    "@types/node": "^25.5.0",
-    "@types/react": "^19.2.14",
-    "@vitest/coverage-v8": "^4.1.3",
+    "@biomejs/biome": "2.5.15",
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@vitest/coverage-v8": "^5.0.5",
     "ink-testing-library": "^4.0.0",
-    "tsx": "^4.21.0",
-    "typescript": "^6.0.2",
-    "vitest": "^4.1.3"
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
   }
 }

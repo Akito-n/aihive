@@ -1,4 +1,4 @@
-import { Box, Text, useApp, useInput, useStdout } from "ink";
+import { Box, Text, useApp, useInput, useWindowSize } from "ink";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { loadSlashCommands } from "../lib/commands.js";
 import type { AihiveConfig } from "../lib/config.js";
@@ -38,7 +38,7 @@ type Mode = "normal" | "input" | "quickcmd";
 
 export function App() {
   const { exit } = useApp();
-  const { stdout } = useStdout();
+  const { columns, rows } = useWindowSize();
   const [config, setConfig] = useState<AihiveConfig>(() => loadConfig());
   const [state, setState] = useState<AppState>(
     sessionExists(config.session) ? "running" : "idle",
@@ -241,8 +241,8 @@ export function App() {
     addLog("Starting tmux session...");
     try {
       // Subtract Dashboard(34) + margin(1) + border(2) + paddingX(2) + outer padding(2) = ~41
-      const paneWidth = Math.max(80, (stdout?.columns ?? 200) - 41);
-      startSession(config, paneWidth, stdout?.rows ?? 50);
+      const paneWidth = Math.max(80, columns - 41);
+      startSession(config, paneWidth, rows);
       addLog(`All ${config.agents.length} agents started`);
       setState("running");
     } catch (e) {
@@ -250,7 +250,7 @@ export function App() {
       setState("idle");
       setAgents(buildAgentList(config));
     }
-  }, [config, addLog, stdout]);
+  }, [config, addLog, columns, rows]);
 
   // Menu selection handler
   const handleMenuSelect = useCallback(
@@ -384,7 +384,7 @@ export function App() {
     return <StartupScreen onComplete={handleStartupComplete} />;
   }
 
-  const termHeight = stdout?.rows ?? 40;
+  const termHeight = rows;
 
   // Running / Stopping: show control panel
   if (showOverview) {
@@ -455,10 +455,7 @@ export function App() {
               paneTarget={selectedAgent.paneTarget}
               label={selectedAgent.name}
               active={true}
-              lines={Math.max(
-                10,
-                (stdout?.rows ?? 40) - (mode === "input" ? 15 : 10),
-              )}
+              lines={Math.max(10, rows - (mode === "input" ? 15 : 10))}
               onPromptChange={setPromptInfo}
             />
           ) : (
