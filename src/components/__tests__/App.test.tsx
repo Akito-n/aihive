@@ -214,7 +214,7 @@ function makeMsg(overrides: Partial<Msg> & { type: string }): Msg {
 async function advanceToRunningState() {
   mocks.capturedMsgHandlerRef.value = null;
 
-  render(<App />);
+  const instance = render(<App />);
 
   // Flush initial render
   await act(async () => {
@@ -243,6 +243,8 @@ async function advanceToRunningState() {
     await Promise.resolve();
     await Promise.resolve();
   });
+
+  return instance;
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -385,5 +387,82 @@ describe("App - message handlers", () => {
     });
     expect(() => mocks.capturedMsgHandlerRef.value?.(msg)).not.toThrow();
     expect(mocks.mmWrite).not.toHaveBeenCalled();
+  });
+});
+
+describe("App - runtime lifecycle", () => {
+  beforeEach(() => {
+    mocks.sessionExistsMock.mockReturnValue(false);
+    mocks.initWorkspaceMock.mockClear();
+    mocks.busUnsubscribe.mockClear();
+    mocks.mockBus.onMessage.mockClear();
+    mocks.mockBus.startWatching.mockClear();
+    mocks.mockBus.stopWatching.mockClear();
+    mocks.mockBus.setNudgeConfig.mockClear();
+    mocks.tmOnChange.mockClear();
+  });
+
+  it("fresh start initializes the workspace with reset: true", async () => {
+    await advanceToRunningState();
+    expect(mocks.initWorkspaceMock).toHaveBeenCalledTimes(1);
+    expect(mocks.initWorkspaceMock).toHaveBeenCalledWith(expect.anything(), {
+      reset: true,
+    });
+  });
+
+  it("reattach configures tmux nudges for the existing session", async () => {
+    mocks.sessionExistsMock.mockReturnValue(true);
+    render(<App />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(mocks.mockBus.setNudgeConfig).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionName: "test-session" }),
+    );
+  });
+
+  it("stopping unsubscribes message and task handlers", async () => {
+    const taskUnsubscribe = vi.fn();
+    mocks.tmOnChange.mockReturnValueOnce(taskUnsubscribe);
+    const { stdin } = await advanceToRunningState();
+
+    await act(async () => {
+      stdin.write("x");
+      await Promise.resolve();
+    });
+
+    expect(mocks.busUnsubscribe).toHaveBeenCalledTimes(1);
+    expect(taskUnsubscribe).toHaveBeenCalledTimes(1);
+    expect(mocks.mockBus.stopWatching).toHaveBeenCalledTimes(1);
+  });
+
+  it("stop → start keeps exactly one active handler of each kind", async () => {
+    const { stdin } = await advanceToRunningState();
+
+    await act(async () => {
+      stdin.write("x");
+      await Promise.resolve();
+    });
+
+    const onSelect = (globalThis as Record<string, unknown>).__menuOnSelect as
+      | ((k: string) => void)
+      | undefined;
+    await act(async () => {
+      onSelect?.("start");
+      await Promise.resolve();
+    });
+    const onComplete = (globalThis as Record<string, unknown>)
+      .__startupOnComplete as (() => void) | undefined;
+    await act(async () => {
+      onComplete?.();
+      await Promise.resolve();
+    });
+
+    const registeredMessages = mocks.mockBus.onMessage.mock.calls.length;
+    const registeredTasks = mocks.tmOnChange.mock.calls.length;
+    expect(registeredMessages).toBe(2);
+    expect(registeredTasks).toBe(2);
+    // Every registration except the live one has been unsubscribed
+    expect(mocks.busUnsubscribe).toHaveBeenCalledTimes(registeredMessages - 1);
   });
 });
