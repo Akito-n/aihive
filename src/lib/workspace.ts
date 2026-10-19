@@ -6,7 +6,7 @@ import { MessageBus } from "./mailbox.js";
 
 /**
  * Prepare .aihive/ and the mailbox. With `reset: false` (reattaching to a
- * running session) existing messages and the dashboard are left untouched.
+ * running session) existing messages are left untouched.
  */
 export function initWorkspace(
   config: AihiveConfig,
@@ -16,7 +16,7 @@ export function initWorkspace(
 
   // Create directories under .aihive/
   const aihiveDir = path.join(projectDir, ".aihive");
-  for (const dir of ["status", "output", "skills", "memory"]) {
+  for (const dir of ["output", "skills", "memory"]) {
     fs.mkdirSync(path.join(aihiveDir, dir), { recursive: true });
   }
 
@@ -27,30 +27,7 @@ export function initWorkspace(
   const agentNames = config.agents.map((a) => a.name);
   const bus = new MessageBus(projectDir);
   bus.init(agentNames);
-  if (!reset) return bus;
-  bus.clear(agentNames);
-
-  // Init dashboard
-  const agentRows = config.agents
-    .map((a) => `| ${a.name.padEnd(14)} | ⏳ Pending | - |`)
-    .join("\n");
-
-  fs.writeFileSync(
-    path.join(aihiveDir, "status", "dashboard.md"),
-    `# Multi-Agent Dashboard
-
-## 現在のタスク
-待機中
-
-## エージェント状況
-| Agent | Status | Updated |
-|---|---|---|
-${agentRows}
-
-## Log
-- システム起動待ち
-`,
-  );
+  if (reset) bus.clear(agentNames);
 
   return bus;
 }

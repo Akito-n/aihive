@@ -36,6 +36,10 @@ describe("initWorkspace", () => {
     expect(fs.existsSync(inboxFile())).toBe(false);
   });
 
+  it("does not create the removed status/dashboard.md", () => {
+    expect(fs.existsSync(path.join(tmpDir, ".aihive", "status"))).toBe(false);
+  });
+
   it("keeps existing mailbox contents with reset: false", () => {
     initWorkspace(config, { reset: false });
     expect(fs.existsSync(inboxFile())).toBe(true);
