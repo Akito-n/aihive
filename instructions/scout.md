@@ -66,6 +66,7 @@ timestamp: "2024-01-01T12:00:00Z"
 
 - 受信するメッセージの `type` は `consult`
 - 返信するメッセージの `type` は `advice`
+- 読み終えた相談メッセージは `.aihive/mailbox/scout/inbox/processed/` に移してください（`mkdir -p` で作ってから `mv`）。inbox には未読のメッセージだけが残ります
 
 ### メッセージの送信手順
 
