@@ -237,6 +237,12 @@ vi.mock("../PaneView.js", () => ({ PaneView: () => null }));
 vi.mock("../QuickCommandMenu.js", () => ({ QuickCommandMenu: () => null }));
 vi.mock("../SettingsScreen.js", () => ({ SettingsScreen: () => null }));
 vi.mock("../CommandInput.js", () => ({ CommandInput: () => null }));
+vi.mock("../TaskView.js", () => ({
+  TaskView: (props: { tasks: unknown; onClose: () => void }) => {
+    (globalThis as Record<string, unknown>).__taskViewProps = props;
+    return null;
+  },
+}));
 
 vi.mock("../../lib/report.js", () => ({
   CompletionReporter: vi.fn(function (this: Record<string, unknown>) {
@@ -719,6 +725,33 @@ describe("App - runtime lifecycle", () => {
     expect(mocks.busUnsubscribe).toHaveBeenCalledTimes(1);
     expect(taskUnsubscribe).toHaveBeenCalledTimes(1);
     expect(mocks.mockBus.stopWatching).toHaveBeenCalledTimes(1);
+  });
+
+  it("T opens the task screen with the task list, and it can close", async () => {
+    const task = { id: "T1", state: "running" };
+    mocks.tmGetAll.mockReturnValue([task]);
+    const g = globalThis as Record<string, unknown>;
+    g.__taskViewProps = undefined;
+    const { stdin } = await advanceToRunningState();
+    expect(g.__taskViewProps).toBeUndefined();
+
+    await act(async () => {
+      stdin.write("T");
+      await Promise.resolve();
+    });
+    const props = g.__taskViewProps as {
+      tasks: unknown[];
+      onClose: () => void;
+    };
+    expect(props.tasks).toEqual([task]);
+
+    g.__taskViewProps = undefined;
+    await act(async () => {
+      props.onClose();
+      await Promise.resolve();
+    });
+    expect(g.__taskViewProps).toBeUndefined();
+    mocks.tmGetAll.mockReturnValue([]);
   });
 
   it("stop → start keeps exactly one active handler of each kind", async () => {

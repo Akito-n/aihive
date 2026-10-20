@@ -31,6 +31,12 @@ export function HelpBar({ state }: HelpBarProps) {
             {t("help.sendCommand")}
           </Text>
           <Text>
+            <Text bold color="cyan">
+              [T]
+            </Text>{" "}
+            {t("help.tasks")}
+          </Text>
+          <Text>
             <Text bold color="blue">
               [O]
             </Text>{" "}

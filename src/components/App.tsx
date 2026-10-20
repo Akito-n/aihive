@@ -52,9 +52,10 @@ import { PaneView } from "./PaneView.js";
 import { QuickCommandMenu } from "./QuickCommandMenu.js";
 import { SettingsScreen } from "./SettingsScreen.js";
 import { StartupScreen } from "./StartupScreen.js";
+import { TaskView } from "./TaskView.js";
 
 type AppState = "idle" | "settings" | "starting" | "running" | "stopping";
-type Mode = "normal" | "input" | "quickcmd";
+type Mode = "normal" | "input" | "quickcmd" | "tasks";
 
 export function App() {
   const { exit } = useApp();
@@ -88,6 +89,9 @@ export function App() {
   const memoryManagerRef = useRef<MemoryManager | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [stalledIds, setStalledIds] = useState<string[]>([]);
+  const [taskChecks, setTaskChecks] = useState<ReadonlyMap<string, TaskCheck>>(
+    () => new Map(),
+  );
   const [skillCounts, setSkillCounts] = useState<Record<SkillState, number>>({
     proposed: 0,
     approved: 0,
@@ -202,7 +206,7 @@ export function App() {
     // Run the user's check commands when a worker reports a result, and send
     // the outcome to the reviewers (or the coordinator when there is none)
     let disposed = false;
-    const taskChecks = new Map<string, TaskCheck>();
+    const checkResults = new Map<string, TaskCheck>();
     const checks = config.checks ?? [];
     const checkRunner =
       checks.length > 0
@@ -212,11 +216,12 @@ export function App() {
             ({ worker, taskId, result, commit, payload }) => {
               if (disposed) return;
               if (taskId) {
-                taskChecks.set(taskId, {
+                checkResults.set(taskId, {
                   passed: result.passed,
                   failedCommand: result.failedCommand,
                   commit,
                 });
+                setTaskChecks(new Map(checkResults));
               }
               addLog(
                 `Checks ${result.passed ? "passed" : `failed (${result.failedCommand})`} for ${worker}${taskId ? ` ${taskId}` : ""}`,
@@ -349,7 +354,7 @@ export function App() {
         try {
           const file = writeReport(
             process.cwd(),
-            formatReport(all, taskChecks, new Date(now)),
+            formatReport(all, checkResults, new Date(now)),
             new Date(now),
           );
           addLog(`Completion report written: ${file}`);
@@ -441,6 +446,10 @@ export function App() {
       }
       if (key.return || input === "i") {
         setMode("input");
+        return;
+      }
+      if (input === "T") {
+        setMode("tasks");
         return;
       }
       if (input === "O") {
@@ -536,6 +545,29 @@ export function App() {
   const termHeight = rows;
 
   // Running / Stopping: show control panel
+  if (mode === "tasks") {
+    return (
+      <Box flexDirection="column" padding={1} height={termHeight}>
+        <Header
+          state={state}
+          agents={agents}
+          taskCount={tasks.length}
+          skillCount={skillCounts.approved}
+          memoryCount={memoryCount}
+        />
+        <Box marginTop={1} flexGrow={1} overflow="hidden">
+          <TaskView
+            tasks={tasks}
+            stalledIds={stalledIds}
+            checks={taskChecks}
+            height={Math.max(8, rows - 8)}
+            onClose={() => setMode("normal")}
+          />
+        </Box>
+      </Box>
+    );
+  }
+
   if (showOverview) {
     return (
       <Box flexDirection="column" padding={1} height={termHeight}>

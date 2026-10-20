@@ -167,6 +167,19 @@ describe("TaskManager.handleMessage()", () => {
     expect(tm.getAll()).toHaveLength(1);
   });
 
+  it('type="task" keeps the full request text, capped', () => {
+    const tm = new TaskManager();
+    const payload = "task_id: T1\nFirst line\nSecond line";
+    tm.handleMessage(makeMsg({ type: "task", payload }));
+    expect(tm.get("T1")?.request).toBe(payload);
+    expect(tm.get("T1")?.description).toBe("First line");
+
+    tm.handleMessage(
+      makeMsg({ type: "task", payload: `task_id: T2\n${"x".repeat(5000)}` }),
+    );
+    expect(tm.get("T2")?.request).toHaveLength(4000);
+  });
+
   it('type="task" with existing task_id does not duplicate', () => {
     const tm = new TaskManager();
     const payload = "task_id: my-task\ndo something";
