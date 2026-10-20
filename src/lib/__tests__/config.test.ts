@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parse } from "yaml";
 
 vi.mock("node:fs", () => ({
@@ -15,13 +15,16 @@ vi.mock("node:fs", () => ({
 import fs from "node:fs";
 import type { AgentConfig } from "../config.js";
 import {
+  bundledInstructionsDir,
   defaultModelForRole,
+  getInstructionsPath,
   getPaneTarget,
   loadConfig,
   resolveWindowLayout,
   saveConfig,
   stallMinutesOf,
 } from "../config.js";
+import { setLocale } from "../i18n.js";
 
 function makeAgent(
   overrides: Partial<AgentConfig> & { role: string; name: string },
@@ -234,5 +237,32 @@ describe("saveConfig", () => {
     const written = vi.mocked(fs.writeFileSync).mock.calls[0][1] as string;
     const parsed = parse(written) as { agents: { cli?: string }[] };
     expect(parsed.agents[0].cli).toBe("codex");
+  });
+});
+
+describe("instructions language", () => {
+  afterEach(() => setLocale("ja"));
+
+  it("uses instructions/en/ for English and instructions/ for Japanese", () => {
+    expect(bundledInstructionsDir("en")).toMatch(/instructions[/\\]en$/);
+    expect(bundledInstructionsDir("ja")).toMatch(/instructions$/);
+  });
+
+  it("falls back to the Japanese file when no English one is bundled", () => {
+    setLocale("en");
+    vi.mocked(fs.existsSync).mockImplementation(
+      (p) => !String(p).includes(".aihive") && !String(p).includes("/en/"),
+    );
+    expect(getInstructionsPath("worker")).toMatch(
+      /instructions[/\\]worker\.md$/,
+    );
+  });
+
+  it("prefers the English file when it is bundled", () => {
+    setLocale("en");
+    vi.mocked(fs.existsSync).mockImplementation(
+      (p) => !String(p).includes(".aihive"),
+    );
+    expect(getInstructionsPath("worker")).toMatch(/en[/\\]worker\.md$/);
   });
 });
