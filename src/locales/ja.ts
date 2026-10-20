@@ -189,6 +189,11 @@ export const ja: Record<TransKey, string> = {
   "taskState.done": "完了",
   "taskState.error": "失敗",
   "help.tasks": "タスク",
+  "notify.allDone":
+    "すべてのタスクが終わりました（完了 {done} / 失敗 {failed}）",
+  "notify.stalled": "タスク {ids} が {minutes}分間止まっています",
+  "notify.checksFailed":
+    "{worker} の {task} で確認コマンドが失敗しました: {command}",
   "report.title": "# aihive 完了レポート",
   "report.created": "- 作成: {time}",
   "report.summary": "- タスク: {total} 件（完了 {done} / 失敗 {failed}）",

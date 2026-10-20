@@ -20,6 +20,7 @@ import {
   getInstructionsPath,
   getPaneTarget,
   loadConfig,
+  notifyModeOf,
   resolveWindowLayout,
   saveConfig,
   stallMinutesOf,
@@ -216,6 +217,34 @@ describe("checks", () => {
       .mock.calls.map((c) => parse(c[1] as string));
     expect(withIt.checks).toEqual(["npm test"]);
     expect(without.checks).toBeUndefined();
+  });
+});
+
+describe("notify", () => {
+  const yaml = (line: string) =>
+    `session: aihive\n${line}\nagents:\n  - name: Worker 1\n    role: worker\n`;
+
+  it("reads bell, desktop or off, and defaults to bell", () => {
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+    vi.mocked(fs.readFileSync).mockReturnValue(yaml("notify: desktop"));
+    expect(notifyModeOf(loadConfig())).toBe("desktop");
+    vi.mocked(fs.readFileSync).mockReturnValue(yaml("notify: off"));
+    expect(notifyModeOf(loadConfig())).toBe("off");
+    vi.mocked(fs.readFileSync).mockReturnValue(yaml("notify: loud"));
+    expect(loadConfig().notify).toBeUndefined();
+    expect(notifyModeOf(loadConfig())).toBe("bell");
+  });
+
+  it("is saved only when set", () => {
+    vi.mocked(fs.writeFileSync).mockReset();
+    const agents = [makeAgent({ name: "W", role: "worker" })];
+    saveConfig({ session: "aihive", agents, notify: "off" });
+    saveConfig({ session: "aihive", agents });
+    const [withIt, without] = vi
+      .mocked(fs.writeFileSync)
+      .mock.calls.map((c) => parse(c[1] as string));
+    expect(withIt.notify).toBe("off");
+    expect(without.notify).toBeUndefined();
   });
 });
 

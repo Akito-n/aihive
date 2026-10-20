@@ -28,6 +28,16 @@ export interface AihiveConfig {
   worktrees?: boolean; // give each worker its own git worktree (default: true)
   stallMinutes?: number; // remind an agent of a task with no update for this long (0 = off)
   checks?: string[]; // commands aihive runs when a worker reports a result
+  notify?: NotifyMode; // how to get your attention (default: "bell")
+}
+
+/** bell: terminal bell; desktop: bell and a desktop notification; off: none */
+export type NotifyMode = "bell" | "desktop" | "off";
+
+const NOTIFY_MODES = new Set<NotifyMode>(["bell", "desktop", "off"]);
+
+export function notifyModeOf(config: AihiveConfig): NotifyMode {
+  return config.notify ?? "bell";
 }
 
 /** Minutes without an update before a task counts as stalled */
@@ -109,6 +119,9 @@ export function loadConfig(): AihiveConfig {
           ),
         }
       : {}),
+    ...(parsed.notify && NOTIFY_MODES.has(parsed.notify)
+      ? { notify: parsed.notify }
+      : {}),
   };
 }
 
@@ -129,6 +142,7 @@ export function saveConfig(config: AihiveConfig): void {
       ? { stallMinutes: config.stallMinutes }
       : {}),
     ...(config.checks?.length ? { checks: config.checks } : {}),
+    ...(config.notify ? { notify: config.notify } : {}),
   };
   const yaml = stringify(saveData, { indent: 2 });
   const header = `# aihive configuration
@@ -156,6 +170,10 @@ export function saveConfig(config: AihiveConfig): void {
 #   checks:
 #     - npm run typecheck
 #     - npm test
+#
+# aihive rings the terminal bell when every task has finished, a task stalls,
+# or the checks fail. "notify: desktop" also shows a desktop notification
+# (macOS, or Linux with notify-send); "notify: off" turns both off.
 #
 # Instructions are loaded from ~/.aihive/instructions/{role}.md
 # If not found, bundled defaults are used.
