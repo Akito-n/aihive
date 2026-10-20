@@ -128,6 +128,8 @@ timestamp: "2024-01-01T12:00:00Z"
 
 各Workerが完了すると、`.aihive/mailbox/coordinator/inbox/` に結果メッセージが届きます。
 
+Workerの `result` に確認コマンド（テスト、型チェック、lint など）の実行結果が含まれていない場合は、実行して報告し直すようそのWorkerに差し戻してください。
+
 全Workerの完了を確認したら：
 1. 結果を集約する
 2. `.aihive/mailbox/orchestrator/inbox/` に完了報告メッセージを書き込む
