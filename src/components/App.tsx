@@ -54,8 +54,11 @@ import { SettingsScreen } from "./SettingsScreen.js";
 import { StartupScreen } from "./StartupScreen.js";
 import { TaskView } from "./TaskView.js";
 
+/** Log lines kept for the log screen */
+const LOG_LIMIT = 500;
+
 type AppState = "idle" | "settings" | "starting" | "running" | "stopping";
-type Mode = "normal" | "input" | "quickcmd" | "tasks";
+type Mode = "normal" | "input" | "quickcmd" | "tasks" | "log";
 
 export function App() {
   const { exit } = useApp();
@@ -70,7 +73,6 @@ export function App() {
   );
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [mode, setMode] = useState<Mode>("normal");
-  const [showLog, setShowLog] = useState(false);
   const [showOverview, setShowOverview] = useState(false);
   const [promptInfo, setPromptInfo] = useState<PromptInfo>({
     detected: false,
@@ -105,7 +107,7 @@ export function App() {
       hour: "2-digit",
       minute: "2-digit",
     });
-    setLogs((prev) => [...prev.slice(-30), `${time} ${message}`]);
+    setLogs((prev) => [...prev.slice(-(LOG_LIMIT - 1)), `${time} ${message}`]);
   }, []);
 
   const updateAgentStatus = useCallback(
@@ -457,7 +459,7 @@ export function App() {
         return;
       }
       if (input === "L") {
-        setShowLog((prev) => !prev);
+        setMode("log");
         return;
       }
       if (input === "q") {
@@ -545,6 +547,26 @@ export function App() {
   const termHeight = rows;
 
   // Running / Stopping: show control panel
+  if (mode === "log") {
+    return (
+      <Box flexDirection="column" padding={1} height={termHeight}>
+        <Header
+          state={state}
+          agents={agents}
+          taskCount={tasks.length}
+          skillCount={skillCounts.approved}
+          memoryCount={memoryCount}
+        />
+        <Box marginTop={1} flexGrow={1} overflow="hidden">
+          <LogView
+            logs={logs}
+            height={Math.max(8, rows - 8)}
+            onClose={() => setMode("normal")}
+          />
+        </Box>
+      </Box>
+    );
+  }
   if (mode === "tasks") {
     return (
       <Box flexDirection="column" padding={1} height={termHeight}>
@@ -580,26 +602,6 @@ export function App() {
         />
         <Box marginTop={1} flexGrow={1} overflow="hidden">
           <OverviewMode sessionName={config.session} agents={agents} />
-        </Box>
-        <Box marginTop={1}>
-          <HelpBar state={state} />
-        </Box>
-      </Box>
-    );
-  }
-
-  if (showLog) {
-    return (
-      <Box flexDirection="column" padding={1} height={termHeight}>
-        <Header
-          state={state}
-          agents={agents}
-          taskCount={tasks.length}
-          skillCount={skillCounts.approved}
-          memoryCount={memoryCount}
-        />
-        <Box marginTop={1} flexGrow={1} overflow="hidden">
-          <LogView logs={logs} />
         </Box>
         <Box marginTop={1}>
           <HelpBar state={state} />

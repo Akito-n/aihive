@@ -231,7 +231,12 @@ vi.mock("../Dashboard.js", () => ({
 }));
 vi.mock("../Header.js", () => ({ Header: () => null }));
 vi.mock("../HelpBar.js", () => ({ HelpBar: () => null }));
-vi.mock("../LogView.js", () => ({ LogView: () => null }));
+vi.mock("../LogView.js", () => ({
+  LogView: (props: { logs: string[]; onClose?: () => void }) => {
+    (globalThis as Record<string, unknown>).__logViewProps = props;
+    return null;
+  },
+}));
 vi.mock("../OverviewMode.js", () => ({ OverviewMode: () => null }));
 vi.mock("../PaneView.js", () => ({ PaneView: () => null }));
 vi.mock("../QuickCommandMenu.js", () => ({ QuickCommandMenu: () => null }));
@@ -725,6 +730,29 @@ describe("App - runtime lifecycle", () => {
     expect(mocks.busUnsubscribe).toHaveBeenCalledTimes(1);
     expect(taskUnsubscribe).toHaveBeenCalledTimes(1);
     expect(mocks.mockBus.stopWatching).toHaveBeenCalledTimes(1);
+  });
+
+  it("L opens the log screen with the logs, and it can close", async () => {
+    const g = globalThis as Record<string, unknown>;
+    g.__logViewProps = undefined;
+    const { stdin } = await advanceToRunningState();
+    expect(g.__logViewProps).toBeUndefined();
+
+    await act(async () => {
+      stdin.write("L");
+      await Promise.resolve();
+    });
+    const props = g.__logViewProps as { logs: string[]; onClose: () => void };
+    expect(props.logs.some((l) => l.includes("Workspace initialized"))).toBe(
+      true,
+    );
+
+    g.__logViewProps = undefined;
+    await act(async () => {
+      props.onClose();
+      await Promise.resolve();
+    });
+    expect(g.__logViewProps).toBeUndefined();
   });
 
   it("T opens the task screen with the task list, and it can close", async () => {
