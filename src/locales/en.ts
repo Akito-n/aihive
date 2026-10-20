@@ -81,6 +81,13 @@ export const en = {
   "log.entries": "entries",
   "log.close": "to close",
   "log.noEvents": "No events yet",
+  "log.filter.all": "All",
+  "log.filter.message": "Messages",
+  "log.filter.task": "Tasks & checks",
+  "log.filter.warning": "Warnings",
+  "log.scrolled": "({count} lines above newest)",
+  "log.help":
+    "[j/k, PgUp/PgDn] scroll  [g/G] oldest/newest  [f] filter  [Esc/L] back",
 
   // ─── Help Bar ───────────────────────────────────────────────────
   "help.start": "Start",

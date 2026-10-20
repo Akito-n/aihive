@@ -83,6 +83,13 @@ export const ja: Record<TransKey, string> = {
   "log.entries": "件",
   "log.close": "で閉じる",
   "log.noEvents": "イベントはまだありません",
+  "log.filter.all": "すべて",
+  "log.filter.message": "メッセージ",
+  "log.filter.task": "タスク・確認",
+  "log.filter.warning": "警告",
+  "log.scrolled": "（最新から {count} 行上）",
+  "log.help":
+    "[j/k・PgUp/PgDn] スクロール  [g/G] 最初/最新  [f] 絞り込み  [Esc/L] 戻る",
 
   // ─── Help Bar ───────────────────────────────────────────────────
   "help.start": "開始",
