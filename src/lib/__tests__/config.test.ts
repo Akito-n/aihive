@@ -20,6 +20,7 @@ import {
   loadConfig,
   resolveWindowLayout,
   saveConfig,
+  stallMinutesOf,
 } from "../config.js";
 
 function makeAgent(
@@ -154,6 +155,42 @@ describe("loadConfig", () => {
     const worker = config.agents.find((a) => a.role === "worker");
     expect(orch?.model).toBe("opus");
     expect(worker?.model).toBe("sonnet");
+  });
+});
+
+describe("stallMinutes", () => {
+  const load = (line: string) => {
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+    vi.mocked(fs.readFileSync).mockReturnValue(
+      `session: aihive\n${line}\nagents:\n  - name: Worker 1\n    role: worker\n`,
+    );
+    return loadConfig();
+  };
+
+  it("defaults to 15 minutes", () => {
+    expect(stallMinutesOf(load(""))).toBe(15);
+  });
+
+  it("reads a number, including 0 to turn it off", () => {
+    expect(stallMinutesOf(load("stallMinutes: 30"))).toBe(30);
+    expect(stallMinutesOf(load("stallMinutes: 0"))).toBe(0);
+  });
+
+  it("ignores a negative or non-numeric value", () => {
+    expect(stallMinutesOf(load("stallMinutes: -5"))).toBe(15);
+    expect(stallMinutesOf(load('stallMinutes: "soon"'))).toBe(15);
+  });
+
+  it("is saved only when set", () => {
+    vi.mocked(fs.writeFileSync).mockReset();
+    const agents = [makeAgent({ name: "W", role: "worker" })];
+    saveConfig({ session: "aihive", agents, stallMinutes: 0 });
+    saveConfig({ session: "aihive", agents });
+    const [withIt, without] = vi
+      .mocked(fs.writeFileSync)
+      .mock.calls.map((c) => parse(c[1] as string));
+    expect(withIt.stallMinutes).toBe(0);
+    expect(without.stallMinutes).toBeUndefined();
   });
 });
 

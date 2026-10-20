@@ -307,6 +307,37 @@ describe("MessageBus", () => {
     });
   });
 
+  describe("remindStalled()", () => {
+    it("types one reminder line naming the task and the inbox", () => {
+      mockExecFileSync.mockReset();
+      bus.setNudgeConfig({
+        sessionName: "aihive",
+        paneTargets: new Map([["reviewer", "reviewer"]]),
+      });
+
+      expect(bus.remindStalled("reviewer", "T1-2\nrm -rf", 15)).toBe(true);
+
+      const calls = mockExecFileSync.mock.calls.map((c) => c[1] as string[]);
+      expect(calls).toHaveLength(3);
+      const text = calls[1][4];
+      expect(calls[1].slice(0, 4)).toEqual([
+        "send-keys",
+        "-t",
+        "aihive:reviewer",
+        "-l",
+      ]);
+      expect(text).toContain("タスク T1-2 rm -rf が 15分間更新されていません");
+      expect(text).toContain("/test-project/.aihive/mailbox/reviewer/inbox/");
+      expect(text).not.toContain("\n");
+    });
+
+    it("returns false for an agent without a pane", () => {
+      bus.setNudgeConfig({ sessionName: "aihive", paneTargets: new Map() });
+      expect(bus.remindStalled("worker-9", "T1", 15)).toBe(false);
+      expect(mockExecFileSync).not.toHaveBeenCalled();
+    });
+  });
+
   describe("processNewFile() delivery", () => {
     const msg: Message = {
       id: "d1",

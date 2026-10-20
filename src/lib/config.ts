@@ -25,6 +25,14 @@ export interface AihiveConfig {
   session: string; // tmux session name
   agents: AgentConfig[];
   worktrees?: boolean; // give each worker its own git worktree (default: true)
+  stallMinutes?: number; // remind an agent of a task with no update for this long (0 = off)
+}
+
+/** Minutes without an update before a task counts as stalled */
+export const DEFAULT_STALL_MINUTES = 15;
+
+export function stallMinutesOf(config: AihiveConfig): number {
+  return config.stallMinutes ?? DEFAULT_STALL_MINUTES;
 }
 
 // ─── Paths ───────────────────────────────────────────────────────────
@@ -86,6 +94,11 @@ export function loadConfig(): AihiveConfig {
     session: parsed.session || "aihive",
     agents: resolveWindowLayout(agents),
     ...(parsed.worktrees === false ? { worktrees: false } : {}),
+    ...(typeof parsed.stallMinutes === "number" &&
+    Number.isFinite(parsed.stallMinutes) &&
+    parsed.stallMinutes >= 0
+      ? { stallMinutes: parsed.stallMinutes }
+      : {}),
   };
 }
 
@@ -102,6 +115,9 @@ export function saveConfig(config: AihiveConfig): void {
       ...(a.model ? { model: a.model } : {}),
     })),
     ...(config.worktrees === false ? { worktrees: false } : {}),
+    ...(config.stallMinutes !== undefined
+      ? { stallMinutes: config.stallMinutes }
+      : {}),
   };
   const yaml = stringify(saveData, { indent: 2 });
   const header = `# aihive configuration
@@ -120,6 +136,9 @@ export function saveConfig(config: AihiveConfig): void {
 #
 # In a git repository each worker gets its own branch and worktree under
 # ~/.aihive/worktrees/. Set "worktrees: false" to run everyone in the project dir.
+#
+# A task with no update for 15 minutes is marked stalled and its agent is
+# reminded once. Change the wait with "stallMinutes: 30", or turn it off with 0.
 #
 # Instructions are loaded from ~/.aihive/instructions/{role}.md
 # If not found, bundled defaults are used.
