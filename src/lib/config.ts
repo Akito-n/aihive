@@ -27,6 +27,7 @@ export interface AihiveConfig {
   agents: AgentConfig[];
   worktrees?: boolean; // give each worker its own git worktree (default: true)
   stallMinutes?: number; // remind an agent of a task with no update for this long (0 = off)
+  checks?: string[]; // commands aihive runs when a worker reports a result
 }
 
 /** Minutes without an update before a task counts as stalled */
@@ -100,6 +101,14 @@ export function loadConfig(): AihiveConfig {
     parsed.stallMinutes >= 0
       ? { stallMinutes: parsed.stallMinutes }
       : {}),
+    ...(Array.isArray(parsed.checks)
+      ? {
+          checks: parsed.checks.filter(
+            (c: unknown): c is string =>
+              typeof c === "string" && c.trim() !== "",
+          ),
+        }
+      : {}),
   };
 }
 
@@ -119,6 +128,7 @@ export function saveConfig(config: AihiveConfig): void {
     ...(config.stallMinutes !== undefined
       ? { stallMinutes: config.stallMinutes }
       : {}),
+    ...(config.checks?.length ? { checks: config.checks } : {}),
   };
   const yaml = stringify(saveData, { indent: 2 });
   const header = `# aihive configuration
@@ -140,6 +150,12 @@ export function saveConfig(config: AihiveConfig): void {
 #
 # A task with no update for 15 minutes is marked stalled and its agent is
 # reminded once. Change the wait with "stallMinutes: 30", or turn it off with 0.
+#
+# "checks" lists commands aihive runs itself when a worker reports a result,
+# in that worker's folder, and sends the outcome to the Reviewer, e.g.
+#   checks:
+#     - npm run typecheck
+#     - npm test
 #
 # Instructions are loaded from ~/.aihive/instructions/{role}.md
 # If not found, bundled defaults are used.

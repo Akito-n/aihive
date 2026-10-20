@@ -99,6 +99,13 @@ timestamp: "2024-01-01T12:00:00Z"
 4. 衝突した場合や統合後の確認が失敗した場合は、`git merge --abort`（統合済みなら `git reset --hard ORIG_HEAD`）で元に戻し、FAIL として原因と衝突したファイルを報告する
 5. `git push` はしない。統合後のコミットのハッシュを結果に含める
 
+#### aihive による確認結果（check-result）
+
+aihive に確認コマンドが設定されていると、Worker が `result` を送ったときに aihive がその作業フォルダで確認コマンドを実行し、結果を `type: "check-result"`（from は `system`）のメッセージであなたの inbox に送ります。
+
+- `passed: false` なら、その作業はマージせず FAIL とし、`failed_command` と `output` を添えて報告する
+- `passed: true` でも、`commit` がレビューするコミットと同じか確かめる。違う場合や check-result がまだ届いていない場合は、これまでどおり自分で確認コマンドを実行する
+
 ### 3. 結果報告
 
 レビュー完了後、`.aihive/mailbox/coordinator/inbox/` に結果を書き込みます。

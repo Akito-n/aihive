@@ -143,7 +143,7 @@ describe("bundled English instructions", () => {
     const tokens = (text: string) =>
       [
         ...text.matchAll(
-          /\bF\d{3}\b|`(?:task|result|error|consult|advice|skill-proposal|memory-write|memory-read)`/g,
+          /\bF\d{3}\b|`(?:task|result|error|consult|advice|skill-proposal|memory-write|memory-read|check-result)`/g,
         ),
       ]
         .map((m) => m[0])

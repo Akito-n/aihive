@@ -1,5 +1,6 @@
 import { Box, Text, useApp, useInput, useWindowSize } from "ink";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CheckRunner } from "../lib/checks.js";
 import { loadSlashCommands } from "../lib/commands.js";
 import type { AihiveConfig } from "../lib/config.js";
 import {
@@ -20,6 +21,7 @@ import {
   StallMonitor,
   saveTasks,
   TaskManager,
+  taskIdOf,
   tasksFilePath,
 } from "../lib/tasks.js";
 import type { AgentInfo } from "../lib/tmux.js";
@@ -191,6 +193,38 @@ export function App() {
       }
     });
 
+    // Run the user's check commands when a worker reports a result, and send
+    // the outcome to the reviewers (or the coordinator when there is none)
+    let disposed = false;
+    const checks = config.checks ?? [];
+    const checkRunner =
+      checks.length > 0
+        ? new CheckRunner(
+            checks,
+            process.cwd(),
+            ({ worker, taskId, result, payload }) => {
+              if (disposed) return;
+              addLog(
+                `Checks ${result.passed ? "passed" : `failed (${result.failedCommand})`} for ${worker}${taskId ? ` ${taskId}` : ""}`,
+              );
+              const reviewers = config.agents.filter(
+                (a) => a.role === "reviewer",
+              );
+              const recipients = reviewers.length
+                ? reviewers
+                : config.agents.filter((a) => a.role === "coordinator");
+              for (const r of recipients) {
+                bus.send(
+                  SYSTEM_MAILBOX,
+                  toSlug(r.name),
+                  "check-result",
+                  payload,
+                );
+              }
+            },
+          )
+        : null;
+
     const unsubscribeMessages = bus.onMessage((msg) => {
       addLog(
         `[${msg.from} → ${msg.to}] ${msg.type}: ${String(msg.payload ?? "").slice(0, 60)}`,
@@ -202,6 +236,16 @@ export function App() {
 
       if (msg.type === "result") {
         updateAgentStatus(msg.from, "done");
+        const sender = config.agents.find(
+          (a) => toSlug(a.name) === toSlug(msg.from),
+        );
+        if (checkRunner && sender?.role === "worker") {
+          const taskId = taskIdOf(msg);
+          addLog(
+            `Running checks for ${sender.name}${taskId ? ` ${taskId}` : ""}`,
+          );
+          void checkRunner.run(sender.name, taskId);
+        }
       } else if (msg.type === "error") {
         updateAgentStatus(msg.from, "error");
       } else if (msg.type === "task") {
@@ -296,6 +340,7 @@ export function App() {
     }, 60_000);
 
     return () => {
+      disposed = true;
       clearInterval(stallTimer);
       unsubscribeMessages();
       unsubscribeTasks();
