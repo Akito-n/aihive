@@ -3,8 +3,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { loadSlashCommands } from "../lib/commands.js";
 import type { AihiveConfig } from "../lib/config.js";
 import { initInstructions, loadConfig, saveConfig } from "../lib/config.js";
-import type { MessageBus } from "../lib/mailbox.js";
-import { MemoryManager } from "../lib/memory.js";
+import { type MessageBus, SYSTEM_MAILBOX, toSlug } from "../lib/mailbox.js";
+import { MemoryManager, normalizeMemoryEntry } from "../lib/memory.js";
 import type { QuickCommand } from "../lib/quick-commands.js";
 import { groupByCategory, loadQuickCommands } from "../lib/quick-commands.js";
 import type { SkillState } from "../lib/skills.js";
@@ -87,7 +87,7 @@ export function App() {
     (name: string, status: AgentInfo["status"]) => {
       setAgents((prev) =>
         prev.map((a) =>
-          a.name === name
+          toSlug(a.name) === toSlug(name)
             ? {
                 ...a,
                 status,
@@ -189,7 +189,7 @@ export function App() {
         if (sm) {
           try {
             const skillData = JSON.parse(msg.payload);
-            sm.propose(skillData);
+            if (!sm.propose(skillData)) throw new Error("invalid skill");
             setSkillCounts(sm.getCounts());
             addLog(`Skill proposed: ${skillData.name ?? skillData.id}`);
           } catch {
@@ -218,11 +218,12 @@ export function App() {
         const mm = memoryManagerRef.current;
         if (mm) {
           try {
-            const entry = JSON.parse(msg.payload);
-            entry.created_by = entry.created_by ?? msg.from;
-            entry.created_at = entry.created_at ?? new Date().toISOString();
+            const entry = normalizeMemoryEntry(
+              JSON.parse(msg.payload),
+              msg.from,
+            );
+            if (!entry) throw new Error("invalid memory entry");
             entry.updated_at = new Date().toISOString();
-            entry.tags = entry.tags ?? [];
             mm.write(entry);
             setMemoryCount(mm.getCount());
             addLog(`Memory saved: ${entry.key} by ${msg.from}`);
@@ -233,12 +234,9 @@ export function App() {
       } else if (msg.type === "memory-read") {
         const mm = memoryManagerRef.current;
         if (mm && messageBusRef.current) {
-          const results = mm.search(
-            msg.payload.trim(),
-            msg.from.toLowerCase().replace(/\s+/g, "-"),
-          );
+          const results = mm.search(msg.payload.trim(), toSlug(msg.from));
           messageBusRef.current.send(
-            "system",
+            SYSTEM_MAILBOX,
             msg.from,
             "memory-response",
             JSON.stringify(results),

@@ -12,7 +12,11 @@ const mockFs = vi.hoisted(() => ({
 
 vi.mock("node:fs", () => ({ default: mockFs }));
 
-import { type MemoryEntry, MemoryManager } from "../memory.js";
+import {
+  type MemoryEntry,
+  MemoryManager,
+  normalizeMemoryEntry,
+} from "../memory.js";
 
 function makeEntry(overrides: Partial<MemoryEntry> = {}): MemoryEntry {
   return {
@@ -74,6 +78,31 @@ describe("MemoryManager", () => {
   });
 
   describe("search()", () => {
+    it("shared タグ付きのエントリは他のエージェントからも見つかる", () => {
+      mm.write(
+        makeEntry({
+          id: "s1",
+          key: "build",
+          created_by: "worker-1",
+          tags: ["shared"],
+        }),
+      );
+      mm.write(
+        makeEntry({ id: "p1", key: "build-private", created_by: "worker-1" }),
+      );
+
+      expect(mm.search("build", "worker-2").map((e) => e.id)).toEqual(["s1"]);
+      expect(mm.search("build", "worker-1")).toHaveLength(2);
+    });
+
+    it("created_by にパス区切りを含んでもメモリ外に書き出さない", () => {
+      mm.write(makeEntry({ id: "x", created_by: "../../etc" }));
+      const dirs = mockFs.writeFileSync.mock.calls.map((c) => String(c[0]));
+      expect(
+        dirs.every((d) => d.startsWith("/test-project/.aihive/memory/shared/")),
+      ).toBe(true);
+    });
+
     it("keyのマッチでエントリを返す", () => {
       mm.write(
         makeEntry({ id: "e1", key: "database-url", value: "postgres://..." }),
@@ -202,5 +231,35 @@ describe("MemoryManager", () => {
       mm.init([]);
       expect(mm.read("dup")?.value).toBe("second");
     });
+  });
+});
+
+describe("normalizeMemoryEntry", () => {
+  it("fills defaults and generates a missing id", () => {
+    const e = normalizeMemoryEntry({ key: "k", value: "v" }, "worker-1");
+    expect(e?.id).toMatch(/^mem-/);
+    expect(e?.created_by).toBe("worker-1");
+    expect(e?.tags).toEqual([]);
+  });
+
+  it("coerces non-string values and tags", () => {
+    const e = normalizeMemoryEntry({
+      id: "a",
+      key: "k",
+      value: { n: 1 },
+      tags: "shared",
+    });
+    expect(e?.value).toBe('{"n":1}');
+    expect(e?.tags).toEqual(["shared"]);
+  });
+
+  it.each([
+    [{ id: "../x", key: "k" }],
+    [{ id: "a/b", key: "k" }],
+    [{ id: "a" }],
+    ["not an object"],
+    [null],
+  ])("rejects %j", (data) => {
+    expect(normalizeMemoryEntry(data)).toBeNull();
   });
 });

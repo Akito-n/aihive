@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { parse, stringify } from "yaml";
+import { asString, asStringList, isSafeId } from "./validate.js";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -54,7 +55,10 @@ export class MemoryManager {
     return [...this.entries.values()].filter((e) => {
       // If agentSlug specified, only match shared or that agent's entries
       if (agentSlug) {
-        const isShared = !e.created_by || this.getEntryScope(e) === "shared";
+        const isShared =
+          !e.created_by ||
+          this.getEntryScope(e) === "shared" ||
+          e.tags.includes("shared");
         const isOwn = this.getEntryScope(e) === agentSlug;
         if (!isShared && !isOwn) return false;
       }
@@ -81,7 +85,11 @@ export class MemoryManager {
   private getEntryScope(entry: MemoryEntry): string {
     // Determine scope from the agent slug (created_by → slug)
     const slug = entry.created_by.toLowerCase().replace(/\s+/g, "-");
-    return slug || "shared";
+    // Never let an agent-written name escape the memory directory
+    if (!slug || /[/\\]/.test(slug) || slug === "." || slug === "..") {
+      return "shared";
+    }
+    return slug;
   }
 
   private save(entry: MemoryEntry): void {
@@ -112,9 +120,9 @@ export class MemoryManager {
         if (!file.endsWith(".yaml")) continue;
         try {
           const raw = fs.readFileSync(path.join(dirPath, file), "utf8");
-          const data = parse(raw) as MemoryEntry;
-          if (data?.id) {
-            this.entries.set(data.id, data);
+          const entry = normalizeMemoryEntry(parse(raw));
+          if (entry) {
+            this.entries.set(entry.id, entry);
           }
         } catch {
           // Skip malformed files
@@ -122,4 +130,32 @@ export class MemoryManager {
       }
     }
   }
+}
+
+// ─── Validation ──────────────────────────────────────────────────────
+
+/**
+ * Normalize a memory entry written by an agent. A missing id is generated;
+ * returns null when the id is unsafe as a file name or there is no key.
+ */
+export function normalizeMemoryEntry(
+  data: unknown,
+  defaultCreatedBy = "",
+): MemoryEntry | null {
+  if (!data || typeof data !== "object") return null;
+  const d = data as Record<string, unknown>;
+  const id =
+    d.id ?? `mem-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  if (!isSafeId(id) || typeof d.key !== "string") return null;
+  const now = new Date().toISOString();
+  return {
+    id,
+    key: d.key,
+    value:
+      typeof d.value === "string" ? d.value : JSON.stringify(d.value ?? ""),
+    tags: asStringList(d.tags),
+    created_by: asString(d.created_by, defaultCreatedBy),
+    created_at: asString(d.created_at, now),
+    updated_at: asString(d.updated_at, now),
+  };
 }

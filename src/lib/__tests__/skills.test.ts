@@ -17,6 +17,7 @@ vi.mock("node:fs", () => {
 import fs from "node:fs";
 import {
   APPROVED_INDEX_FILE,
+  normalizeSkill,
   renderApprovedIndex,
   SkillManager,
 } from "../skills.js";
@@ -340,5 +341,59 @@ describe("SkillManager approved index", () => {
     const sm = makeSm();
     sm.init();
     expect(sm.getAll()).toHaveLength(0);
+  });
+});
+
+// ─── Validation ──────────────────────────────────────────────────────
+
+describe("normalizeSkill", () => {
+  it("coerces a string steps field into a list", () => {
+    expect(normalizeSkill({ id: "s", steps: "do x" })?.steps).toEqual(["do x"]);
+  });
+
+  it("fills missing fields with defaults", () => {
+    const skill = normalizeSkill({ id: "s" });
+    expect(skill).toMatchObject({
+      id: "s",
+      name: "s",
+      description: "",
+      trigger: "",
+      steps: [],
+      created_by: "unknown",
+    });
+  });
+
+  it.each([[{}], [{ id: "../x" }], [{ id: "a/b" }], [null], ["s"]])(
+    "rejects %j",
+    (data) => {
+      expect(normalizeSkill(data)).toBeNull();
+    },
+  );
+});
+
+describe("SkillManager with malformed agent input", () => {
+  it("propose() rejects an unsafe id without writing", () => {
+    const sm = makeSm();
+    expect(sm.propose({ id: "../escape", steps: [] })).toBe(false);
+    expect(sm.getAll()).toHaveLength(0);
+    expect(fs.writeFileSync).not.toHaveBeenCalled();
+  });
+
+  it("approving a skill with string steps renders the index", () => {
+    const sm = makeSm();
+    expect(sm.propose({ ...makeSkill(), steps: "do x" })).toBe(true);
+    expect(() => sm.approve("skill-1", "coordinator")).not.toThrow();
+  });
+
+  it("init() survives an approved skill file with malformed steps", () => {
+    vi.mocked(fs.readdirSync).mockReturnValue([
+      "bad.yaml",
+    ] as unknown as ReturnType<typeof fs.readdirSync>);
+    vi.mocked(fs.readFileSync).mockReturnValue(
+      stringify({ id: "bad", name: "Bad", steps: "do x", state: "approved" }),
+    );
+    const sm = makeSm();
+    expect(() => sm.init()).not.toThrow();
+    expect(sm.getApproved()[0].steps).toEqual(["do x"]);
   });
 });

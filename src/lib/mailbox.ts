@@ -36,6 +36,12 @@ export interface NudgeConfig {
   paneTargets: Map<string, string>; // slug → pane target (e.g. "orchestrator" → "orchestrator")
 }
 
+/**
+ * Mailbox handled by aihive itself (memory-read / memory-write). Agents send
+ * to it with `to: "system"`; it is always created and watched, never nudged.
+ */
+export const SYSTEM_MAILBOX = "system";
+
 // ─── MessageBus ──────────────────────────────────────────────────────
 
 export class MessageBus {
@@ -57,9 +63,9 @@ export class MessageBus {
     this.nudgeConfig = config;
   }
 
-  /** Create mailbox directories for all agents */
+  /** Create mailbox directories for all agents and the system mailbox */
   init(agentNames: string[]): void {
-    for (const name of agentNames) {
+    for (const name of withSystem(agentNames)) {
       const slug = toSlug(name);
       for (const sub of ["inbox", "outbox"]) {
         const dir = path.join(this.baseDir, slug, sub);
@@ -70,7 +76,7 @@ export class MessageBus {
 
   /** Clear all mailbox contents */
   clear(agentNames: string[]): void {
-    for (const name of agentNames) {
+    for (const name of withSystem(agentNames)) {
       const slug = toSlug(name);
       for (const sub of ["inbox", "outbox"]) {
         const dir = path.join(this.baseDir, slug, sub);
@@ -124,11 +130,11 @@ export class MessageBus {
     };
   }
 
-  /** Start watching all agent inboxes for new messages */
+  /** Start watching all agent inboxes (and the system inbox) for new messages */
   startWatching(agentNames: string[]): void {
     this.pollAgentSlugs = [];
 
-    for (const name of agentNames) {
+    for (const name of withSystem(agentNames)) {
       const slug = toSlug(name);
       const inboxDir = path.join(this.baseDir, slug, "inbox");
       if (!fs.existsSync(inboxDir)) continue;
@@ -252,6 +258,12 @@ export class MessageBus {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────
+
+function withSystem(agentNames: string[]): string[] {
+  return agentNames.some((n) => toSlug(n) === SYSTEM_MAILBOX)
+    ? agentNames
+    : [...agentNames, SYSTEM_MAILBOX];
+}
 
 /** Convert agent name to filesystem-safe slug */
 export function toSlug(name: string): string {
