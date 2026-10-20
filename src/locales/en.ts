@@ -144,6 +144,16 @@ export const en = {
 
 - Do not commit to any other branch, \`git push\`, switch branches, or edit files outside your working folder (writing to the \`.aihive/\` mailbox is the exception)
 - The Reviewer merges into the integration branch`,
+  "dashboard.agents": "Agents",
+  "dashboard.noTask": "idle",
+  "dashboard.tasks": "Tasks",
+  "dashboard.stalled": "{count} stalled",
+  "dashboard.more": "+{count} more (T to list)",
+  "dashboard.skills": "Skills",
+  "dashboard.skillsApproved": "{count} approved",
+  "dashboard.skillsPending": "{count} pending",
+  "dashboard.memory": "Memory",
+  "dashboard.memoryEntries": "{count} entries",
   "taskView.title": "Tasks",
   "taskView.filter.all": "All",
   "taskView.filter.open": "Open",

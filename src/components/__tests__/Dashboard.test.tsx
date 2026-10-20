@@ -1,8 +1,9 @@
 import { render } from "ink-testing-library";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { setLocale } from "../../lib/i18n.js";
 import type { Task } from "../../lib/tasks.js";
 import type { AgentInfo } from "../../lib/tmux.js";
-import { Dashboard, tasksToList } from "../Dashboard.js";
+import { currentTaskOf, Dashboard, tasksToList } from "../Dashboard.js";
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 
@@ -29,6 +30,10 @@ function makeTask(overrides: Partial<Task> = {}): Task {
     ...overrides,
   };
 }
+
+// Most expectations below use the English labels
+beforeEach(() => setLocale("en"));
+afterEach(() => setLocale("ja"));
 
 // ─── selectedIndex highlight ──────────────────────────────────────────
 
@@ -147,7 +152,7 @@ describe("Dashboard Tasks section", () => {
     const frame = lastFrame() ?? "";
     expect(frame).toContain("running");
     expect(frame).toContain("blocked");
-    expect(frame).toContain("error");
+    expect(frame).toContain("failed");
   });
 });
 
@@ -317,5 +322,91 @@ describe("Dashboard task list", () => {
     );
     expect(lastFrame()).toContain("⏱ 1 stalled");
     expect(lastFrame()).toContain("⏱ t0");
+  });
+});
+
+// ─── Current task per agent ───────────────────────────────────────────
+
+describe("Dashboard current task", () => {
+  const now = Date.parse("2026-10-20T10:30:00Z");
+
+  it("picks the agent's most recently updated active task", () => {
+    const agent = makeAgent({ name: "Worker 1" });
+    const tasks = [
+      makeTask({ id: "T1", assignedTo: "worker-1", state: "done" }),
+      makeTask({
+        id: "T2",
+        assignedTo: "worker-1",
+        state: "running",
+        updatedAt: "2026-10-20T10:00:00Z",
+      }),
+      makeTask({
+        id: "T3",
+        assignedTo: "Worker 1",
+        state: "pending",
+        updatedAt: "2026-10-20T10:10:00Z",
+      }),
+      makeTask({ id: "T4", assignedTo: "worker-2", state: "running" }),
+    ];
+    expect(currentTaskOf(agent, tasks)?.id).toBe("T3");
+    expect(currentTaskOf(makeAgent({ name: "Reviewer" }), tasks)).toBe(
+      undefined,
+    );
+  });
+
+  it("shows each agent's task with how long since it last moved", () => {
+    const { lastFrame } = render(
+      <Dashboard
+        agents={[makeAgent({ name: "Worker 1" }), makeAgent({ name: "Scout" })]}
+        selectedIndex={0}
+        tasks={[
+          makeTask({
+            id: "T1-2",
+            description: "Add login",
+            assignedTo: "worker-1",
+            state: "running",
+            updatedAt: "2026-10-20T10:18:00Z",
+          }),
+        ]}
+        now={now}
+      />,
+    );
+    const lines = (lastFrame() ?? "").split("\n");
+    const workerIdx = lines.findIndex((l) => l.includes("Worker 1"));
+    expect(lines[workerIdx + 1]).toContain("└ T1-2 12 min Add login");
+    const scoutIdx = lines.findIndex((l) => l.includes("Scout"));
+    expect(lines[scoutIdx + 1]).toContain("└ idle");
+  });
+
+  it("marks a stalled current task", () => {
+    const { lastFrame } = render(
+      <Dashboard
+        agents={[makeAgent({ name: "Worker 1" })]}
+        selectedIndex={0}
+        tasks={[
+          makeTask({ id: "T9", assignedTo: "worker-1", state: "review" }),
+        ]}
+        stalledIds={["T9"]}
+      />,
+    );
+    expect(lastFrame()).toContain("⏱ T9");
+  });
+
+  it("uses Japanese headings in the default locale", () => {
+    setLocale("ja");
+    const { lastFrame } = render(
+      <Dashboard
+        agents={[makeAgent()]}
+        selectedIndex={0}
+        tasks={[makeTask({ state: "error" })]}
+        memoryCount={2}
+      />,
+    );
+    const frame = lastFrame() ?? "";
+    expect(frame).toContain("エージェント");
+    expect(frame).toContain("タスク");
+    expect(frame).toContain("✗ 1 失敗");
+    expect(frame).toContain("└ 待機中");
+    expect(frame).toContain("🧠 2 件");
   });
 });
