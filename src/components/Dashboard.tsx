@@ -2,6 +2,7 @@ import { Box, Text } from "ink";
 import { t, tf } from "../lib/i18n.js";
 import { toSlug } from "../lib/mailbox.js";
 import { formatDuration } from "../lib/report.js";
+import { levelOf } from "../lib/rpg-messages.js";
 import type { Task, TaskState } from "../lib/tasks.js";
 import { conditionOf, isRetro, jobKeyOf } from "../lib/theme.js";
 import type { AgentInfo } from "../lib/tmux.js";
@@ -119,16 +120,6 @@ const TASK_COLOR: Record<TaskState, string> = {
   error: "red",
 };
 
-/** An agent's level: 1 + the tasks it has finished */
-export function levelOf(agent: AgentInfo, tasks: Task[]): number {
-  const slug = toSlug(agent.name);
-  return (
-    1 +
-    tasks.filter((t) => t.state === "done" && toSlug(t.assignedTo) === slug)
-      .length
-  );
-}
-
 export function Dashboard(props: DashboardProps) {
   return isRetro() ? (
     <RetroDashboard {...props} />
@@ -174,7 +165,7 @@ function RetroDashboard({
                   </Text>
                 </Box>
                 <Text dimColor> {jobKey ? t(jobKey) : agent.role}</Text>
-                <Text> Lv{levelOf(agent, tasks)}</Text>
+                <Text> Lv{levelOf(agent.name, tasks)}</Text>
               </Box>
               <Box marginLeft={2}>
                 <Text wrap="truncate-end">

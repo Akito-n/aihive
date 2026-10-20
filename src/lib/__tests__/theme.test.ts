@@ -54,7 +54,7 @@ describe("theme tokens", () => {
   });
 
   it("gives the retro help bar room for its frame", () => {
-    expect(helpBarHeight()).toBe(3);
+    expect(helpBarHeight()).toBe(4);
     setTheme("classic");
     expect(helpBarHeight()).toBe(1);
   });

@@ -5,13 +5,16 @@ import { Text } from "ink";
 import { render } from "ink-testing-library";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setLocale } from "../../lib/i18n.js";
+import { levelOf } from "../../lib/rpg-messages.js";
 import type { Task } from "../../lib/tasks.js";
 import { getTheme, setTheme } from "../../lib/theme.js";
 import type { AgentInfo } from "../../lib/tmux.js";
-import { Dashboard, levelOf } from "../Dashboard.js";
+import { Dashboard } from "../Dashboard.js";
 import { HelpBar, retroCommands } from "../HelpBar.js";
 import { partySummary } from "../MainMenu.js";
 import { PaneView } from "../PaneView.js";
+import { PixelLogo, pixelLines } from "../PixelLogo.js";
+import { StartupScreen, startupSteps } from "../StartupScreen.js";
 import { ThemeScreen } from "../ThemeScreen.js";
 import { Window } from "../Window.js";
 
@@ -105,7 +108,7 @@ describe("retro dashboard", () => {
       makeTask({ id: "T3", state: "running" }),
       makeTask({ id: "T4", state: "done", assignedTo: "worker-2" }),
     ];
-    expect(levelOf(makeAgent(), tasks)).toBe(3);
+    expect(levelOf("Worker 1", tasks)).toBe(3);
   });
 
   it("keeps skills and memory in the bag", () => {
@@ -125,13 +128,24 @@ describe("retro dashboard", () => {
 });
 
 describe("retro help bar", () => {
-  it("shows the commands in a command window", () => {
-    const { lastFrame } = render(<HelpBar state="running" />);
+  it("shows the latest message above the commands", () => {
+    const { lastFrame } = render(
+      <HelpBar
+        state="running"
+        message={{ text: "せんしは けっかを ほうこくした。" }}
+      />,
+    );
     const frame = lastFrame() ?? "";
     expect(frame).toContain(" コマンド ");
+    expect(frame).toContain("＊「せんしは けっかを ほうこくした。");
     expect(frame).toContain("はなす Enter");
     expect(frame).toContain("にげる x");
-    expect(frame.split("\n")).toHaveLength(3);
+    expect(frame.split("\n")).toHaveLength(4);
+  });
+
+  it("keeps its height without a message", () => {
+    const { lastFrame } = render(<HelpBar state="running" />);
+    expect((lastFrame() ?? "").split("\n")).toHaveLength(4);
   });
 
   it("offers only start and quit when idle", () => {
@@ -193,5 +207,37 @@ describe("main menu party summary", () => {
     expect(partySummary(6, roles, false)).toBe(
       "Agents: 6 (👑 1 orchestrator, 🔨 4 worker, ⬡ 1 designer)",
     );
+  });
+});
+
+describe("pixel logo", () => {
+  it("draws each glyph pixel as two full blocks, seven rows tall", () => {
+    const lines = pixelLines("hi");
+    expect(lines).toHaveLength(7);
+    expect(lines[0]).toBe("██      ██  ██████");
+    expect(lines[3]).toBe("██████████    ██");
+  });
+
+  it("refuses letters it has no glyph for", () => {
+    expect(() => pixelLines("aihivez")).toThrow();
+  });
+
+  it("fits the title in an 80-column terminal", () => {
+    const { lastFrame } = render(<PixelLogo />);
+    const widths = (lastFrame() ?? "").split("\n").map((l) => l.length);
+    expect(Math.max(...widths)).toBeLessThanOrEqual(70);
+  });
+});
+
+describe("retro startup", () => {
+  it("gathers the party as it starts", async () => {
+    expect(startupSteps()[2]).toBe("おうさまが なかまに くわわった！");
+    setTheme("classic");
+    expect(startupSteps()[2]).toBe("Spawning Orchestrator...");
+    setTheme("retro");
+    const { lastFrame } = render(<StartupScreen onComplete={() => {}} />);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(lastFrame()).toContain("██");
+    expect(lastFrame()).toContain("ぼうけんの じゅんびを している…");
   });
 });

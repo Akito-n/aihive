@@ -4,6 +4,7 @@ import { t } from "../lib/i18n.js";
 import { frameStyle, isRetro, jobKeyOf } from "../lib/theme.js";
 import { VERSION } from "../lib/version.js";
 import type { TransKey } from "../locales/en.js";
+import { PixelLogo } from "./PixelLogo.js";
 import { useBlink, Window } from "./Window.js";
 
 interface MenuItem {
@@ -114,13 +115,17 @@ export function MainMenu({ onSelect, agents, roleCounts = {} }: MainMenuProps) {
         paddingY={1}
         marginBottom={1}
       >
-        <Box flexDirection="column">
-          {LOGO.map((line) => (
-            <Text key={line} color={retro ? "yellow" : "cyan"} bold>
-              {line}
-            </Text>
-          ))}
-        </Box>
+        {retro ? (
+          <PixelLogo />
+        ) : (
+          <Box flexDirection="column">
+            {LOGO.map((line) => (
+              <Text key={line} color="cyan" bold>
+                {line}
+              </Text>
+            ))}
+          </Box>
+        )}
         <Text dimColor>v{VERSION}</Text>
         <Box marginTop={1}>
           <Text color="yellow" bold>
