@@ -50,6 +50,16 @@ export function t(key: TransKey): string {
   return dictionaries[currentLocale][key] ?? dictionaries.en[key] ?? key;
 }
 
+/** Translate and fill `{name}` placeholders */
+export function tf(
+  key: TransKey,
+  vars: Record<string, string | number>,
+): string {
+  return t(key).replace(/\{(\w+)\}/g, (match, name: string) =>
+    name in vars ? String(vars[name]) : match,
+  );
+}
+
 export function getLocale(): Locale {
   return currentLocale;
 }

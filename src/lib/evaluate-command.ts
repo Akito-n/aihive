@@ -19,6 +19,7 @@ import {
   findHistoryFiles,
   formatForEvaluation,
 } from "./history-parser.js";
+import { tf } from "./i18n.js";
 import { evaluateConversation } from "./xp-evaluator.js";
 
 // ─── Constants ───────────────────────────────────────────────────────
@@ -107,7 +108,14 @@ export async function runEvaluation(): Promise<void> {
     evaluated++;
 
     console.log(
-      `    → +${sessionXp} XP (伝:${scores.articulation} 理:${scores.comprehension} 検:${scores.review} 協:${scores.collaboration} 探:${scores.inquiry})`,
+      tf("xp.scoreLine", {
+        xp: sessionXp,
+        a: scores.articulation,
+        c: scores.comprehension,
+        r: scores.review,
+        co: scores.collaboration,
+        i: scores.inquiry,
+      }),
     );
 
     // Check for level up

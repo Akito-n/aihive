@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse, stringify } from "yaml";
+import { getLocale, type Locale } from "./i18n.js";
 import {
   type InstructionSyncResult,
   syncInstructions,
@@ -170,18 +171,30 @@ export function getInstructionsPath(role: string): string | undefined {
   const userPath = path.join(INSTRUCTIONS_DIR, `${role}.md`);
   if (fs.existsSync(userPath)) return userPath;
 
-  const bundledPath = path.join(BUNDLED_INSTRUCTIONS_DIR, `${role}.md`);
-  if (fs.existsSync(bundledPath)) return bundledPath;
+  for (const dir of new Set([
+    bundledInstructionsDir(),
+    BUNDLED_INSTRUCTIONS_DIR,
+  ])) {
+    const bundledPath = path.join(dir, `${role}.md`);
+    if (fs.existsSync(bundledPath)) return bundledPath;
+  }
 
   return undefined;
 }
 
+/** Bundled instructions in a language: instructions/ is Japanese, instructions/en/ English */
+export function bundledInstructionsDir(locale: Locale = getLocale()): string {
+  return locale === "en"
+    ? path.join(BUNDLED_INSTRUCTIONS_DIR, "en")
+    : BUNDLED_INSTRUCTIONS_DIR;
+}
+
 /**
- * Sync bundled instructions into ~/.aihive/instructions/.
- * Unedited copies are upgraded to the bundled version; edited ones are kept.
+ * Sync bundled instructions in the current language into ~/.aihive/instructions/.
+ * Unedited copies are replaced (also after switching language); edited ones are kept.
  */
 export function initInstructions(): InstructionSyncResult {
-  return syncInstructions(BUNDLED_INSTRUCTIONS_DIR, INSTRUCTIONS_DIR);
+  return syncInstructions(bundledInstructionsDir(), INSTRUCTIONS_DIR);
 }
 
 // ─── Model Defaults ──────────────────────────────────────────────────

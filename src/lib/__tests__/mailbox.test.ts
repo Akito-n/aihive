@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { stringify } from "yaml";
+import { setLocale } from "../i18n.js";
 
 const mockFs = vi.hoisted(() => ({
   mkdirSync: vi.fn(),
@@ -329,6 +330,22 @@ describe("MessageBus", () => {
       expect(text).toContain("タスク T1-2 rm -rf が 15分間更新されていません");
       expect(text).toContain("/test-project/.aihive/mailbox/reviewer/inbox/");
       expect(text).not.toContain("\n");
+    });
+
+    it("uses English when the language is set to English", () => {
+      mockExecFileSync.mockReset();
+      bus.setNudgeConfig({
+        sessionName: "aihive",
+        paneTargets: new Map([["reviewer", "reviewer"]]),
+      });
+      setLocale("en");
+      try {
+        bus.remindStalled("reviewer", "T1", 15);
+      } finally {
+        setLocale("ja");
+      }
+      const text = (mockExecFileSync.mock.calls[1][1] as string[])[4];
+      expect(text).toContain("[aihive] Task T1 has had no update for 15 min.");
     });
 
     it("returns false for an agent without a pane", () => {
