@@ -6,6 +6,7 @@ import fs from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import type { TransKey } from "../locales/en.js";
+import type { Look } from "./gear.js";
 import type { AgentInfo } from "./tmux.js";
 
 export type ThemeName = "retro" | "classic";
@@ -53,6 +54,34 @@ export function isRetro(): boolean {
   return currentTheme === "retro";
 }
 
+// ─── Look from gear ───────────────────────────────────────────────
+
+let currentLook: Look = {};
+
+/** Set what the worn gear changes in the look */
+export function setLook(look: Look): void {
+  currentLook = look;
+}
+
+export function getLook(): Look {
+  return currentLook;
+}
+
+/** The selection cursor; gear can change it in the retro theme */
+export function cursorGlyph(): string {
+  return (isRetro() && currentLook.cursor) || "▶";
+}
+
+/** The filled part of a gauge */
+export function gaugeFill(): string {
+  return currentLook.gauge ?? "█";
+}
+
+/** Row colors for the pixel logo, when gear changes them */
+export function logoColors(): string[] | undefined {
+  return currentLook.logo;
+}
+
 // ─── Tokens ───────────────────────────────────────────────────────
 
 /** Window frame for the current theme */
@@ -60,7 +89,9 @@ export function frameStyle(active = false): {
   borderStyle: "round" | "double" | "single";
   borderColor: string;
 } {
-  if (isRetro()) return { borderStyle: "round", borderColor: "white" };
+  if (isRetro()) {
+    return { borderStyle: "round", borderColor: currentLook.frame ?? "white" };
+  }
   return active
     ? { borderStyle: "double", borderColor: "cyan" }
     : { borderStyle: "round", borderColor: "gray" };

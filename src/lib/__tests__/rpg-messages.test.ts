@@ -66,6 +66,7 @@ describe("awardMessage", () => {
     boss: false,
     skills: emptySkills(),
     events: [],
+    drops: [],
     progress: emptyProgress(),
     ...overrides,
   });
@@ -132,5 +133,39 @@ describe("awardMessage", () => {
     expect(awardMessage(award({ events: [boss], boss: true }), "T1").text).toBe(
       "ちか10かいの ボス キングバグスライムを たおした！",
     );
+  });
+
+  it("tells an epic find first and a plain find before the dungeon", () => {
+    const find = {
+      id: "x",
+      base: "ironSword",
+      rarity: "common" as const,
+      affixes: ["sharp"],
+      power: 8,
+    };
+    const win = {
+      floor: 10,
+      monster: "boss.bugKing" as const,
+      boss: true,
+      won: true,
+    };
+    expect(
+      awardMessage(
+        award({ events: [win], drops: [{ ...find, rarity: "epic" }] }),
+        "T1",
+      ),
+    ).toEqual({
+      text: "たからばこを あけた！ するどい てつのつるぎを てにいれた！",
+      color: "magenta",
+    });
+    expect(
+      awardMessage(award({ events: [win], drops: [find] }), "T1").text,
+    ).toContain("ボス キングバグスライム");
+    expect(
+      awardMessage(
+        award({ events: [{ ...win, boss: false }], drops: [find] }),
+        "T1",
+      ).text,
+    ).toContain("たからばこを あけた！");
   });
 });

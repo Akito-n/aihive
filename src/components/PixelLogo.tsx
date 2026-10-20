@@ -1,4 +1,5 @@
 import { Box, Text } from "ink";
+import { logoColors } from "../lib/theme.js";
 
 /** 7-row pixel glyphs for the title; "#" is a lit pixel */
 const GLYPHS: Record<string, string[]> = {
@@ -34,10 +35,11 @@ const ROW_COLORS = [
 ];
 
 export function PixelLogo() {
+  const colors = logoColors() ?? ROW_COLORS;
   return (
     <Box flexDirection="column">
       {LOGO.map((line, i) => (
-        <Text key={ROW_COLORS[i] + String(i)} color={ROW_COLORS[i]} bold>
+        <Text key={colors[i] + String(i)} color={colors[i]} bold>
           {line}
         </Text>
       ))}

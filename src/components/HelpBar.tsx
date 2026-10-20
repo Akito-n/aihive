@@ -19,12 +19,12 @@ export function retroCommands(
   if (state === "idle") commands.push(["s", "retro.cmd.start"]);
   if (state === "running") {
     commands.push(
-      ["j/k", "retro.cmd.select"],
       ["Enter", "retro.cmd.talk"],
       ["T", "retro.cmd.quests"],
       ["O", "retro.cmd.overview"],
       ["L", "retro.cmd.log"],
       ["S", "retro.cmd.status"],
+      ["E", "retro.cmd.equip"],
       ["x", "retro.cmd.stop"],
     );
   }
@@ -39,7 +39,7 @@ export function HelpBar({ state, message }: HelpBarProps) {
         <Text wrap="truncate-end" color={message?.color}>
           {message ? `＊「${message.text}` : " "}
         </Text>
-        <Box columnGap={3} flexWrap="wrap">
+        <Box columnGap={3} height={1} overflow="hidden">
           {retroCommands(state).map(([key, label]) => (
             <Text key={key}>
               {t(label)} <Text dimColor>{key}</Text>
@@ -96,6 +96,12 @@ export function HelpBar({ state, message }: HelpBarProps) {
               [S]
             </Text>{" "}
             {t("help.status")}
+          </Text>
+          <Text>
+            <Text bold color="yellow">
+              [E]
+            </Text>{" "}
+            {t("help.equip")}
           </Text>
           <Text>
             <Text bold color="red">

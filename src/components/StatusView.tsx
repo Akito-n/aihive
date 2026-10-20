@@ -15,7 +15,7 @@ import {
   type Progress,
   xpForLevel,
 } from "../lib/progress.js";
-import { jobKeyOf } from "../lib/theme.js";
+import { gaugeFill, jobKeyOf } from "../lib/theme.js";
 import { Window } from "./Window.js";
 
 interface StatusViewProps {
@@ -28,7 +28,7 @@ interface StatusViewProps {
 /** A gauge of filled and empty blocks */
 export function gauge(share: number, width: number): string {
   const filled = Math.max(0, Math.min(width, Math.round(share * width)));
-  return "█".repeat(filled) + "░".repeat(width - filled);
+  return gaugeFill().repeat(filled) + "░".repeat(width - filled);
 }
 
 /** XP still needed for the next level */

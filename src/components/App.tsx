@@ -10,16 +10,19 @@ import {
   saveConfig,
   stallMinutesOf,
 } from "../lib/config.js";
+import { itemName, recordLook } from "../lib/gear.js";
 import { t, tf } from "../lib/i18n.js";
 import { type MessageBus, SYSTEM_MAILBOX, toSlug } from "../lib/mailbox.js";
 import { MemoryManager, normalizeMemoryEntry } from "../lib/memory.js";
 import { notify } from "../lib/notify.js";
 import {
   awardTask,
+  equipItem,
   loadProgress,
   memberLevelOf,
   type Progress,
   partyLevelOf,
+  setLooks,
 } from "../lib/progress.js";
 import type { QuickCommand } from "../lib/quick-commands.js";
 import { groupByCategory, loadQuickCommands } from "../lib/quick-commands.js";
@@ -46,7 +49,7 @@ import {
   taskIdOf,
   tasksFilePath,
 } from "../lib/tasks.js";
-import { helpBarHeight } from "../lib/theme.js";
+import { helpBarHeight, setLook } from "../lib/theme.js";
 import type { AgentInfo } from "../lib/tmux.js";
 import {
   buildAgentList,
@@ -59,6 +62,7 @@ import { initWorkspace } from "../lib/workspace.js";
 import { prepareWorkspaces } from "../lib/worktrees.js";
 import { CommandInput } from "./CommandInput.js";
 import { Dashboard } from "./Dashboard.js";
+import { EquipView } from "./EquipView.js";
 import { Header } from "./Header.js";
 import { HelpBar } from "./HelpBar.js";
 import { LogView } from "./LogView.js";
@@ -76,7 +80,14 @@ import { TaskView } from "./TaskView.js";
 const LOG_LIMIT = 500;
 
 type AppState = "idle" | "settings" | "starting" | "running" | "stopping";
-type Mode = "normal" | "input" | "quickcmd" | "tasks" | "log" | "status";
+type Mode =
+  | "normal"
+  | "input"
+  | "quickcmd"
+  | "tasks"
+  | "log"
+  | "status"
+  | "equip";
 
 export function App() {
   const { exit } = useApp();
@@ -251,8 +262,12 @@ export function App() {
           });
           if (award) {
             setProgress(award.progress);
+            setLook(recordLook(award.progress));
             setMessage(awardMessage(award, task.id));
             addLog(`+${award.xp} XP ${name} (${task.id})`);
+            for (const item of award.drops) {
+              addLog(`Found ${itemName(item)} (${item.rarity})`);
+            }
           }
         } catch (e) {
           addLog(`Could not save progress: ${e}`);
@@ -554,6 +569,10 @@ export function App() {
         setMode("status");
         return;
       }
+      if (input === "E") {
+        setMode("equip");
+        return;
+      }
       if (input === "q") {
         stopSession(config.session);
         exit();
@@ -675,6 +694,45 @@ export function App() {
           <StatusView
             progress={progress}
             members={config.agents}
+            onClose={() => setMode("normal")}
+          />
+        </Box>
+      </Box>
+    );
+  }
+  if (mode === "equip") {
+    return (
+      <Box flexDirection="column" padding={1} height={termHeight}>
+        <Header
+          state={state}
+          agents={agents}
+          partyLevel={partyLevelOf(progress)}
+          taskCount={tasks.length}
+          skillCount={skillCounts.approved}
+          memoryCount={memoryCount}
+        />
+        <Box marginTop={1} flexGrow={1} overflow="hidden">
+          <EquipView
+            progress={progress}
+            height={Math.max(3, rows - 22)}
+            onEquip={(id) => {
+              try {
+                const next = equipItem(id);
+                setProgress(next);
+                setLook(recordLook(next));
+              } catch (e) {
+                addLog(`Could not save progress: ${e}`);
+              }
+            }}
+            onToggleLooks={() => {
+              try {
+                const next = setLooks(!progress.looks);
+                setProgress(next);
+                setLook(recordLook(next));
+              } catch (e) {
+                addLog(`Could not save progress: ${e}`);
+              }
+            }}
             onClose={() => setMode("normal")}
           />
         </Box>

@@ -16,6 +16,19 @@ import {
   type Skills,
   skillGains,
 } from "./adventure.js";
+import {
+  addToBag,
+  dropChance,
+  equippedItems,
+  gearLuck,
+  gearPower,
+  type Item,
+  isItem,
+  rollItem,
+  SLOTS,
+  type Slot,
+  slotOf,
+} from "./gear.js";
 import { toSlug } from "./mailbox.js";
 import type { Task } from "./tasks.js";
 
@@ -39,6 +52,12 @@ export interface Progress {
   /** Tasks rewarded today, for diminishing returns */
   today: { date: string; count: number };
   adventure: Adventure;
+  /** Gear found in the dungeon */
+  bag: Item[];
+  /** Item id worn in each slot */
+  equipped: Partial<Record<Slot, string>>;
+  /** Whether worn gear changes the screen's look */
+  looks: boolean;
 }
 
 /** XP to reach a level grows with its square: XP(n) = k × (n − 1)² */
@@ -85,6 +104,9 @@ export function emptyProgress(): Progress {
     counted: [],
     today: { date: "", count: 0 },
     adventure: emptyAdventure(),
+    bag: [],
+    equipped: {},
+    looks: true,
   };
 }
 
@@ -144,6 +166,15 @@ export function loadProgress(file = progressFilePath()): Progress {
       losses: isCount(a.losses) ? Math.floor(a.losses) : 0,
     };
   }
+  if (Array.isArray(r.bag)) p.bag = r.bag.filter(isItem);
+  const equipped = r.equipped as Record<string, unknown> | undefined;
+  if (equipped && typeof equipped === "object") {
+    for (const slot of SLOTS) {
+      const item = p.bag.find((i) => i.id === equipped[slot]);
+      if (item && slotOf(item) === slot) p.equipped[slot] = item.id;
+    }
+  }
+  if (r.looks === false) p.looks = false;
   return p;
 }
 
@@ -215,6 +246,8 @@ export interface Award {
   skills: Skills;
   /** Battles fought in the dungeon with the points this task earned */
   events: AdventureEvent[];
+  /** Gear dropped in those battles */
+  drops: Item[];
   progress: Progress;
 }
 
@@ -290,16 +323,24 @@ export function awardTask(
   progress.counted = [...progress.counted, key].slice(-COUNTED_LIMIT);
 
   // The points this task earned carry the party further down the dungeon
-  const power = partyPower(
-    Object.values(progress.members).map((m) => m.skills),
-    levelForXp(progress.partyXp, PARTY_XP_FACTOR),
-  );
+  const random = input.random ?? Math.random;
+  const worn = equippedItems(progress.bag, progress.equipped);
+  const power =
+    partyPower(
+      Object.values(progress.members).map((m) => m.skills),
+      levelForXp(progress.partyXp, PARTY_XP_FACTOR),
+    ) + gearPower(worn);
   const explored = explore(
     { ...progress.adventure, points: progress.adventure.points + xp },
     power,
-    input.random,
+    random,
   );
   progress.adventure = explored.adventure;
+  const luck = gearLuck(worn);
+  const drops = explored.events
+    .filter((e) => e.won && random() < dropChance(e.boss, luck))
+    .map((e) => rollItem(e.floor, random));
+  progress.bag = addToBag(progress.bag, drops, progress.equipped);
   saveProgress(progress, file);
 
   return {
@@ -316,8 +357,30 @@ export function awardTask(
     boss,
     skills,
     events: explored.events,
+    drops,
     progress,
   };
+}
+
+/**
+ * Wear an item in its slot. Reads the record fresh, like awardTask, and
+ * returns it unchanged when the item is gone.
+ */
+export function equipItem(itemId: string, file = progressFilePath()): Progress {
+  const progress = loadProgress(file);
+  const item = progress.bag.find((i) => i.id === itemId);
+  if (!item) return progress;
+  progress.equipped[slotOf(item)] = item.id;
+  saveProgress(progress, file);
+  return progress;
+}
+
+/** Turn the gear's effect on the screen's look on or off */
+export function setLooks(on: boolean, file = progressFilePath()): Progress {
+  const progress = loadProgress(file);
+  progress.looks = on;
+  saveProgress(progress, file);
+  return progress;
 }
 
 /** A member's level by display name; 1 for someone new */

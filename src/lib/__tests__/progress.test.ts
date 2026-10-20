@@ -4,13 +4,17 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   awardTask,
+  emptyProgress,
+  equipItem,
   isBoss,
   levelForXp,
   levelProgress,
   loadProgress,
   memberLevelOf,
+  type Progress,
   partyLevelOf,
   saveProgress,
+  setLooks,
   taskXp,
   xpForLevel,
 } from "../progress.js";
@@ -169,6 +173,21 @@ describe("awardTask", () => {
     expect(saved.adventure).toMatchObject({ floor: 3, points: 8, wins: 2 });
   });
 
+  it("puts gear dropped in won battles into the bag", () => {
+    const file = tempFile();
+    // Rolls of 0: every battle won, every drop taken
+    const award = awardTask(input({ random: () => 0 }), file);
+    expect(award?.events).toHaveLength(1);
+    expect(award?.drops).toHaveLength(1);
+    expect(loadProgress(file).bag).toEqual(award?.drops);
+    // Rolls near 1: still won with a strong party, but nothing drops
+    const none = awardTask(
+      input({ task: task({ id: "T2" }), random: () => 0.99 }),
+      file,
+    );
+    expect(none?.drops).toEqual([]);
+  });
+
   it("gives no skills or points for a task closed at once", () => {
     const file = tempFile();
     const award = awardTask(
@@ -177,6 +196,46 @@ describe("awardTask", () => {
     );
     expect(award?.skills).toEqual({ str: 0, vit: 0, agi: 0, int: 0 });
     expect(loadProgress(file).adventure.points).toBe(0);
+  });
+});
+
+describe("equipment", () => {
+  const sword = {
+    id: "s1",
+    base: "ironSword",
+    rarity: "rare",
+    affixes: ["crimson"],
+    power: 6,
+  };
+
+  it("wears an item in its slot and keeps it across loads", () => {
+    const file = tempFile();
+    saveProgress({ ...emptyProgress(), bag: [sword] } as Progress, file);
+    expect(equipItem("s1", file).equipped).toEqual({ weapon: "s1" });
+    expect(loadProgress(file).equipped).toEqual({ weapon: "s1" });
+    expect(equipItem("gone", file).equipped).toEqual({ weapon: "s1" });
+  });
+
+  it("turns the look off and on", () => {
+    const file = tempFile();
+    expect(setLooks(false, file).looks).toBe(false);
+    expect(loadProgress(file).looks).toBe(false);
+    expect(setLooks(true, file).looks).toBe(true);
+  });
+
+  it("drops malformed gear and slots that don't match", () => {
+    const file = tempFile();
+    fs.writeFileSync(
+      file,
+      JSON.stringify({
+        bag: [sword, { id: "bad", base: "nope" }],
+        equipped: { weapon: "s1", armor: "s1", accessory: "bad" },
+      }),
+    );
+    const p = loadProgress(file);
+    expect(p.bag.map((i) => i.id)).toEqual(["s1"]);
+    expect(p.equipped).toEqual({ weapon: "s1" });
+    expect(p.looks).toBe(true);
   });
 });
 
