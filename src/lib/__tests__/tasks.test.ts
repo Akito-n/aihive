@@ -1,6 +1,15 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { Message } from "../mailbox.js";
-import { extractField, extractList, TaskManager } from "../tasks.js";
+import {
+  extractField,
+  extractList,
+  loadTasks,
+  saveTasks,
+  TaskManager,
+} from "../tasks.js";
 
 // ─── extractField ─────────────────────────────────────────────────────
 
@@ -324,5 +333,58 @@ describe("TaskManager.onChange", () => {
     unsubscribe();
     tm.add("t2", "second", "worker-1");
     expect(handler).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ─── Persistence ──────────────────────────────────────────────────────
+
+describe("saveTasks / loadTasks", () => {
+  const withTmp = (fn: (file: string) => void) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "aihive-tasks-"));
+    try {
+      fn(path.join(dir, ".aihive", "tasks.json"));
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  };
+
+  it("round-trips tasks, and restore() brings them back into a manager", () => {
+    withTmp((file) => {
+      const tm = new TaskManager();
+      tm.add("T1", "build", "worker-1");
+      tm.add("T2", "test", "worker-2", ["T1"]);
+      tm.complete("T1", "ok");
+      saveTasks(file, tm.getAll());
+
+      const restored = new TaskManager();
+      restored.restore(loadTasks(file));
+      expect(restored.getAll()).toEqual(tm.getAll());
+
+      // Dependencies keep working after a restore
+      restored.add("T3", "lint", "worker-1", ["T1"]);
+      expect(restored.get("T3")?.state).toBe("pending");
+    });
+  });
+
+  it("returns an empty list for a missing or broken file", () => {
+    withTmp((file) => {
+      expect(loadTasks(file)).toEqual([]);
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.writeFileSync(file, "{not json");
+      expect(loadTasks(file)).toEqual([]);
+    });
+  });
+
+  it("skips entries that are not valid tasks", () => {
+    withTmp((file) => {
+      const tm = new TaskManager();
+      const good = tm.add("T1", "build", "worker-1");
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.writeFileSync(
+        file,
+        JSON.stringify([good, { ...good, id: "T2", state: "flying" }, null]),
+      );
+      expect(loadTasks(file).map((t) => t.id)).toEqual(["T1"]);
+    });
   });
 });

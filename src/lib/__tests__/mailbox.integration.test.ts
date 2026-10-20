@@ -3,7 +3,13 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { stringify } from "yaml";
-import { type Message, MessageBus, SYSTEM_MAILBOX } from "../mailbox.js";
+import {
+  HANDLED_FILE,
+  type Message,
+  MessageBus,
+  PROCESSED_DIR,
+  SYSTEM_MAILBOX,
+} from "../mailbox.js";
 import { MemoryManager, normalizeMemoryEntry } from "../memory.js";
 
 // Uses the real filesystem (no fs mock) to exercise watch + poll behaviour.
@@ -47,6 +53,57 @@ describe("MessageBus (real filesystem)", () => {
 
     poll();
     expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("on relaunch, delivers only the messages that arrived while closed, oldest first", () => {
+    bus.clear(agents); // a fresh start leaves an empty record
+    const handled = vi.fn();
+    bus.onMessage(handled);
+    bus.startWatching(agents);
+    fs.writeFileSync(path.join(inbox(), "a.yaml"), stringify(makeMsg("a")));
+    poll();
+    expect(handled).toHaveBeenCalledTimes(1);
+    bus.stopWatching();
+
+    // The TUI is closed: two messages arrive, the newer one written first
+    const later = path.join(inbox(), "c.yaml");
+    const earlier = path.join(inbox(), "b.yaml");
+    fs.writeFileSync(later, stringify(makeMsg("c")));
+    fs.writeFileSync(earlier, stringify(makeMsg("b")));
+    fs.utimesSync(earlier, new Date(1000), new Date(1000));
+    fs.utimesSync(later, new Date(2000), new Date(2000));
+
+    const relaunched = new MessageBus(tmpDir);
+    const handler = vi.fn();
+    relaunched.onMessage(handler);
+    relaunched.startWatching(agents);
+    try {
+      expect(handler.mock.calls.map((c) => c[0].id)).toEqual(["b", "c"]);
+    } finally {
+      relaunched.stopWatching();
+    }
+  });
+
+  it("forgets archived messages in the record", () => {
+    bus.clear(agents);
+    bus.startWatching(agents);
+    fs.writeFileSync(path.join(inbox(), "a.yaml"), stringify(makeMsg("a")));
+    poll();
+    const record = path.join(tmpDir, ".aihive", "mailbox", HANDLED_FILE);
+    expect(JSON.parse(fs.readFileSync(record, "utf8"))).toEqual([
+      "orchestrator/a.yaml",
+    ]);
+
+    fs.mkdirSync(path.join(inbox(), PROCESSED_DIR));
+    fs.renameSync(
+      path.join(inbox(), "a.yaml"),
+      path.join(inbox(), PROCESSED_DIR, "a.yaml"),
+    );
+    fs.writeFileSync(path.join(inbox(), "b.yaml"), stringify(makeMsg("b")));
+    poll();
+    expect(JSON.parse(fs.readFileSync(record, "utf8"))).toEqual([
+      "orchestrator/b.yaml",
+    ]);
   });
 
   it("delivers a message whose file was empty when first seen", () => {

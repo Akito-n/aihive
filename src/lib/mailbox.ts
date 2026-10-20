@@ -46,6 +46,13 @@ export const SYSTEM_MAILBOX = "system";
 /** Read messages are moved here (inside each inbox) so the inbox lists only new ones */
 export const PROCESSED_DIR = "processed";
 
+/**
+ * Inbox files aihive has already handled (`<slug>/<file>` keys), kept in the
+ * mailbox dir so a relaunched TUI can tell them apart from messages that
+ * arrived while it was closed.
+ */
+export const HANDLED_FILE = ".handled.json";
+
 // ─── MessageBus ──────────────────────────────────────────────────────
 
 export class MessageBus {
@@ -90,6 +97,7 @@ export class MessageBus {
         }
       }
     }
+    this.writeHandled([]);
   }
 
   /** Send a message: write to sender's outbox AND recipient's inbox */
@@ -134,9 +142,15 @@ export class MessageBus {
     };
   }
 
-  /** Start watching all agent inboxes (and the system inbox) for new messages */
+  /**
+   * Start watching all agent inboxes (and the system inbox) for new messages.
+   * Messages already in an inbox that aihive has not handled yet (they arrived
+   * while the TUI was closed) are delivered right away, oldest first.
+   */
   startWatching(agentNames: string[]): void {
     this.pollAgentSlugs = [];
+    const handled = this.readHandled();
+    const pending: { slug: string; file: string; mtime: number }[] = [];
 
     for (const name of withSystem(agentNames)) {
       const slug = toSlug(name);
@@ -145,9 +159,19 @@ export class MessageBus {
 
       this.pollAgentSlugs.push(slug);
 
-      // Read existing files to mark as seen
       for (const file of fs.readdirSync(inboxDir)) {
-        this.seen.add(`${slug}/${file}`);
+        const key = `${slug}/${file}`;
+        // Without a record (first run of this version) treat everything as handled
+        if (!handled || handled.has(key) || !file.endsWith(".yaml")) {
+          this.seen.add(key);
+          continue;
+        }
+        try {
+          const { mtimeMs } = fs.statSync(path.join(inboxDir, file));
+          pending.push({ slug, file, mtime: mtimeMs });
+        } catch {
+          // Moved away meanwhile
+        }
       }
 
       const watcher = fs.watch(inboxDir, (_event, filename) => {
@@ -157,6 +181,10 @@ export class MessageBus {
 
       this.watchers.set(slug, watcher);
     }
+
+    pending.sort((a, b) => a.mtime - b.mtime);
+    for (const { slug, file } of pending) this.processNewFile(slug, file);
+    this.saveHandled();
 
     // Fallback polling to catch events missed by fs.watch (macOS kqueue can drop events)
     this.pollTimer = setInterval(() => this.pollInboxes(), 15_000);
@@ -192,6 +220,7 @@ export class MessageBus {
           // Send tmux nudge to the recipient agent's pane
           this.sendNudge(slug, msg);
         }
+        this.saveHandled();
       }
     } catch {
       // File may be mid-write, ignore
@@ -262,6 +291,47 @@ export class MessageBus {
       this.pollTimer = null;
     }
     this.pollAgentSlugs = [];
+  }
+
+  /** Record the handled messages that are still in an inbox */
+  private saveHandled(): void {
+    const keys: string[] = [];
+    for (const key of this.seen) {
+      const [slug, file] = key.split("/");
+      if (fs.existsSync(path.join(this.baseDir, slug, "inbox", file))) {
+        keys.push(key);
+      } else {
+        // Moved to processed/ or deleted: it cannot come back under this key
+        this.seen.delete(key);
+      }
+    }
+    this.writeHandled(keys);
+  }
+
+  private writeHandled(keys: string[]): void {
+    try {
+      fs.mkdirSync(this.baseDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(this.baseDir, HANDLED_FILE),
+        `${JSON.stringify(keys.sort())}\n`,
+      );
+    } catch {
+      // Best effort: without it a relaunch skips messages, as before
+    }
+  }
+
+  /** Handled keys, or null when there is no usable record */
+  private readHandled(): Set<string> | null {
+    try {
+      const parsed = JSON.parse(
+        fs.readFileSync(path.join(this.baseDir, HANDLED_FILE), "utf8"),
+      );
+      return Array.isArray(parsed)
+        ? new Set(parsed.filter((k): k is string => typeof k === "string"))
+        : null;
+    } catch {
+      return null;
+    }
   }
 
   /** Get the mailbox base directory */

@@ -10,7 +10,12 @@ import { groupByCategory, loadQuickCommands } from "../lib/quick-commands.js";
 import type { SkillState } from "../lib/skills.js";
 import { SkillManager } from "../lib/skills.js";
 import type { Task } from "../lib/tasks.js";
-import { TaskManager } from "../lib/tasks.js";
+import {
+  loadTasks,
+  saveTasks,
+  TaskManager,
+  tasksFilePath,
+} from "../lib/tasks.js";
 import type { AgentInfo } from "../lib/tmux.js";
 import {
   buildAgentList,
@@ -119,8 +124,16 @@ export function App() {
         );
       }
       messageBusRef.current = bus;
-      taskManagerRef.current.clear();
-      setTasks([]);
+      // A relaunch keeps the task list; a fresh start begins empty
+      const tm = taskManagerRef.current;
+      const tasksFile = tasksFilePath(process.cwd());
+      if (reset) {
+        tm.clear();
+        saveTasks(tasksFile, []);
+      } else {
+        tm.restore(loadTasks(tasksFile));
+      }
+      setTasks(tm.getAll());
 
       const sm = new SkillManager(process.cwd());
       sm.init();
@@ -162,8 +175,10 @@ export function App() {
     }
 
     const tm = taskManagerRef.current;
+    const tasksFile = tasksFilePath(process.cwd());
     const unsubscribeTasks = tm.onChange((task) => {
       setTasks(tm.getAll());
+      saveTasks(tasksFile, tm.getAll());
       if (task.state === "blocked") {
         addLog(`Task ${task.id} blocked by: ${task.blockedBy.join(", ")}`);
       }
