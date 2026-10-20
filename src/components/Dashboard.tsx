@@ -55,6 +55,21 @@ const TASK_ICON: Record<TaskState, string> = {
   error: "✗",
 };
 
+/** How many tasks to list under the counts */
+const TASK_LIST_LIMIT = 6;
+
+/** Unfinished tasks first, then the most recently updated */
+export function tasksToList(tasks: Task[], limit = TASK_LIST_LIMIT): Task[] {
+  const finished = (t: Task) => t.state === "done";
+  return [...tasks]
+    .sort(
+      (a, b) =>
+        Number(finished(a)) - Number(finished(b)) ||
+        b.updatedAt.localeCompare(a.updatedAt),
+    )
+    .slice(0, limit);
+}
+
 const TASK_COLOR: Record<TaskState, string> = {
   pending: "gray",
   blocked: "magenta",
@@ -125,6 +140,22 @@ export function Dashboard({
                     {TASK_ICON[state]} {count} {state}
                   </Text>
                 ))}
+              </Box>
+              <Box marginTop={1} flexDirection="column">
+                {tasksToList(tasks).map((task) => (
+                  <Box key={task.id} gap={1}>
+                    <Text color={TASK_COLOR[task.state]}>
+                      {TASK_ICON[task.state]}
+                    </Text>
+                    <Text wrap="truncate-end">{task.id}</Text>
+                    <Text dimColor wrap="truncate-end">
+                      {task.assignedTo}
+                    </Text>
+                  </Box>
+                ))}
+                {tasks.length > TASK_LIST_LIMIT && (
+                  <Text dimColor>+{tasks.length - TASK_LIST_LIMIT} more</Text>
+                )}
               </Box>
             </Box>
           );

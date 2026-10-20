@@ -192,6 +192,102 @@ describe("TaskManager.handleMessage()", () => {
   });
 });
 
+describe("TaskManager.handleMessage() with the instruction protocol", () => {
+  const msg = (
+    m: Partial<Message> & Pick<Message, "type" | "to">,
+  ): Message => ({
+    id: `m-${Math.random()}`,
+    from: "coordinator",
+    payload: "",
+    timestamp: "2026-01-01T00:00:00Z",
+    ...m,
+  });
+
+  it("follows a task through review, send-back and approval", () => {
+    const tm = new TaskManager();
+    tm.handleMessage(
+      msg({
+        type: "task",
+        to: "worker-1",
+        task_id: "T1-1",
+        payload: "Add a flag\nDetails",
+      }),
+      "worker",
+    );
+    expect(tm.get("T1-1")).toMatchObject({
+      state: "pending",
+      assignedTo: "worker-1",
+      description: "Add a flag",
+    });
+
+    tm.handleMessage(
+      msg({
+        type: "result",
+        from: "worker-1",
+        to: "coordinator",
+        task_id: "T1-1",
+      }),
+    );
+    tm.handleMessage(
+      msg({ type: "task", to: "reviewer", task_id: "T1-1" }),
+      "reviewer",
+    );
+    expect(tm.get("T1-1")?.state).toBe("review");
+    expect(tm.get("T1-1")?.assignedTo).toBe("worker-1");
+
+    tm.handleMessage(
+      msg({
+        type: "error",
+        from: "reviewer",
+        to: "coordinator",
+        task_id: "T1-1",
+      }),
+    );
+    expect(tm.get("T1-1")?.state).toBe("error");
+
+    tm.handleMessage(
+      msg({ type: "task", to: "worker-1", task_id: "T1-1" }),
+      "worker",
+    );
+    expect(tm.get("T1-1")?.state).toBe("pending");
+
+    tm.handleMessage(
+      msg({ type: "task", to: "reviewer", task_id: "T1-1" }),
+      "reviewer",
+    );
+    tm.handleMessage(
+      msg({
+        type: "result",
+        from: "reviewer",
+        to: "coordinator",
+        task_id: "T1-1",
+      }),
+    );
+    expect(tm.get("T1-1")?.state).toBe("done");
+    expect(tm.getAll()).toHaveLength(1);
+  });
+
+  it("reads top-level blocked_by and unblocks when the dependency is done", () => {
+    const tm = new TaskManager();
+    tm.handleMessage(msg({ type: "task", to: "worker-1", task_id: "A" }));
+    tm.handleMessage(
+      msg({ type: "task", to: "worker-2", task_id: "B", blocked_by: ["A"] }),
+    );
+    expect(tm.get("B")?.state).toBe("blocked");
+    tm.handleMessage(msg({ type: "result", to: "coordinator", task_id: "A" }));
+    expect(tm.get("B")?.state).toBe("pending");
+  });
+
+  it("accepts a numeric task_id and a non-string payload", () => {
+    const tm = new TaskManager();
+    const raw = { type: "task", to: "worker-1", task_id: 7, payload: { a: 1 } };
+    expect(() =>
+      tm.handleMessage(msg(raw as unknown as Message)),
+    ).not.toThrow();
+    expect(tm.get("7")).toBeDefined();
+  });
+});
+
 // ─── TaskManager.onChange() ──────────────────────────────────────────
 
 describe("TaskManager.onChange()", () => {

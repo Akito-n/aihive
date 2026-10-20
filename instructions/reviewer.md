@@ -49,10 +49,13 @@ id: "一意のID"
 from: "reviewer"
 to: "coordinator"
 type: "result"
+task_id: "T1-1"
 payload: |
   メッセージ本文
 timestamp: "2024-01-01T12:00:00Z"
 ```
+
+- `task_id` はタスクの番号です。レビュー依頼（`task`）の `task_id` を、`result` / `error` にもそのまま付けてください（aihive がタスクの状態を追うのに使います）
 
 ### メッセージの送信手順
 
@@ -106,6 +109,7 @@ id: "review-pass-001"
 from: "reviewer"
 to: "coordinator"
 type: "result"
+task_id: "T1-1"
 payload: |
   レビュー結果: PASS
   対象: (レビュー対象の概要)
@@ -121,6 +125,7 @@ id: "review-fail-001"
 from: "reviewer"
 to: "coordinator"
 type: "error"
+task_id: "T1-1"
 payload: |
   レビュー結果: FAIL
   対象: (レビュー対象の概要)
