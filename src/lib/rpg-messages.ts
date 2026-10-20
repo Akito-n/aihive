@@ -2,7 +2,8 @@
 // One-line story of what the party is doing, shown in the retro message
 // window. The detailed log stays on the log screen.
 
-import { tf } from "./i18n.js";
+import type { AdventureEvent } from "./adventure.js";
+import { t, tf } from "./i18n.js";
 import type { Award } from "./progress.js";
 
 export interface RpgMessage {
@@ -61,6 +62,16 @@ export function awardMessage(award: Award, taskId: string): RpgMessage {
   if (award.memberLevel.after > award.memberLevel.before) {
     return levelUpMessage(award.member, award.memberLevel.after);
   }
+  const bossFloor = award.events.find((e) => e.boss && e.won);
+  if (bossFloor) {
+    return {
+      text: tf("retro.msg.floorBoss", {
+        floor: bossFloor.floor,
+        monster: t(bossFloor.monster),
+      }),
+      color: "yellow",
+    };
+  }
   if (award.boss) {
     return {
       text: tf("retro.msg.boss", {
@@ -71,5 +82,38 @@ export function awardMessage(award: Award, taskId: string): RpgMessage {
       color: "yellow",
     };
   }
+  if (award.events.length > 0) {
+    return adventureMessage(award.events, award.progress.adventure.floor);
+  }
   return { text: tf("retro.msg.xp", { name: award.member, xp: award.xp }) };
+}
+
+/** The dungeon's news: one battle told as it went, several summed up */
+export function adventureMessage(
+  events: AdventureEvent[],
+  floorNow: number,
+): RpgMessage {
+  const last = events[events.length - 1];
+  if (!last.won) {
+    return {
+      text: tf("retro.msg.floorLose", {
+        monster: t(last.monster),
+        floor: floorNow,
+      }),
+      color: "red",
+    };
+  }
+  if (events.length > 1) {
+    return {
+      text: tf("retro.msg.explored", { floor: floorNow }),
+      color: "cyan",
+    };
+  }
+  return {
+    text: tf("retro.msg.floorWin", {
+      floor: last.floor,
+      monster: t(last.monster),
+    }),
+    color: "cyan",
+  };
 }
