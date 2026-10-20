@@ -1,8 +1,10 @@
 import { Box, Text, useInput } from "ink";
 import { useState } from "react";
 import { t } from "../lib/i18n.js";
+import { frameStyle, isRetro, jobKeyOf } from "../lib/theme.js";
 import { VERSION } from "../lib/version.js";
 import type { TransKey } from "../locales/en.js";
+import { useBlink, Window } from "./Window.js";
 
 interface MenuItem {
   key: string;
@@ -39,7 +41,7 @@ const MENU_ITEMS: MenuItem[] = [
 ];
 
 const LOGO = [
-  "█████╗ ██╗██╗  ██╗██╗██╗   ██╗███████╗",
+  " █████╗ ██╗██╗  ██╗██╗██╗   ██╗███████╗",
   "██╔══██╗██║██║  ██║██║██║   ██║██╔════╝",
   "███████║██║███████║██║██║   ██║█████╗  ",
   "██╔══██║██║██╔══██║██║╚██╗ ██╔╝██╔══╝  ",
@@ -55,8 +57,35 @@ const ROLE_ICON: Record<string, string> = {
   scout: "🐝",
 };
 
+/** "Agents: 6 (👑 1 orchestrator, …)", or the party by job in the retro look */
+export function partySummary(
+  agents: number,
+  roleCounts: Record<string, number>,
+  retro: boolean,
+): string {
+  const roles = Object.entries(roleCounts);
+  if (retro) {
+    const party = roles
+      .map(([role, count]) => {
+        const jobKey = jobKeyOf(role);
+        return `${jobKey ? t(jobKey) : role} ${count}`;
+      })
+      .join("  ");
+    return `${t("retro.party")}: ${agents}${party ? `  ${party}` : ""}`;
+  }
+  return `Agents: ${agents}${
+    roles.length > 0
+      ? ` (${roles
+          .map(([role, count]) => `${ROLE_ICON[role] ?? "⬡"} ${count} ${role}`)
+          .join(", ")})`
+      : ""
+  }`;
+}
+
 export function MainMenu({ onSelect, agents, roleCounts = {} }: MainMenuProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const retro = isRetro();
+  const blink = useBlink();
 
   useInput((_input, key) => {
     if (key.upArrow) {
@@ -78,15 +107,16 @@ export function MainMenu({ onSelect, agents, roleCounts = {} }: MainMenuProps) {
       <Box
         flexDirection="column"
         alignItems="center"
-        borderStyle="round"
-        borderColor="gray"
+        {...(retro
+          ? frameStyle()
+          : { borderStyle: "round", borderColor: "gray" })}
         paddingX={2}
         paddingY={1}
         marginBottom={1}
       >
         <Box flexDirection="column">
           {LOGO.map((line) => (
-            <Text key={line} color="cyan" bold>
+            <Text key={line} color={retro ? "yellow" : "cyan"} bold>
               {line}
             </Text>
           ))}
@@ -99,22 +129,13 @@ export function MainMenu({ onSelect, agents, roleCounts = {} }: MainMenuProps) {
         </Box>
       </Box>
 
-      <Text dimColor>
-        Agents: {agents}
-        {Object.keys(roleCounts).length > 0 &&
-          ` (${Object.entries(roleCounts)
-            .map(
-              ([role, count]) => `${ROLE_ICON[role] ?? "⬡"} ${count} ${role}`,
-            )
-            .join(", ")})`}
-      </Text>
+      <Text dimColor>{partySummary(agents, roleCounts, retro)}</Text>
 
       {/* Menu */}
-      <Box
-        flexDirection="column"
+      <Window
+        title={retro ? t("retro.commands") : undefined}
+        {...(retro ? {} : { borderColor: "cyan" })}
         marginTop={1}
-        borderStyle="round"
-        borderColor="cyan"
         paddingX={3}
         paddingY={1}
       >
@@ -122,10 +143,17 @@ export function MainMenu({ onSelect, agents, roleCounts = {} }: MainMenuProps) {
           const isSelected = i === selectedIndex;
           return (
             <Box key={item.key} gap={1}>
-              <Text color="cyan">{isSelected ? "▶" : " "}</Text>
-              <Text bold={isSelected} color={isSelected ? item.color : "white"}>
-                {t(item.labelKey).padEnd(14)}
+              <Text color={retro ? "white" : "cyan"}>
+                {isSelected && (blink || !retro) ? "▶" : " "}
               </Text>
+              <Box width={18} flexShrink={0}>
+                <Text
+                  bold={isSelected}
+                  color={isSelected && !retro ? item.color : "white"}
+                >
+                  {t(item.labelKey)}
+                </Text>
+              </Box>
               <Text
                 dimColor={!isSelected}
                 color={isSelected ? "gray" : undefined}
@@ -135,7 +163,7 @@ export function MainMenu({ onSelect, agents, roleCounts = {} }: MainMenuProps) {
             </Box>
           );
         })}
-      </Box>
+      </Window>
 
       {/* Controls hint */}
       <Box marginTop={1} gap={2}>

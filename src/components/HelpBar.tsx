@@ -1,11 +1,47 @@
 import { Box, Text } from "ink";
 import { t } from "../lib/i18n.js";
+import { isRetro } from "../lib/theme.js";
+import type { TransKey } from "../locales/en.js";
+import { Window } from "./Window.js";
 
 interface HelpBarProps {
   state: "idle" | "settings" | "starting" | "running" | "stopping";
 }
 
+/** Keys in the retro command window, by app state */
+export function retroCommands(
+  state: HelpBarProps["state"],
+): [string, TransKey][] {
+  const commands: [string, TransKey][] = [];
+  if (state === "idle") commands.push(["s", "retro.cmd.start"]);
+  if (state === "running") {
+    commands.push(
+      ["j/k", "retro.cmd.select"],
+      ["Enter", "retro.cmd.talk"],
+      ["T", "retro.cmd.quests"],
+      ["O", "retro.cmd.overview"],
+      ["L", "retro.cmd.log"],
+      ["x", "retro.cmd.stop"],
+    );
+  }
+  commands.push(["q", "retro.cmd.quit"]);
+  return commands;
+}
+
 export function HelpBar({ state }: HelpBarProps) {
+  if (isRetro()) {
+    return (
+      <Window title={t("retro.commands")} flexGrow={1}>
+        <Box columnGap={3} flexWrap="wrap">
+          {retroCommands(state).map(([key, label]) => (
+            <Text key={key}>
+              {t(label)} <Text dimColor>{key}</Text>
+            </Text>
+          ))}
+        </Box>
+      </Window>
+    );
+  }
   return (
     <Box gap={2}>
       {state === "idle" && (

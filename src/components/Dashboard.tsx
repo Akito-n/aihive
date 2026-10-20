@@ -3,8 +3,10 @@ import { t, tf } from "../lib/i18n.js";
 import { toSlug } from "../lib/mailbox.js";
 import { formatDuration } from "../lib/report.js";
 import type { Task, TaskState } from "../lib/tasks.js";
+import { conditionOf, isRetro, jobKeyOf } from "../lib/theme.js";
 import type { AgentInfo } from "../lib/tmux.js";
 import type { TransKey } from "../locales/en.js";
+import { useBlink, Window } from "./Window.js";
 
 interface SkillCounts {
   proposed: number;
@@ -117,7 +119,162 @@ const TASK_COLOR: Record<TaskState, string> = {
   error: "red",
 };
 
-export function Dashboard({
+/** An agent's level: 1 + the tasks it has finished */
+export function levelOf(agent: AgentInfo, tasks: Task[]): number {
+  const slug = toSlug(agent.name);
+  return (
+    1 +
+    tasks.filter((t) => t.state === "done" && toSlug(t.assignedTo) === slug)
+      .length
+  );
+}
+
+export function Dashboard(props: DashboardProps) {
+  return isRetro() ? (
+    <RetroDashboard {...props} />
+  ) : (
+    <ClassicDashboard {...props} />
+  );
+}
+
+/** The dashboard as RPG windows: party, quests and the bag */
+function RetroDashboard({
+  agents,
+  selectedIndex,
+  tasks = [],
+  stalledIds = [],
+  skillCounts,
+  memoryCount = 0,
+  now = Date.now(),
+}: DashboardProps) {
+  const blink = useBlink();
+  const counts: Partial<Record<TaskState, number>> = {};
+  for (const task of tasks) {
+    counts[task.state] = (counts[task.state] ?? 0) + 1;
+  }
+  const showBag =
+    (skillCounts && (skillCounts.approved > 0 || skillCounts.proposed > 0)) ||
+    memoryCount > 0;
+  return (
+    <Box flexDirection="column" gap={1}>
+      <Window title={t("retro.party")}>
+        {agents.map((agent, i) => {
+          const isSelected = i === selectedIndex;
+          const jobKey = jobKeyOf(agent.role);
+          const current = currentTaskOf(agent, tasks);
+          const stalled = Boolean(current && stalledIds.includes(current.id));
+          const condition = conditionOf(agent.status, stalled);
+          return (
+            <Box key={agent.name} flexDirection="column">
+              <Box>
+                <Text bold>{isSelected && blink ? "▶" : " "}</Text>
+                <Box flexGrow={1}>
+                  <Text bold={isSelected} wrap="truncate-end">
+                    {agent.name}
+                  </Text>
+                </Box>
+                <Text dimColor> {jobKey ? t(jobKey) : agent.role}</Text>
+                <Text> Lv{levelOf(agent, tasks)}</Text>
+              </Box>
+              <Box marginLeft={2}>
+                <Text wrap="truncate-end">
+                  <Text color={condition.color}>{t(condition.key)}</Text>
+                  {current && (
+                    <>
+                      {" "}
+                      {current.id}{" "}
+                      <Text
+                        dimColor={!stalled}
+                        color={stalled ? "magenta" : undefined}
+                      >
+                        {formatDuration(now - Date.parse(current.updatedAt))}
+                      </Text>{" "}
+                      <Text dimColor>{current.description}</Text>
+                    </>
+                  )}
+                </Text>
+              </Box>
+            </Box>
+          );
+        })}
+      </Window>
+
+      {tasks.length > 0 && (
+        <Window title={t("retro.quests")}>
+          <Box columnGap={2} flexWrap="wrap">
+            {(Object.entries(counts) as [TaskState, number][]).map(
+              ([state, count]) => (
+                <Text key={state} color={TASK_COLOR[state]}>
+                  {TASK_ICON[state]} {count} {t(STATE_LABEL[state])}
+                </Text>
+              ),
+            )}
+            {stalledIds.length > 0 && (
+              <Text color="magenta" bold>
+                {tf("retro.poisoned", { count: stalledIds.length })}
+              </Text>
+            )}
+          </Box>
+          {tasksToList(tasks, TASK_LIST_LIMIT, stalledIds).map((task) => (
+            <Box key={task.id} gap={1}>
+              <Text
+                color={
+                  stalledIds.includes(task.id)
+                    ? "magenta"
+                    : TASK_COLOR[task.state]
+                }
+              >
+                {TASK_ICON[task.state]}
+              </Text>
+              <Text wrap="truncate-end">{task.id}</Text>
+              <Text dimColor wrap="truncate-end">
+                {task.assignedTo}
+              </Text>
+            </Box>
+          ))}
+          {tasks.length > TASK_LIST_LIMIT && (
+            <Text dimColor>
+              {tf("dashboard.more", { count: tasks.length - TASK_LIST_LIMIT })}
+            </Text>
+          )}
+        </Window>
+      )}
+
+      {showBag && (
+        <Window title={t("retro.bag")}>
+          {skillCounts && skillCounts.approved + skillCounts.proposed > 0 && (
+            <Text>
+              {t("dashboard.skills")}{" "}
+              <Text color="green">
+                {tf("dashboard.skillsApproved", {
+                  count: skillCounts.approved,
+                })}
+              </Text>
+              {skillCounts.proposed > 0 && (
+                <Text color="yellow">
+                  {" "}
+                  {tf("dashboard.skillsPending", {
+                    count: skillCounts.proposed,
+                  })}
+                </Text>
+              )}
+            </Text>
+          )}
+          {memoryCount > 0 && (
+            <Text>
+              {t("dashboard.memory")}{" "}
+              <Text color="cyan">
+                {tf("dashboard.memoryEntries", { count: memoryCount })}
+              </Text>
+            </Text>
+          )}
+        </Window>
+      )}
+    </Box>
+  );
+}
+
+function ClassicDashboard({
   agents,
   selectedIndex,
   tasks = [],

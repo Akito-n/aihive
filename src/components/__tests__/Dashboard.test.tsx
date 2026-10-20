@@ -2,6 +2,7 @@ import { render } from "ink-testing-library";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { setLocale } from "../../lib/i18n.js";
 import type { Task } from "../../lib/tasks.js";
+import { setTheme } from "../../lib/theme.js";
 import type { AgentInfo } from "../../lib/tmux.js";
 import { currentTaskOf, Dashboard, tasksToList } from "../Dashboard.js";
 
@@ -31,9 +32,15 @@ function makeTask(overrides: Partial<Task> = {}): Task {
   };
 }
 
-// Most expectations below use the English labels
-beforeEach(() => setLocale("en"));
-afterEach(() => setLocale("ja"));
+// Most expectations below use the English labels and the classic look
+beforeEach(() => {
+  setLocale("en");
+  setTheme("classic");
+});
+afterEach(() => {
+  setLocale("ja");
+  setTheme("retro");
+});
 
 // ─── selectedIndex highlight ──────────────────────────────────────────
 
