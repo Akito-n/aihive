@@ -144,6 +144,40 @@ describe("awardTask", () => {
     awardTask(input({ task: task({ id: "T3" }), now: NOW + 86_400_000 }), file);
     expect(loadProgress(file).today.count).toBe(1);
   });
+
+  it("grows the member's skills and explores with the points earned", () => {
+    const file = tempFile();
+    // 35 points: floor 1 (30) fought, 5 left
+    expect(
+      awardTask(input({ random: () => 0.5 }), file)?.events.map((e) => e.floor),
+    ).toEqual([1]);
+    const award = awardTask(
+      input({ task: task({ id: "T2" }), random: () => 0.5 }),
+      file,
+    );
+    // An hour's work: たいりょく 6, a fighter's ちから 1 → 2
+    expect(award?.skills).toEqual({ str: 2, vit: 6, agi: 2, int: 3 });
+    // 5 + 35 points: floor 2 (32) fought, 8 left
+    expect(award?.events.map((e) => e.floor)).toEqual([2]);
+    const saved = loadProgress(file);
+    expect(saved.members["worker-1"].skills).toEqual({
+      str: 4,
+      vit: 12,
+      agi: 4,
+      int: 6,
+    });
+    expect(saved.adventure).toMatchObject({ floor: 3, points: 8, wins: 2 });
+  });
+
+  it("gives no skills or points for a task closed at once", () => {
+    const file = tempFile();
+    const award = awardTask(
+      input({ task: task({ createdAt: new Date(NOW).toISOString() }) }),
+      file,
+    );
+    expect(award?.skills).toEqual({ str: 0, vit: 0, agi: 0, int: 0 });
+    expect(loadProgress(file).adventure.points).toBe(0);
+  });
 });
 
 describe("loadProgress", () => {
@@ -170,5 +204,38 @@ describe("loadProgress", () => {
     expect(p.tasksDone).toBe(0);
     expect(Object.keys(p.members)).toEqual(["worker-1"]);
     expect(p.counted).toEqual(["/p#T1"]);
+    expect(p.members["worker-1"].skills).toEqual({
+      str: 0,
+      vit: 0,
+      agi: 0,
+      int: 0,
+    });
+  });
+
+  it("reads the adventure and skills, fixing what is out of range", () => {
+    const file = tempFile();
+    fs.writeFileSync(
+      file,
+      JSON.stringify({
+        members: {
+          "worker-1": { name: "Worker 1", xp: 1, skills: { str: 5, vit: "x" } },
+        },
+        adventure: { floor: 0, deepest: 7, points: 12, wins: 3, losses: -1 },
+      }),
+    );
+    const p = loadProgress(file);
+    expect(p.members["worker-1"].skills).toEqual({
+      str: 5,
+      vit: 0,
+      agi: 0,
+      int: 0,
+    });
+    expect(p.adventure).toEqual({
+      floor: 1,
+      deepest: 7,
+      points: 12,
+      wins: 3,
+      losses: 0,
+    });
   });
 });

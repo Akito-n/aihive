@@ -5,6 +5,7 @@ import { Text } from "ink";
 import { render } from "ink-testing-library";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setLocale } from "../../lib/i18n.js";
+import { emptyProgress } from "../../lib/progress.js";
 import type { Task } from "../../lib/tasks.js";
 import { getTheme, setTheme } from "../../lib/theme.js";
 import type { AgentInfo } from "../../lib/tmux.js";
@@ -14,6 +15,7 @@ import { partySummary } from "../MainMenu.js";
 import { PaneView } from "../PaneView.js";
 import { PixelLogo, pixelLines } from "../PixelLogo.js";
 import { StartupScreen, startupSteps } from "../StartupScreen.js";
+import { StatusView } from "../StatusView.js";
 import { ThemeScreen } from "../ThemeScreen.js";
 import { Window } from "../Window.js";
 
@@ -241,5 +243,39 @@ describe("retro startup", () => {
     await new Promise((resolve) => setTimeout(resolve, 300));
     expect(lastFrame()).toContain("██");
     expect(lastFrame()).toContain("ぼうけんの じゅんびを している…");
+  });
+});
+
+describe("StatusView", () => {
+  beforeEach(() => setLocale("ja"));
+
+  it("shows the dungeon floor and each member's skills", () => {
+    const progress = emptyProgress();
+    progress.adventure = {
+      floor: 4,
+      deepest: 6,
+      points: 12,
+      wins: 5,
+      losses: 1,
+    };
+    progress.members["worker-1"] = {
+      name: "Worker 1",
+      role: "worker",
+      xp: 40,
+      tasksDone: 2,
+      skills: { str: 16, vit: 4, agi: 0, int: 0 },
+    };
+    const { lastFrame } = render(
+      <StatusView
+        progress={progress}
+        members={[{ name: "Worker 1", role: "worker" }]}
+      />,
+    );
+    const frame = lastFrame() ?? "";
+    expect(frame).toContain("いま ちか4かい");
+    expect(frame).toContain("さいしん ちか6かい");
+    expect(frame).toContain("つぎのかいまで 12/36");
+    expect(frame).toContain("ちから 3");
+    expect(frame).toContain("たいりょく 2");
   });
 });

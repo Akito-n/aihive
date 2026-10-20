@@ -1,4 +1,10 @@
 import { Box, Text, useInput } from "ink";
+import {
+  floorCost,
+  SKILL_KEYS,
+  SKILL_LABEL_KEYS,
+  skillLevel,
+} from "../lib/adventure.js";
 import { t, tf } from "../lib/i18n.js";
 import { toSlug } from "../lib/mailbox.js";
 import {
@@ -87,6 +93,57 @@ export function StatusView({ progress, members, onClose }: StatusViewProps) {
                   count: record?.tasksDone ?? 0,
                 })}
               </Text>
+            </Box>
+          );
+        })}
+      </Window>
+
+      <Window title={t("status.adventure")}>
+        <Box gap={3}>
+          <Text bold>
+            {tf("status.floor", { floor: progress.adventure.floor })}
+          </Text>
+          <Text>
+            {tf("status.deepest", { floor: progress.adventure.deepest })}
+          </Text>
+          <Text>
+            {tf("status.record", {
+              wins: progress.adventure.wins,
+              losses: progress.adventure.losses,
+            })}
+          </Text>
+        </Box>
+        <Box gap={2}>
+          <Text color="green">
+            {gauge(
+              progress.adventure.points / floorCost(progress.adventure.floor),
+              20,
+            )}
+          </Text>
+          <Text dimColor>
+            {tf("status.nextFloor", {
+              points: progress.adventure.points,
+              cost: floorCost(progress.adventure.floor),
+            })}
+          </Text>
+        </Box>
+      </Window>
+
+      <Window title={t("status.skills")}>
+        {members.map((m) => {
+          const skills = progress.members[toSlug(m.name)]?.skills;
+          return (
+            <Box key={m.name} gap={1}>
+              <Box width={16}>
+                <Text wrap="truncate-end">{m.name}</Text>
+              </Box>
+              {SKILL_KEYS.map((key) => (
+                <Box key={key} width={14}>
+                  <Text>
+                    {t(SKILL_LABEL_KEYS[key])} {skillLevel(skills?.[key] ?? 0)}
+                  </Text>
+                </Box>
+              ))}
             </Box>
           );
         })}

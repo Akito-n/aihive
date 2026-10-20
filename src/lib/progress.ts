@@ -5,6 +5,17 @@
 import fs from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
+import {
+  type Adventure,
+  type AdventureEvent,
+  emptyAdventure,
+  emptySkills,
+  explore,
+  partyPower,
+  SKILL_KEYS,
+  type Skills,
+  skillGains,
+} from "./adventure.js";
 import { toSlug } from "./mailbox.js";
 import type { Task } from "./tasks.js";
 
@@ -13,6 +24,8 @@ export interface MemberProgress {
   role: string;
   xp: number;
   tasksDone: number;
+  /** Skill points, grown by how tasks went */
+  skills: Skills;
 }
 
 export interface Progress {
@@ -25,6 +38,7 @@ export interface Progress {
   counted: string[];
   /** Tasks rewarded today, for diminishing returns */
   today: { date: string; count: number };
+  adventure: Adventure;
 }
 
 /** XP to reach a level grows with its square: XP(n) = k × (n − 1)² */
@@ -70,6 +84,7 @@ export function emptyProgress(): Progress {
     members: {},
     counted: [],
     today: { date: "", count: 0 },
+    adventure: emptyAdventure(),
   };
 }
 
@@ -104,6 +119,7 @@ export function loadProgress(file = progressFilePath()): Progress {
           role: typeof v.role === "string" ? v.role : "",
           xp: Math.floor(v.xp),
           tasksDone: isCount(v.tasksDone) ? Math.floor(v.tasksDone) : 0,
+          skills: loadSkills(v.skills),
         };
       }
     }
@@ -115,7 +131,32 @@ export function loadProgress(file = progressFilePath()): Progress {
   if (today && typeof today.date === "string" && isCount(today.count)) {
     p.today = { date: today.date, count: Math.floor(today.count) };
   }
+  const a = r.adventure as Record<string, unknown> | undefined;
+  if (a && typeof a === "object") {
+    const floor = isCount(a.floor) ? Math.max(1, Math.floor(a.floor)) : 1;
+    p.adventure = {
+      floor,
+      deepest: isCount(a.deepest)
+        ? Math.max(floor, Math.floor(a.deepest))
+        : floor,
+      points: isCount(a.points) ? Math.floor(a.points) : 0,
+      wins: isCount(a.wins) ? Math.floor(a.wins) : 0,
+      losses: isCount(a.losses) ? Math.floor(a.losses) : 0,
+    };
+  }
   return p;
+}
+
+function loadSkills(raw: unknown): Skills {
+  const skills = emptySkills();
+  if (raw && typeof raw === "object") {
+    const r = raw as Record<string, unknown>;
+    for (const key of SKILL_KEYS) {
+      const v = r[key];
+      if (isCount(v)) skills[key] = Math.floor(v);
+    }
+  }
+  return skills;
 }
 
 /** Write through a temp file, so a crash never leaves half a record */
@@ -147,15 +188,22 @@ export interface TaskContext {
 }
 
 /** The XP a finished task earns, before anything is saved */
+/** Many tasks in one day earn less, so splitting work finely doesn't pay */
+export function dailyRate(todayCount: number): number {
+  return todayCount >= 50 ? 0.25 : todayCount >= 20 ? 0.5 : 1;
+}
+
+function tooQuick(task: Task, now: number): boolean {
+  return now - Date.parse(task.createdAt) < MIN_TASK_MS;
+}
+
 export function taskXp(task: Task, ctx: TaskContext): number {
-  if (ctx.now - Date.parse(task.createdAt) < MIN_TASK_MS) return 0;
+  if (tooQuick(task, ctx.now)) return 0;
   let xp = isSubtask(task.id) ? XP.subtask : XP.task;
   if (ctx.checksPassed) xp += XP.checksPassed;
   if (!ctx.stalled) xp += XP.neverStalled;
   if (isBoss(task, ctx.all)) xp += XP.boss;
-  // Many tasks in one day earn less, so splitting work finely doesn't pay
-  const rate = ctx.todayCount >= 50 ? 0.25 : ctx.todayCount >= 20 ? 0.5 : 1;
-  return Math.round(xp * rate);
+  return Math.round(xp * dailyRate(ctx.todayCount));
 }
 
 export interface Award {
@@ -164,6 +212,9 @@ export interface Award {
   memberLevel: { before: number; after: number };
   partyLevel: { before: number; after: number };
   boss: boolean;
+  skills: Skills;
+  /** Battles fought in the dungeon with the points this task earned */
+  events: AdventureEvent[];
   progress: Progress;
 }
 
@@ -186,6 +237,7 @@ export function awardTask(
     stalled: boolean;
     all: Task[];
     now?: number;
+    random?: () => number;
   },
   file = progressFilePath(),
 ): Award | undefined {
@@ -204,6 +256,16 @@ export function awardTask(
     now,
   });
   const boss = isBoss(input.task, input.all);
+  const skills = tooQuick(input.task, now)
+    ? emptySkills()
+    : skillGains(input.task, {
+        all: input.all,
+        checksPassed: input.checksPassed,
+        stalled: input.stalled,
+        role: input.member.role,
+        rate: dailyRate(progress.today.count),
+        now,
+      });
 
   const slug = toSlug(input.member.name);
   const member = progress.members[slug] ?? {
@@ -211,6 +273,7 @@ export function awardTask(
     role: input.member.role,
     xp: 0,
     tasksDone: 0,
+    skills: emptySkills(),
   };
   const memberBefore = levelForXp(member.xp, MEMBER_XP_FACTOR);
   const partyBefore = levelForXp(progress.partyXp, PARTY_XP_FACTOR);
@@ -218,12 +281,25 @@ export function awardTask(
   member.tasksDone += 1;
   member.name = input.member.name;
   member.role = input.member.role;
+  for (const key of SKILL_KEYS) member.skills[key] += skills[key];
   progress.members[slug] = member;
   progress.partyXp += xp;
   progress.tasksDone += 1;
   if (boss) progress.bossesDefeated += 1;
   progress.today.count += 1;
   progress.counted = [...progress.counted, key].slice(-COUNTED_LIMIT);
+
+  // The points this task earned carry the party further down the dungeon
+  const power = partyPower(
+    Object.values(progress.members).map((m) => m.skills),
+    levelForXp(progress.partyXp, PARTY_XP_FACTOR),
+  );
+  const explored = explore(
+    { ...progress.adventure, points: progress.adventure.points + xp },
+    power,
+    input.random,
+  );
+  progress.adventure = explored.adventure;
   saveProgress(progress, file);
 
   return {
@@ -238,6 +314,8 @@ export function awardTask(
       after: levelForXp(progress.partyXp, PARTY_XP_FACTOR),
     },
     boss,
+    skills,
+    events: explored.events,
     progress,
   };
 }
