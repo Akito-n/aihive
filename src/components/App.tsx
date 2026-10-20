@@ -13,6 +13,12 @@ import { type MessageBus, SYSTEM_MAILBOX, toSlug } from "../lib/mailbox.js";
 import { MemoryManager, normalizeMemoryEntry } from "../lib/memory.js";
 import type { QuickCommand } from "../lib/quick-commands.js";
 import { groupByCategory, loadQuickCommands } from "../lib/quick-commands.js";
+import {
+  CompletionReporter,
+  formatReport,
+  type TaskCheck,
+  writeReport,
+} from "../lib/report.js";
 import type { SkillState } from "../lib/skills.js";
 import { SkillManager } from "../lib/skills.js";
 import type { Task } from "../lib/tasks.js";
@@ -196,14 +202,22 @@ export function App() {
     // Run the user's check commands when a worker reports a result, and send
     // the outcome to the reviewers (or the coordinator when there is none)
     let disposed = false;
+    const taskChecks = new Map<string, TaskCheck>();
     const checks = config.checks ?? [];
     const checkRunner =
       checks.length > 0
         ? new CheckRunner(
             checks,
             process.cwd(),
-            ({ worker, taskId, result, payload }) => {
+            ({ worker, taskId, result, commit, payload }) => {
               if (disposed) return;
+              if (taskId) {
+                taskChecks.set(taskId, {
+                  passed: result.passed,
+                  failedCommand: result.failedCommand,
+                  commit,
+                });
+              }
               addLog(
                 `Checks ${result.passed ? "passed" : `failed (${result.failedCommand})`} for ${worker}${taskId ? ` ${taskId}` : ""}`,
               );
@@ -324,8 +338,26 @@ export function App() {
     // Mark tasks with no recent update and remind their agent once
     const stallMinutes = stallMinutesOf(config);
     const monitor = new StallMonitor(stallMinutes * 60_000);
+    // Write a completion report once every task has finished; tasks that
+    // were already finished when aihive (re)started are not reported again
+    const reporter = new CompletionReporter();
+    reporter.prime(tm.getAll());
     const stallTimer = setInterval(() => {
-      const { stalled, toRemind } = monitor.check(tm.getAll(), Date.now());
+      const now = Date.now();
+      const all = tm.getAll();
+      if (reporter.due(all, now)) {
+        try {
+          const file = writeReport(
+            process.cwd(),
+            formatReport(all, taskChecks, new Date(now)),
+            new Date(now),
+          );
+          addLog(`Completion report written: ${file}`);
+        } catch (e) {
+          addLog(`Could not write completion report: ${e}`);
+        }
+      }
+      const { stalled, toRemind } = monitor.check(all, now);
       setStalledIds(stalled.map((t) => t.id));
       for (const task of toRemind) {
         const reminded = bus.remindStalled(

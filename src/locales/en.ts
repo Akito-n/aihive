@@ -144,6 +144,22 @@ export const en = {
 
 - Do not commit to any other branch, \`git push\`, switch branches, or edit files outside your working folder (writing to the \`.aihive/\` mailbox is the exception)
 - The Reviewer merges into the integration branch`,
+  "report.title": "# aihive completion report",
+  "report.created": "- Created: {time}",
+  "report.summary": "- Tasks: {total} ({done} done / {failed} failed)",
+  "report.elapsed": "- Total time: {duration}",
+  "report.state": "- State: {state}",
+  "report.done": "done",
+  "report.failed": "failed",
+  "report.assignee": "- Last assignee: {name}",
+  "report.duration": "- Time taken: {duration}",
+  "report.checksPassed": "- Checks: passed (commit {commit})",
+  "report.checksFailed": "- Checks: failed ({command})",
+  "report.result": "- Result:",
+  "report.moreLines": "…{count} more lines",
+  "report.underMinute": "<1 min",
+  "report.minutes": "{m} min",
+  "report.hoursMinutes": "{h} h {m} min",
   "xp.scoreLine":
     "    → +{xp} XP (articulation:{a} comprehension:{c} review:{r} collaboration:{co} inquiry:{i})",
 } as const;

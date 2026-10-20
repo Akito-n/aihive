@@ -114,6 +114,7 @@ export interface CheckReport {
   worker: string;
   taskId?: string;
   result: CheckResult;
+  commit?: string; // HEAD of the checked folder
   payload: string; // body of the check-result message
 }
 
@@ -144,13 +145,14 @@ export class CheckRunner {
     const previous = this.chains.get(cwd) ?? Promise.resolve();
     const next = previous.then(async () => {
       const result = await runChecks(this.commands, cwd, this.timeoutMs);
+      const commit = headCommit(cwd);
       const payload = formatCheckReport(result, {
         taskId,
         worker,
         cwd,
-        commit: headCommit(cwd),
+        commit,
       });
-      this.onDone({ worker, taskId, result, payload });
+      this.onDone({ worker, taskId, result, commit, payload });
     });
     const settled = next.catch(() => {});
     this.chains.set(cwd, settled);
