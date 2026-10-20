@@ -1,5 +1,6 @@
 import { Box, Text } from "ink";
 import { t } from "../lib/i18n.js";
+import { isRetro } from "../lib/theme.js";
 import type { AgentInfo } from "../lib/tmux.js";
 import { VERSION } from "../lib/version.js";
 
@@ -47,9 +48,15 @@ export function Header({
   return (
     <Box flexDirection="column">
       <Box>
-        <Text bold color="cyan">
-          {"🐝 aihive"}
-        </Text>
+        {isRetro() ? (
+          <Text bold>
+            <Text color="yellow">◆</Text> AIHIVE
+          </Text>
+        ) : (
+          <Text bold color="cyan">
+            {"🐝 aihive"}
+          </Text>
+        )}
         <Text> </Text>
         <Text dimColor>v{VERSION}</Text>
         <Text> </Text>

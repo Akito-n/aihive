@@ -1,7 +1,10 @@
 import { Box, Text } from "ink";
 import React, { useEffect, useRef, useState } from "react";
 import { parseAnsi, stripAnsi } from "../lib/ansi.js";
+import { tf } from "../lib/i18n.js";
+import { isRetro } from "../lib/theme.js";
 import { capturePane } from "../lib/tmux.js";
+import { Window } from "./Window.js";
 
 // Patterns that indicate Claude Code is waiting for user choice
 const PROMPT_PATTERNS = [
@@ -83,6 +86,51 @@ export function PaneView({
   // Show only the last `lines` rows so content auto-scrolls to bottom
   const visibleLines = outputLines.slice(-lines);
 
+  const body = (
+    <Box marginTop={1} flexDirection="column">
+      {visibleLines.length > 0 ? (
+        visibleLines.map((line, lineIdx) => {
+          const spans = parseAnsi(line);
+          return (
+            <Box key={`${paneTarget}-${lineIdx}`}>
+              <Text wrap="truncate">
+                {spans.map((span, spanIdx) => {
+                  const props: Record<string, unknown> = {
+                    key: `${lineIdx}-${spanIdx}`,
+                  };
+                  if (span.fg) props.color = span.fg;
+                  if (span.bg) props.backgroundColor = span.bg;
+                  if (span.bold) props.bold = true;
+                  if (span.dim) props.dimColor = true;
+                  if (span.italic) props.italic = true;
+                  if (span.underline) props.underline = true;
+                  if (span.inverse) props.inverse = true;
+                  if (span.strikethrough) props.strikethrough = true;
+                  return React.createElement(Text, props, span.text);
+                })}
+              </Text>
+            </Box>
+          );
+        })
+      ) : (
+        <Text dimColor>Waiting for output...</Text>
+      )}
+    </Box>
+  );
+
+  if (isRetro()) {
+    return (
+      <Window
+        title={tf("retro.paneTitle", { name: label })}
+        flexGrow={1}
+        height={boxHeight}
+        overflow="hidden"
+      >
+        {body}
+      </Window>
+    );
+  }
+
   return (
     <Box
       flexDirection="column"
@@ -96,35 +144,7 @@ export function PaneView({
       <Text bold color={active ? "cyan" : "white"}>
         {label}
       </Text>
-      <Box marginTop={1} flexDirection="column">
-        {visibleLines.length > 0 ? (
-          visibleLines.map((line, lineIdx) => {
-            const spans = parseAnsi(line);
-            return (
-              <Box key={`${paneTarget}-${lineIdx}`}>
-                <Text wrap="truncate">
-                  {spans.map((span, spanIdx) => {
-                    const props: Record<string, unknown> = {
-                      key: `${lineIdx}-${spanIdx}`,
-                    };
-                    if (span.fg) props.color = span.fg;
-                    if (span.bg) props.backgroundColor = span.bg;
-                    if (span.bold) props.bold = true;
-                    if (span.dim) props.dimColor = true;
-                    if (span.italic) props.italic = true;
-                    if (span.underline) props.underline = true;
-                    if (span.inverse) props.inverse = true;
-                    if (span.strikethrough) props.strikethrough = true;
-                    return React.createElement(Text, props, span.text);
-                  })}
-                </Text>
-              </Box>
-            );
-          })
-        ) : (
-          <Text dimColor>Waiting for output...</Text>
-        )}
-      </Box>
+      {body}
     </Box>
   );
 }

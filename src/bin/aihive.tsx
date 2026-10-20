@@ -4,8 +4,10 @@ import { App } from "../components/App.js";
 import { getConfigPath } from "../lib/config.js";
 import { checkDependencies } from "../lib/dependencies.js";
 import { loadLocale } from "../lib/i18n.js";
+import { loadTheme } from "../lib/theme.js";
 
 loadLocale();
+loadTheme();
 
 const args = process.argv.slice(2);
 

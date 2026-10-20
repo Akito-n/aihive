@@ -208,6 +208,37 @@ export const en = {
   "report.hoursMinutes": "{h} h {m} min",
   "xp.scoreLine":
     "    → +{xp} XP (articulation:{a} comprehension:{c} review:{r} collaboration:{co} inquiry:{i})",
+
+  // ─── Retro theme ────────────────────────────────────────────────
+  "settings.theme": "Theme",
+  "settings.theme.desc": "Switch the screen's look",
+  "theme.title": "Theme",
+  "theme.retro": "Retro RPG",
+  "theme.classic": "Classic",
+  "job.orchestrator": "King",
+  "job.coordinator": "Sage",
+  "job.worker": "Fighter",
+  "job.reviewer": "Priest",
+  "job.scout": "Thief",
+  "condition.pending": "Waiting",
+  "condition.running": "Fighting",
+  "condition.done": "Resting",
+  "condition.error": "Confused",
+  "condition.stalled": "Poisoned",
+  "retro.party": "Party",
+  "retro.quests": "Quests",
+  "retro.bag": "Bag",
+  "retro.poisoned": "Poisoned {count}",
+  "retro.paneTitle": "{name}",
+  "retro.commands": "Command",
+  "retro.cmd.start": "Set out",
+  "retro.cmd.select": "Choose",
+  "retro.cmd.talk": "Talk",
+  "retro.cmd.quests": "Quests",
+  "retro.cmd.overview": "Overview",
+  "retro.cmd.log": "Log",
+  "retro.cmd.stop": "Flee",
+  "retro.cmd.quit": "Quit",
 } as const;
 
 export type TransKey = keyof typeof en;

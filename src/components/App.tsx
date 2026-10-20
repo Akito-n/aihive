@@ -33,6 +33,7 @@ import {
   taskIdOf,
   tasksFilePath,
 } from "../lib/tasks.js";
+import { helpBarHeight } from "../lib/theme.js";
 import type { AgentInfo } from "../lib/tmux.js";
 import {
   buildAgentList,
@@ -645,7 +646,12 @@ export function App() {
 
       <Box marginTop={1} flexGrow={1}>
         {mode !== "input" && (
-          <Box flexDirection="column" width={34} marginRight={1}>
+          <Box
+            flexDirection="column"
+            width={34}
+            marginRight={1}
+            overflow="hidden"
+          >
             <Dashboard
               agents={agents}
               selectedIndex={selectedIndex}
@@ -663,7 +669,10 @@ export function App() {
               paneTarget={selectedAgent.paneTarget}
               label={selectedAgent.name}
               active={true}
-              lines={Math.max(10, rows - (mode === "input" ? 15 : 10))}
+              lines={Math.max(
+                10,
+                rows - (mode === "input" ? 15 : 9 + helpBarHeight()),
+              )}
               onPromptChange={setPromptInfo}
             />
           ) : (

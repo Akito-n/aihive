@@ -2,10 +2,13 @@ import { Box, Text, useInput } from "ink";
 import { useState } from "react";
 import type { AihiveConfig } from "../lib/config.js";
 import { t } from "../lib/i18n.js";
+import { accentColor, frameStyle, isRetro } from "../lib/theme.js";
 import { AgentEditor } from "./AgentEditor.js";
 import { CharacterScreen } from "./CharacterScreen.js";
 import { LanguageScreen } from "./LanguageScreen.js";
 import { QuickCommandEditor } from "./QuickCommandEditor.js";
+import { ThemeScreen } from "./ThemeScreen.js";
+import { Window } from "./Window.js";
 
 interface SettingsScreenProps {
   config: AihiveConfig;
@@ -46,6 +49,12 @@ const MENU_ITEMS: MenuItem[] = [
     color: "green",
   },
   {
+    key: "theme",
+    labelKey: "settings.theme",
+    descKey: "settings.theme.desc",
+    color: "blue",
+  },
+  {
     key: "back",
     labelKey: "settings.back",
     descKey: "settings.back.desc",
@@ -53,7 +62,13 @@ const MENU_ITEMS: MenuItem[] = [
   },
 ];
 
-type SettingsView = "menu" | "agents" | "commands" | "character" | "language";
+type SettingsView =
+  | "menu"
+  | "agents"
+  | "commands"
+  | "character"
+  | "language"
+  | "theme";
 
 export function SettingsScreen({
   config,
@@ -83,6 +98,8 @@ export function SettingsScreen({
           setView("character");
         } else if (item.key === "language") {
           setView("language");
+        } else if (item.key === "theme") {
+          setView("theme");
         } else if (item.key === "back") {
           onBack();
         }
@@ -119,25 +136,32 @@ export function SettingsScreen({
     return <LanguageScreen onBack={() => setView("menu")} />;
   }
 
+  if (view === "theme") {
+    return <ThemeScreen onBack={() => setView("menu")} />;
+  }
+
+  const retro = isRetro();
+
   return (
     <Box flexDirection="column" alignItems="center" paddingY={1}>
-      <Box
-        flexDirection="column"
-        borderStyle="round"
-        borderColor="yellow"
-        paddingX={3}
-        paddingY={1}
-      >
-        <Text bold color="yellow">
-          {t("settings.title")}
-        </Text>
-      </Box>
+      {!retro && (
+        <Box
+          flexDirection="column"
+          borderStyle="round"
+          borderColor="yellow"
+          paddingX={3}
+          paddingY={1}
+          marginBottom={1}
+        >
+          <Text bold color="yellow">
+            {t("settings.title")}
+          </Text>
+        </Box>
+      )}
 
-      <Box
-        flexDirection="column"
-        marginTop={1}
-        borderStyle="round"
-        borderColor="cyan"
+      <Window
+        title={retro ? t("settings.title") : undefined}
+        {...(retro ? frameStyle() : { borderColor: "cyan" })}
         paddingX={3}
         paddingY={1}
       >
@@ -145,12 +169,15 @@ export function SettingsScreen({
           const isSelected = i === selectedIndex;
           return (
             <Box key={item.key} gap={1}>
-              <Text color="cyan">{isSelected ? "▶" : " "}</Text>
-              <Text bold={isSelected} color={isSelected ? item.color : "white"}>
-                {t(item.labelKey as import("../locales/en.js").TransKey).padEnd(
-                  16,
-                )}
-              </Text>
+              <Text color={accentColor()}>{isSelected ? "▶" : " "}</Text>
+              <Box width={18} flexShrink={0}>
+                <Text
+                  bold={isSelected}
+                  color={isSelected && !retro ? item.color : "white"}
+                >
+                  {t(item.labelKey as import("../locales/en.js").TransKey)}
+                </Text>
+              </Box>
               <Text
                 dimColor={!isSelected}
                 color={isSelected ? "gray" : undefined}
@@ -160,7 +187,7 @@ export function SettingsScreen({
             </Box>
           );
         })}
-      </Box>
+      </Window>
 
       <Box marginTop={1} gap={2}>
         <Text dimColor>↑↓ {t("common.select")}</Text>
