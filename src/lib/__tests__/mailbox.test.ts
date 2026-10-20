@@ -8,14 +8,22 @@ const mockFs = vi.hoisted(() => ({
   readdirSync: vi.fn(() => [] as string[]),
   watch: vi.fn(() => ({ close: vi.fn() })),
   readFileSync: vi.fn(() => ""),
+  renameSync: vi.fn(),
+  rmSync: vi.fn(),
 }));
 
-const mockExecSync = vi.hoisted(() => vi.fn());
+const mockExecFileSync = vi.hoisted(() => vi.fn());
 
 vi.mock("node:fs", () => ({ default: mockFs }));
-vi.mock("node:child_process", () => ({ execSync: mockExecSync }));
+vi.mock("node:child_process", () => ({ execFileSync: mockExecFileSync }));
 
-import { type Message, MessageBus, toSlug } from "../mailbox.js";
+import {
+  archiveMessage,
+  type Message,
+  MessageBus,
+  SYSTEM_MAILBOX,
+  toSlug,
+} from "../mailbox.js";
 
 describe("toSlug", () => {
   it("スペースをハイフンに変換し小文字化する", () => {
@@ -235,28 +243,132 @@ describe("MessageBus", () => {
 
     it("nudgeConfig=nullのとき何もしない", () => {
       (bus as unknown as Record<string, Function>).sendNudge("worker-1", msg);
-      expect(mockExecSync).not.toHaveBeenCalled();
+      expect(mockExecFileSync).not.toHaveBeenCalled();
     });
 
     it("paneTargets.get(slug)がundefinedのとき何もしない", () => {
       bus.setNudgeConfig({ sessionName: "aihive", paneTargets: new Map() });
       (bus as unknown as Record<string, Function>).sendNudge("worker-1", msg);
-      expect(mockExecSync).not.toHaveBeenCalled();
+      expect(mockExecFileSync).not.toHaveBeenCalled();
     });
 
-    it("execSync失敗でも例外を伝播しない", () => {
+    it("tmux失敗でも例外を伝播しない", () => {
       bus.setNudgeConfig({
         sessionName: "aihive",
         paneTargets: new Map([["worker-1", "worker-1"]]),
       });
       mockFs.readdirSync.mockReturnValue(["msg.yaml"] as unknown as string[]);
-      mockExecSync.mockImplementation(() => {
+      mockExecFileSync.mockImplementation(() => {
         throw new Error("tmux failed");
       });
 
       expect(() =>
         (bus as unknown as Record<string, Function>).sendNudge("worker-1", msg),
       ).not.toThrow();
+    });
+    it("シェルを通さず、1行の文字列としてそのまま送る", () => {
+      mockExecFileSync.mockReset();
+      bus.setNudgeConfig({
+        sessionName: "aihive",
+        paneTargets: new Map([["worker-1", "workers.0"]]),
+      });
+      mockFs.readdirSync.mockReturnValue(["a.yaml", "b.yaml", "processed"]);
+
+      (
+        bus as unknown as {
+          sendNudge: (slug: string, msg: Message) => void;
+        }
+      ).sendNudge("worker-1", {
+        ...msg,
+        from: "x\n$(rm -rf ~) `id`",
+      });
+
+      const calls = mockExecFileSync.mock.calls.map((c) => c[1] as string[]);
+      expect(mockExecFileSync.mock.calls.every((c) => c[0] === "tmux")).toBe(
+        true,
+      );
+      expect(calls[0]).toEqual(["send-keys", "-t", "aihive:workers.0", "C-u"]);
+      expect(calls[1].slice(0, 4)).toEqual([
+        "send-keys",
+        "-t",
+        "aihive:workers.0",
+        "-l",
+      ]);
+      expect(calls[1][4]).toContain(
+        "[inbox: 2件の新着 from x $(rm -rf ~) `id`]",
+      );
+      expect(calls[1][4]).not.toContain("\n");
+      expect(calls[2]).toEqual([
+        "send-keys",
+        "-t",
+        "aihive:workers.0",
+        "Enter",
+      ]);
+    });
+  });
+
+  describe("processNewFile() delivery", () => {
+    const msg: Message = {
+      id: "d1",
+      from: "worker-1",
+      to: "system",
+      type: "result",
+      payload: "p",
+      timestamp: "t",
+    };
+    const processNewFile = (b: MessageBus, slug: string, file: string) =>
+      (
+        b as unknown as {
+          processNewFile: (slug: string, file: string) => void;
+        }
+      ).processNewFile(slug, file);
+
+    beforeEach(() => {
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readFileSync.mockReturnValue(stringify(msg));
+    });
+
+    it("system 宛ては読み取り後に processed/ へ移し、nudge しない", () => {
+      bus.setNudgeConfig({
+        sessionName: "aihive",
+        paneTargets: new Map([[SYSTEM_MAILBOX, "system"]]),
+      });
+      processNewFile(bus, SYSTEM_MAILBOX, "d1.yaml");
+
+      expect(mockFs.renameSync).toHaveBeenCalledWith(
+        "/test-project/.aihive/mailbox/system/inbox/d1.yaml",
+        "/test-project/.aihive/mailbox/system/inbox/processed/d1.yaml",
+      );
+      expect(mockExecFileSync).not.toHaveBeenCalled();
+    });
+
+    it("エージェント宛ては移さない（エージェント自身が移す）", () => {
+      processNewFile(bus, "worker-1", "d1.yaml");
+      expect(mockFs.renameSync).not.toHaveBeenCalled();
+    });
+
+    it("handler が例外を投げても他の handler と後続処理は続く", () => {
+      const after = vi.fn();
+      bus.onMessage(() => {
+        throw new Error("boom");
+      });
+      bus.onMessage(after);
+
+      processNewFile(bus, SYSTEM_MAILBOX, "d1.yaml");
+
+      expect(after).toHaveBeenCalledOnce();
+      expect(mockFs.renameSync).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe("clear()", () => {
+    it("processed/ フォルダごと消す", () => {
+      mockFs.readdirSync.mockReturnValue(["a.yaml", "processed"]);
+      bus.clear(["Worker 1"]);
+      expect(mockFs.rmSync).toHaveBeenCalledWith(
+        "/test-project/.aihive/mailbox/worker-1/inbox/processed",
+        { recursive: true, force: true },
+      );
     });
   });
 
@@ -280,5 +392,16 @@ describe("MessageBus", () => {
       expect((busAny.seen as Set<string>).size).toBe(0);
       expect(busAny.pollTimer).toBeNull();
     });
+  });
+});
+
+describe("archiveMessage", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("既に移されたファイルでも例外を投げない", () => {
+    mockFs.renameSync.mockImplementationOnce(() => {
+      throw new Error("ENOENT");
+    });
+    expect(() => archiveMessage("/inbox", "gone.yaml")).not.toThrow();
   });
 });

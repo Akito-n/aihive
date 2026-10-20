@@ -1,4 +1,4 @@
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { parse, stringify } from "yaml";
@@ -43,6 +43,9 @@ export interface NudgeConfig {
  */
 export const SYSTEM_MAILBOX = "system";
 
+/** Read messages are moved here (inside each inbox) so the inbox lists only new ones */
+export const PROCESSED_DIR = "processed";
+
 // ─── MessageBus ──────────────────────────────────────────────────────
 
 export class MessageBus {
@@ -83,7 +86,7 @@ export class MessageBus {
         const dir = path.join(this.baseDir, slug, sub);
         if (!fs.existsSync(dir)) continue;
         for (const file of fs.readdirSync(dir)) {
-          fs.unlinkSync(path.join(dir, file));
+          fs.rmSync(path.join(dir, file), { recursive: true, force: true });
         }
       }
     }
@@ -176,10 +179,19 @@ export class MessageBus {
       if (msg?.id) {
         this.seen.add(key);
         for (const handler of this.handlers) {
-          handler(msg);
+          try {
+            handler(msg);
+          } catch {
+            // One failing handler must not stop delivery or the nudge
+          }
         }
-        // Send tmux nudge to the recipient agent's pane
-        this.sendNudge(slug, msg);
+        if (slug === SYSTEM_MAILBOX) {
+          // aihive itself is the reader of the system inbox
+          archiveMessage(path.join(this.baseDir, slug, "inbox"), filename);
+        } else {
+          // Send tmux nudge to the recipient agent's pane
+          this.sendNudge(slug, msg);
+        }
       }
     } catch {
       // File may be mid-write, ignore
@@ -220,20 +232,19 @@ export class MessageBus {
       count = 1;
     }
 
-    // Absolute path: workers run in their own worktree, not the project dir
-    const nudgeText = `[inbox: ${count}件の新着 from ${msg.from}] ${inboxDir}/ を確認してください`;
+    // Absolute path: workers run in their own worktree, not the project dir.
+    // One line only: a newline in `from` would submit the prompt early.
+    const from = String(msg.from ?? "")
+      .replace(/\s+/g, " ")
+      .slice(0, 40);
+    const nudgeText = `[inbox: ${count}件の新着 from ${from}] ${inboxDir}/ を確認してください`;
+    const pane = `${sessionName}:${target}`;
     try {
+      // execFile, not a shell: msg.from comes from a file an agent wrote.
       // Clear any stale input first (needed for codex CLI which preserves input)
-      execSync(`tmux send-keys -t ${sessionName}:${target} C-u`, {
-        stdio: "ignore",
-      });
-      execSync(
-        `tmux send-keys -t ${sessionName}:${target} ${JSON.stringify(nudgeText)}`,
-        { stdio: "ignore" },
-      );
-      execSync(`tmux send-keys -t ${sessionName}:${target} Enter`, {
-        stdio: "ignore",
-      });
+      tmux(["send-keys", "-t", pane, "C-u"]);
+      tmux(["send-keys", "-t", pane, "-l", nudgeText]);
+      tmux(["send-keys", "-t", pane, "Enter"]);
     } catch {
       // Pane may not exist yet or session ended
     }
@@ -260,6 +271,21 @@ export class MessageBus {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────
+
+function tmux(args: string[]): void {
+  execFileSync("tmux", args, { stdio: "ignore" });
+}
+
+/** Move a read message into inbox/processed/ */
+export function archiveMessage(inboxDir: string, filename: string): void {
+  try {
+    const dir = path.join(inboxDir, PROCESSED_DIR);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.renameSync(path.join(inboxDir, filename), path.join(dir, filename));
+  } catch {
+    // Already moved by the reader, or gone
+  }
+}
 
 function withSystem(agentNames: string[]): string[] {
   return agentNames.some((n) => toSlug(n) === SYSTEM_MAILBOX)

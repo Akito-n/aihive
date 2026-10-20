@@ -1,4 +1,4 @@
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -19,9 +19,14 @@ export interface AgentInfo {
   paneTarget: string;
 }
 
+/** Run tmux without a shell, so names and paths are never interpreted */
+function tmux(args: string[]): void {
+  execFileSync("tmux", args, { stdio: "ignore" });
+}
+
 export function sessionExists(sessionName: string): boolean {
   try {
-    execSync(`tmux has-session -t ${sessionName}`, { stdio: "ignore" });
+    tmux(["has-session", "-t", sessionName]);
     return true;
   } catch {
     return false;
@@ -42,7 +47,7 @@ export function startSession(
   const session = config.session;
 
   if (sessionExists(session)) {
-    execSync(`tmux kill-session -t ${session}`, { stdio: "ignore" });
+    tmux(["kill-session", "-t", session]);
   }
 
   // Group agents by window
@@ -57,24 +62,45 @@ export function startSession(
   for (const [windowName, agents] of windowMap) {
     if (isFirst) {
       // Create session with the first window
-      execSync(
-        `tmux new-session -d -s ${session} -n ${windowName} -x ${width} -y ${height} -c "${cwdOf(agents[0])}"`,
-      );
+      tmux([
+        "new-session",
+        "-d",
+        "-s",
+        session,
+        "-n",
+        windowName,
+        "-x",
+        String(width),
+        "-y",
+        String(height),
+        "-c",
+        cwdOf(agents[0]),
+      ]);
       // Disable bracketed paste detection for normal typing (IME, short input)
-      execSync(`tmux set -t ${session} assume-paste-time 0`);
+      tmux(["set", "-t", session, "assume-paste-time", "0"]);
       isFirst = false;
     } else {
-      execSync(
-        `tmux new-window -t ${session} -n ${windowName} -c "${cwdOf(agents[0])}"`,
-      );
+      tmux([
+        "new-window",
+        "-t",
+        session,
+        "-n",
+        windowName,
+        "-c",
+        cwdOf(agents[0]),
+      ]);
     }
 
     // If multiple agents in one window, split into panes
     for (let i = 1; i < agents.length; i++) {
-      execSync(
-        `tmux split-window -t ${session}:${windowName} -c "${cwdOf(agents[i])}"`,
-      );
-      execSync(`tmux select-layout -t ${session}:${windowName} tiled`);
+      tmux([
+        "split-window",
+        "-t",
+        `${session}:${windowName}`,
+        "-c",
+        cwdOf(agents[i]),
+      ]);
+      tmux(["select-layout", "-t", `${session}:${windowName}`, "tiled"]);
     }
 
     // Launch claude in each pane with role-specific config
@@ -91,13 +117,13 @@ export function startSession(
   // Focus first window
   const firstWindow = config.agents[0]?.window;
   if (firstWindow) {
-    execSync(`tmux select-window -t ${session}:${firstWindow}`);
+    tmux(["select-window", "-t", `${session}:${firstWindow}`]);
   }
 }
 
 export function stopSession(sessionName: string): void {
   if (sessionExists(sessionName)) {
-    execSync(`tmux kill-session -t ${sessionName}`, { stdio: "ignore" });
+    tmux(["kill-session", "-t", sessionName]);
   }
 }
 
@@ -109,8 +135,17 @@ export function capturePane(
 ): string {
   if (!sessionExists(sessionName)) return "";
   try {
-    const output = execSync(
-      `tmux capture-pane -e -t ${sessionName}:${paneTarget} -p -S -${lines}`,
+    const output = execFileSync(
+      "tmux",
+      [
+        "capture-pane",
+        "-e",
+        "-t",
+        `${sessionName}:${paneTarget}`,
+        "-p",
+        "-S",
+        `-${lines}`,
+      ],
       { encoding: "utf8", stdio: ["pipe", "pipe", "ignore"] },
     );
     return output.trimEnd();
@@ -146,10 +181,10 @@ export function sendKeys(session: string, target: string, text: string): void {
   const tmpFile = path.join(os.tmpdir(), `aihive-paste-${process.pid}.tmp`);
   try {
     fs.writeFileSync(tmpFile, text);
-    execSync(`tmux load-buffer -b _aihive_paste ${tmpFile}`);
-    execSync(`tmux paste-buffer -b _aihive_paste -t ${session}:${target}`);
-    execSync("tmux delete-buffer -b _aihive_paste", { stdio: "ignore" });
-    execSync(`tmux send-keys -t ${session}:${target} Enter`);
+    tmux(["load-buffer", "-b", "_aihive_paste", tmpFile]);
+    tmux(["paste-buffer", "-b", "_aihive_paste", "-t", `${session}:${target}`]);
+    tmux(["delete-buffer", "-b", "_aihive_paste"]);
+    tmux(["send-keys", "-t", `${session}:${target}`, "Enter"]);
   } finally {
     try {
       fs.unlinkSync(tmpFile);

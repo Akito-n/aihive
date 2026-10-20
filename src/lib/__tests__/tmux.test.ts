@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("node:child_process", () => ({
-  execSync: vi.fn().mockReturnValue(Buffer.from("")),
+  execFileSync: vi.fn().mockReturnValue(Buffer.from("")),
 }));
 
 vi.mock("node:fs", () => ({
@@ -21,7 +21,7 @@ vi.mock("../cli-registry.js", () => ({
   buildAgentCommand: vi.fn().mockReturnValue("claude --allowedTools Edit"),
 }));
 
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import type { AihiveConfig } from "../config.js";
 import {
@@ -32,7 +32,10 @@ import {
   startSession,
 } from "../tmux.js";
 
-const mockExecSync = vi.mocked(execSync);
+const mockExec = vi.mocked(execFileSync);
+/** Each tmux call as one string, e.g. "has-session -t my-session" */
+const tmuxCalls = () =>
+  mockExec.mock.calls.map((c) => (c[1] as string[]).join(" "));
 const mockFsWrite = vi.mocked(fs.writeFileSync);
 const mockFsUnlink = vi.mocked(fs.unlinkSync);
 
@@ -54,20 +57,21 @@ function makeConfig(extra: Partial<AihiveConfig> = {}): AihiveConfig {
 
 describe("sessionExists", () => {
   beforeEach(() => {
-    mockExecSync.mockReset();
+    mockExec.mockReset();
   });
 
-  it("returns true when execSync succeeds", () => {
-    mockExecSync.mockReturnValue(Buffer.from(""));
+  it("returns true when tmux succeeds", () => {
+    mockExec.mockReturnValue(Buffer.from(""));
     expect(sessionExists("my-session")).toBe(true);
-    expect(mockExecSync).toHaveBeenCalledWith(
-      "tmux has-session -t my-session",
+    expect(mockExec).toHaveBeenCalledWith(
+      "tmux",
+      ["has-session", "-t", "my-session"],
       { stdio: "ignore" },
     );
   });
 
-  it("returns false when execSync throws", () => {
-    mockExecSync.mockImplementation(() => {
+  it("returns false when tmux throws", () => {
+    mockExec.mockImplementation(() => {
       throw new Error("no session");
     });
     expect(sessionExists("missing")).toBe(false);
@@ -76,20 +80,20 @@ describe("sessionExists", () => {
 
 describe("capturePane", () => {
   beforeEach(() => {
-    mockExecSync.mockReset();
+    mockExec.mockReset();
   });
 
   it("returns empty string when session does not exist", () => {
     // has-session throws → sessionExists returns false
-    mockExecSync.mockImplementation(() => {
+    mockExec.mockImplementation(() => {
       throw new Error("no session");
     });
     expect(capturePane("no-session", "orchestrator")).toBe("");
   });
 
-  it("returns empty string when execSync fails during capture", () => {
+  it("returns empty string when tmux fails during capture", () => {
     let callCount = 0;
-    mockExecSync.mockImplementation(() => {
+    mockExec.mockImplementation(() => {
       callCount++;
       if (callCount === 1) return Buffer.from(""); // has-session succeeds
       throw new Error("capture failed"); // capture-pane fails
@@ -99,26 +103,26 @@ describe("capturePane", () => {
 
   it("returns trimmed output when capture succeeds", () => {
     let callCount = 0;
-    mockExecSync.mockImplementation(((_cmd: string) => {
+    mockExec.mockImplementation((() => {
       callCount++;
       if (callCount === 1) return Buffer.from(""); // has-session
       return "some output\n\n"; // capture-pane
-    }) as unknown as typeof execSync);
+    }) as unknown as typeof execFileSync);
     expect(capturePane("test-session", "orchestrator")).toBe("some output");
   });
 });
 
 describe("sendKeys", () => {
   beforeEach(() => {
-    mockExecSync.mockReset().mockReturnValue(Buffer.from(""));
+    mockExec.mockReset().mockReturnValue(Buffer.from(""));
     mockFsWrite.mockReset();
     mockFsUnlink.mockReset();
   });
 
-  it("calls execSync in correct order: load-buffer → paste-buffer → delete-buffer → send-keys Enter", () => {
+  it("calls tmux in correct order: load-buffer → paste-buffer → delete-buffer → send-keys Enter", () => {
     sendKeys("session", "target", "hello");
 
-    const calls = mockExecSync.mock.calls.map((c) => c[0] as string);
+    const calls = tmuxCalls();
     const lbIdx = calls.findIndex((c) => c.includes("load-buffer"));
     const pbIdx = calls.findIndex((c) => c.includes("paste-buffer"));
     const dbIdx = calls.findIndex((c) => c.includes("delete-buffer"));
@@ -139,11 +143,11 @@ describe("sendKeys", () => {
     expect(content).toBe("my message");
   });
 
-  it("always deletes tmp file even when execSync throws (finally block)", () => {
-    mockExecSync.mockImplementation(() => {
+  it("always deletes tmp file even when tmux throws (finally block)", () => {
+    mockExec.mockImplementation(() => {
       throw new Error("tmux error");
     });
-    // Should not throw (error propagates from execSync, but unlinkSync is in finally)
+    // Should not throw (error propagates from tmux, but unlinkSync is in finally)
     expect(() => sendKeys("session", "target", "text")).toThrow();
     expect(mockFsUnlink).toHaveBeenCalledOnce();
   });
@@ -159,33 +163,33 @@ describe("sendKeys", () => {
 
 describe("startSession", () => {
   beforeEach(() => {
-    mockExecSync.mockReset().mockReturnValue(Buffer.from(""));
+    mockExec.mockReset().mockReturnValue(Buffer.from(""));
     mockFsWrite.mockReset();
     mockFsUnlink.mockReset();
   });
 
   it("kills existing session when sessionExists returns true", () => {
     // First call = has-session succeeds → sessionExists true
-    mockExecSync.mockReturnValue(Buffer.from(""));
+    mockExec.mockReturnValue(Buffer.from(""));
     startSession(makeConfig());
 
-    const calls = mockExecSync.mock.calls.map((c) => c[0] as string);
+    const calls = tmuxCalls();
     expect(calls.some((c) => c.includes("kill-session"))).toBe(true);
   });
 
   it("does not kill session when session does not exist", () => {
     let callCount = 0;
-    mockExecSync.mockImplementation((cmd) => {
+    mockExec.mockImplementation((_file, args) => {
       callCount++;
       // Only the first call is has-session check; make it throw
-      if (callCount === 1 && (cmd as string).includes("has-session")) {
+      if (callCount === 1 && (args as string[]).includes("has-session")) {
         throw new Error("no session");
       }
       return Buffer.from("");
     });
 
     startSession(makeConfig());
-    const calls = mockExecSync.mock.calls.map((c) => c[0] as string);
+    const calls = tmuxCalls();
     expect(calls.some((c) => c.includes("kill-session"))).toBe(false);
   });
   it("starts each worker pane in its own workspace directory", () => {
@@ -203,15 +207,15 @@ describe("startSession", () => {
 
     startSession(config, 100, 40, workspaces);
 
-    const calls = mockExecSync.mock.calls.map((c) => c[0] as string);
+    const calls = tmuxCalls();
     expect(
       calls.find((c) => c.includes("new-window -t test-session -n workers")),
-    ).toContain('-c "/wt/worker-1"');
+    ).toContain("-c /wt/worker-1");
     expect(calls.find((c) => c.includes("split-window"))).toContain(
-      '-c "/wt/worker-2"',
+      "-c /wt/worker-2",
     );
     expect(calls.find((c) => c.includes("new-session"))).toContain(
-      `-c "${process.cwd()}"`,
+      `-c ${process.cwd()}`,
     );
   });
 });
