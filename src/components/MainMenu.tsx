@@ -1,7 +1,7 @@
 import { Box, Text, useInput } from "ink";
 import { useState } from "react";
 import { t } from "../lib/i18n.js";
-import { frameStyle, isRetro, jobKeyOf } from "../lib/theme.js";
+import { cursorGlyph, frameStyle, isRetro, jobKeyOf } from "../lib/theme.js";
 import { VERSION } from "../lib/version.js";
 import type { TransKey } from "../locales/en.js";
 import { PixelLogo } from "./PixelLogo.js";
@@ -149,7 +149,7 @@ export function MainMenu({ onSelect, agents, roleCounts = {} }: MainMenuProps) {
           return (
             <Box key={item.key} gap={1}>
               <Text color={retro ? "white" : "cyan"}>
-                {isSelected && (blink || !retro) ? "▶" : " "}
+                {isSelected && (blink || !retro) ? cursorGlyph() : " "}
               </Text>
               <Box width={18} flexShrink={0}>
                 <Text

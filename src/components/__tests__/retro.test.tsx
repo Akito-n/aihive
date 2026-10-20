@@ -7,9 +7,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setLocale } from "../../lib/i18n.js";
 import { emptyProgress } from "../../lib/progress.js";
 import type { Task } from "../../lib/tasks.js";
-import { getTheme, setTheme } from "../../lib/theme.js";
+import {
+  cursorGlyph,
+  frameStyle,
+  gaugeFill,
+  getTheme,
+  logoColors,
+  setLook,
+  setTheme,
+} from "../../lib/theme.js";
 import type { AgentInfo } from "../../lib/tmux.js";
 import { Dashboard } from "../Dashboard.js";
+import { EquipView, lookSummary } from "../EquipView.js";
 import { HelpBar, retroCommands } from "../HelpBar.js";
 import { partySummary } from "../MainMenu.js";
 import { PaneView } from "../PaneView.js";
@@ -277,5 +286,87 @@ describe("StatusView", () => {
     expect(frame).toContain("つぎのかいまで 12/36");
     expect(frame).toContain("ちから 3");
     expect(frame).toContain("たいりょく 2");
+  });
+});
+
+describe("gear looks", () => {
+  afterEach(() => setLook({}));
+
+  it("changes the frame, cursor, gauge and logo while worn", () => {
+    setTheme("retro");
+    expect(frameStyle().borderColor).toBe("white");
+    expect(cursorGlyph()).toBe("▶");
+    setLook({ frame: "red", cursor: "★", gauge: "▓", logo: ["red"] });
+    expect(frameStyle().borderColor).toBe("red");
+    expect(cursorGlyph()).toBe("★");
+    expect(gaugeFill()).toBe("▓");
+    expect(logoColors()).toEqual(["red"]);
+    setTheme("classic");
+    expect(frameStyle(true).borderColor).toBe("cyan");
+    expect(cursorGlyph()).toBe("▶");
+    setTheme("retro");
+  });
+});
+
+describe("EquipView", () => {
+  beforeEach(() => setLocale("ja"));
+
+  const sword = {
+    id: "s1",
+    base: "ironSword",
+    rarity: "rare" as const,
+    affixes: ["crimson"],
+    power: 6,
+  };
+  const ring = {
+    id: "r1",
+    base: "ring",
+    rarity: "common" as const,
+    affixes: [],
+    power: 1,
+  };
+
+  it("shows the worn slots and the bag, newest first", () => {
+    const progress = emptyProgress();
+    progress.bag = [sword, ring];
+    progress.equipped = { weapon: "s1" };
+    const { lastFrame } = render(<EquipView progress={progress} />);
+    const frame = lastFrame() ?? "";
+    expect(frame).toContain(" そうび ");
+    expect(frame).toContain("べにいろの てつのつるぎ +6");
+    expect(frame).toContain("ふくろ 2/50");
+    expect(frame.indexOf("いしのゆびわ")).toBeLessThan(
+      frame.lastIndexOf("べにいろの てつのつるぎ"),
+    );
+    expect(lookSummary(sword)).toBe("わくの いろ");
+  });
+
+  it("equips the selected item and toggles the look", async () => {
+    const progress = emptyProgress();
+    progress.bag = [sword, ring];
+    const onEquip = vi.fn();
+    const onToggleLooks = vi.fn();
+    const { stdin } = render(
+      <EquipView
+        progress={progress}
+        onEquip={onEquip}
+        onToggleLooks={onToggleLooks}
+        onClose={() => {}}
+      />,
+    );
+    await new Promise((r) => setTimeout(r, 20));
+    stdin.write("j");
+    await new Promise((r) => setTimeout(r, 20));
+    stdin.write("\r");
+    await new Promise((r) => setTimeout(r, 20));
+    expect(onEquip).toHaveBeenCalledWith("s1");
+    stdin.write("v");
+    await new Promise((r) => setTimeout(r, 20));
+    expect(onToggleLooks).toHaveBeenCalled();
+  });
+
+  it("says when the bag is empty", () => {
+    const { lastFrame } = render(<EquipView progress={emptyProgress()} />);
+    expect(lastFrame()).toContain("ふくろは からっぽだ。");
   });
 });

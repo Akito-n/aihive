@@ -3,7 +3,7 @@ import { t, tf } from "../lib/i18n.js";
 import { toSlug } from "../lib/mailbox.js";
 import { formatDuration } from "../lib/report.js";
 import type { Task, TaskState } from "../lib/tasks.js";
-import { conditionOf, isRetro, jobKeyOf } from "../lib/theme.js";
+import { conditionOf, cursorGlyph, isRetro, jobKeyOf } from "../lib/theme.js";
 import type { AgentInfo } from "../lib/tmux.js";
 import type { TransKey } from "../locales/en.js";
 import { useBlink, Window } from "./Window.js";
@@ -160,7 +160,7 @@ function RetroDashboard({
           return (
             <Box key={agent.name} flexDirection="column">
               <Box>
-                <Text bold>{isSelected && blink ? "▶" : " "}</Text>
+                <Text bold>{isSelected && blink ? cursorGlyph() : " "}</Text>
                 <Box flexGrow={1}>
                   <Text bold={isSelected} wrap="truncate-end">
                     {agent.name}

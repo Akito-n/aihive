@@ -3,6 +3,7 @@
 // window. The detailed log stays on the log screen.
 
 import type { AdventureEvent } from "./adventure.js";
+import { type Item, itemName, RARITY_COLORS, type Rarity } from "./gear.js";
 import { t, tf } from "./i18n.js";
 import type { Award } from "./progress.js";
 
@@ -62,6 +63,13 @@ export function awardMessage(award: Award, taskId: string): RpgMessage {
   if (award.memberLevel.after > award.memberLevel.before) {
     return levelUpMessage(award.member, award.memberLevel.after);
   }
+  // Rare finds first, then the boss, then any find
+  const best = [...award.drops].sort(
+    (a, b) => RARITY_RANK[b.rarity] - RARITY_RANK[a.rarity],
+  )[0];
+  if (best && RARITY_RANK[best.rarity] >= RARITY_RANK.epic) {
+    return dropMessage(best);
+  }
   const bossFloor = award.events.find((e) => e.boss && e.won);
   if (bossFloor) {
     return {
@@ -82,10 +90,25 @@ export function awardMessage(award: Award, taskId: string): RpgMessage {
       color: "yellow",
     };
   }
+  if (best) return dropMessage(best);
   if (award.events.length > 0) {
     return adventureMessage(award.events, award.progress.adventure.floor);
   }
   return { text: tf("retro.msg.xp", { name: award.member, xp: award.xp }) };
+}
+
+const RARITY_RANK: Record<Rarity, number> = {
+  common: 0,
+  rare: 1,
+  epic: 2,
+  legendary: 3,
+};
+
+export function dropMessage(item: Item): RpgMessage {
+  return {
+    text: tf("retro.msg.drop", { item: itemName(item) }),
+    color: RARITY_COLORS[item.rarity],
+  };
 }
 
 /** The dungeon's news: one battle told as it went, several summed up */

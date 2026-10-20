@@ -3,11 +3,14 @@ import { render } from "ink";
 import { App } from "../components/App.js";
 import { getConfigPath } from "../lib/config.js";
 import { checkDependencies } from "../lib/dependencies.js";
+import { recordLook } from "../lib/gear.js";
 import { loadLocale } from "../lib/i18n.js";
-import { loadTheme } from "../lib/theme.js";
+import { loadProgress } from "../lib/progress.js";
+import { loadTheme, setLook } from "../lib/theme.js";
 
 loadLocale();
 loadTheme();
+setLook(recordLook(loadProgress()));
 
 const args = process.argv.slice(2);
 
