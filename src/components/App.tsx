@@ -10,7 +10,7 @@ import {
   saveConfig,
   stallMinutesOf,
 } from "../lib/config.js";
-import { tf } from "../lib/i18n.js";
+import { t, tf } from "../lib/i18n.js";
 import { type MessageBus, SYSTEM_MAILBOX, toSlug } from "../lib/mailbox.js";
 import { MemoryManager, normalizeMemoryEntry } from "../lib/memory.js";
 import { notify } from "../lib/notify.js";
@@ -22,6 +22,13 @@ import {
   type TaskCheck,
   writeReport,
 } from "../lib/report.js";
+import {
+  levelOf,
+  levelUpMessage,
+  mailMessage,
+  poisonMessage,
+  type RpgMessage,
+} from "../lib/rpg-messages.js";
 import type { SkillState } from "../lib/skills.js";
 import { SkillManager } from "../lib/skills.js";
 import type { Task } from "../lib/tasks.js";
@@ -104,6 +111,8 @@ export function App() {
     rejected: 0,
   });
   const [memoryCount, setMemoryCount] = useState(0);
+  // Latest line for the retro message window
+  const [message, setMessage] = useState<RpgMessage | undefined>();
   const selectedAgent = agents[selectedIndex];
 
   const addLog = useCallback((message: string) => {
@@ -201,9 +210,24 @@ export function App() {
 
     const tm = taskManagerRef.current;
     const tasksFile = tasksFilePath(process.cwd());
+    const nameOf = (slug: string) =>
+      config.agents.find((a) => toSlug(a.name) === toSlug(slug))?.name ?? slug;
+    // Level up once per task as it finishes, not for ones already finished
+    const finished = new Set(
+      tm
+        .getAll()
+        .filter((task) => task.state === "done")
+        .map((task) => task.id),
+    );
+    setMessage({ text: t("retro.msg.ready") });
     const unsubscribeTasks = tm.onChange((task) => {
       setTasks(tm.getAll());
       saveTasks(tasksFile, tm.getAll());
+      if (task.state === "done" && task.assignedTo && !finished.has(task.id)) {
+        finished.add(task.id);
+        const name = nameOf(task.assignedTo);
+        setMessage(levelUpMessage(name, levelOf(name, tm.getAll())));
+      }
       if (task.state === "blocked") {
         addLog(`Task ${task.id} blocked by: ${task.blockedBy.join(", ")}`);
       }
@@ -265,6 +289,13 @@ export function App() {
       addLog(
         `[${msg.from} → ${msg.to}] ${msg.type}: ${String(msg.payload ?? "").slice(0, 60)}`,
       );
+      const story = mailMessage(
+        msg.type,
+        nameOf(msg.from),
+        nameOf(msg.to),
+        taskIdOf(msg),
+      );
+      if (story) setMessage(story);
       tm.handleMessage(
         msg,
         config.agents.find((a) => toSlug(a.name) === toSlug(msg.to))?.role,
@@ -392,6 +423,7 @@ export function App() {
         );
       }
       for (const task of toRemind) {
+        setMessage(poisonMessage(nameOf(task.assignedTo), task.id));
         const reminded = bus.remindStalled(
           toSlug(task.assignedTo),
           task.id,
@@ -629,7 +661,7 @@ export function App() {
           <OverviewMode sessionName={config.session} agents={agents} />
         </Box>
         <Box marginTop={1}>
-          <HelpBar state={state} />
+          <HelpBar state={state} message={message} />
         </Box>
       </Box>
     );
@@ -706,7 +738,7 @@ export function App() {
             slashCommands={slashCommands}
           />
         ) : (
-          <HelpBar state={state} />
+          <HelpBar state={state} message={message} />
         )}
       </Box>
     </Box>

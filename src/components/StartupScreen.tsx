@@ -1,6 +1,10 @@
 import { Box, Text } from "ink";
 import { useEffect, useState } from "react";
+import { t } from "../lib/i18n.js";
+import { isRetro } from "../lib/theme.js";
 import { VERSION } from "../lib/version.js";
+import type { TransKey } from "../locales/en.js";
+import { PixelLogo } from "./PixelLogo.js";
 
 interface StartupScreenProps {
   onComplete: () => void;
@@ -23,6 +27,21 @@ const STEPS = [
   "Spawning Workers...",
   "All agents ready.",
 ];
+
+/** The same steps as the party gathering, in the retro look */
+const RETRO_STEPS: TransKey[] = [
+  "retro.startup.deps",
+  "retro.startup.session",
+  "retro.startup.orchestrator",
+  "retro.startup.coordinator",
+  "retro.startup.workers",
+  "retro.startup.ready",
+];
+
+/** Step labels for the current theme */
+export function startupSteps(): string[] {
+  return isRetro() ? RETRO_STEPS.map((key) => t(key)) : STEPS;
+}
 
 const BAR_WIDTH = 40;
 const GLOW_RADIUS = 6;
@@ -79,6 +98,11 @@ export function StartupScreen({ onComplete }: StartupScreenProps) {
 
   const FILL_CHARS = ["░", "▒", "▓", "█"];
 
+  const retro = isRetro();
+  const steps = startupSteps();
+  const base = retro ? "yellow" : "cyan";
+  const bright = retro ? "yellowBright" : "cyanBright";
+
   const renderBar = () => {
     const chars: { char: string; color: string }[] = [];
     for (let i = 0; i < BAR_WIDTH; i++) {
@@ -90,13 +114,12 @@ export function StartupScreen({ onComplete }: StartupScreenProps) {
         const charIdx = Math.min(3, 3 + Math.round(glow * 0));
         chars.push({
           char: FILL_CHARS[charIdx],
-          color:
-            glow > 0.5 ? "whiteBright" : glow > 0.2 ? "cyanBright" : "cyan",
+          color: glow > 0.5 ? "whiteBright" : glow > 0.2 ? bright : base,
         });
       } else if (i === filled) {
         // Leading edge: partial fill
         const edgeGlow = glow > 0.3;
-        chars.push({ char: "▓", color: edgeGlow ? "cyanBright" : "cyan" });
+        chars.push({ char: "▓", color: edgeGlow ? bright : base });
       } else {
         // Empty portion: subtle shimmer
         chars.push({
@@ -112,7 +135,12 @@ export function StartupScreen({ onComplete }: StartupScreenProps) {
   return (
     <Box flexDirection="column" alignItems="center" paddingY={2}>
       {/* Logo */}
-      {logoVisible && (
+      {logoVisible && retro && (
+        <Box marginBottom={1}>
+          <PixelLogo />
+        </Box>
+      )}
+      {logoVisible && !retro && (
         <Box flexDirection="column" marginBottom={1}>
           {LOGO.map((line, i) => (
             <Text key={`logo-${i}`} color="cyan" bold>
@@ -127,7 +155,7 @@ export function StartupScreen({ onComplete }: StartupScreenProps) {
 
       {/* Progress steps */}
       <Box flexDirection="column" marginTop={1} paddingX={6}>
-        {STEPS.map((step, i) => {
+        {steps.map((step, i) => {
           if (i > currentStep) return null;
 
           const isDone = i < currentStep;
@@ -168,7 +196,7 @@ export function StartupScreen({ onComplete }: StartupScreenProps) {
             </Text>
           ))}
           <Text color="gray">{"]"}</Text>
-          <Text color="cyan"> {Math.round(smoothProgress * 100)}%</Text>
+          <Text color={base}> {Math.round(smoothProgress * 100)}%</Text>
         </Box>
       )}
 

@@ -239,6 +239,20 @@ export const en = {
   "retro.cmd.log": "Log",
   "retro.cmd.stop": "Flee",
   "retro.cmd.quit": "Quit",
+  "retro.msg.task": "{name} received quest {task}!",
+  "retro.msg.order": "{name} received orders from {from}.",
+  "retro.msg.result": "{name} reported back.",
+  "retro.msg.error": "{name} is confused!",
+  "retro.msg.consult": "{name} asked {to} for advice.",
+  "retro.msg.levelUp": "{name} reached level {level}!",
+  "retro.msg.poison": "{name} is poisoned! ({task} has stalled)",
+  "retro.msg.ready": "The party is ready. Choose a command.",
+  "retro.startup.deps": "Preparing for the journey...",
+  "retro.startup.session": "Creating the world...",
+  "retro.startup.orchestrator": "The King joined the party!",
+  "retro.startup.coordinator": "The Sage joined the party!",
+  "retro.startup.workers": "The Fighters joined the party!",
+  "retro.startup.ready": "The party is ready!",
 } as const;
 
 export type TransKey = keyof typeof en;

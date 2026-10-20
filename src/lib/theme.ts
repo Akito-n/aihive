@@ -71,9 +71,9 @@ export function accentColor(): string {
   return isRetro() ? "white" : "cyan";
 }
 
-/** Rows the help bar takes: the retro one is a framed command window */
+/** Rows the help bar takes: the retro one is a framed message and command window */
 export function helpBarHeight(): number {
-  return isRetro() ? 3 : 1;
+  return isRetro() ? 4 : 1;
 }
 
 // ─── RPG vocabulary ───────────────────────────────────────────────

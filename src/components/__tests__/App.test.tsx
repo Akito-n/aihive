@@ -233,7 +233,13 @@ vi.mock("../Dashboard.js", () => ({
   },
 }));
 vi.mock("../Header.js", () => ({ Header: () => null }));
-vi.mock("../HelpBar.js", () => ({ HelpBar: () => null }));
+vi.mock("../HelpBar.js", () => ({
+  HelpBar: (props: { message?: { text: string } }) => {
+    (globalThis as Record<string, unknown>).__helpBarMessage =
+      props.message?.text;
+    return null;
+  },
+}));
 vi.mock("../LogView.js", () => ({
   LogView: (props: { logs: string[]; onClose?: () => void }) => {
     (globalThis as Record<string, unknown>).__logViewProps = props;
@@ -406,6 +412,50 @@ describe("App - initial state", () => {
       "/proj/.aihive/tasks.json",
       expect.any(Array),
     );
+  });
+
+  it("tells the story in the message window: quests, then a level up once per task", async () => {
+    mocks.sessionExistsMock.mockReturnValue(true);
+    mocks.tmOnChange.mockClear();
+    const g = globalThis as Record<string, unknown>;
+    render(<App />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    act(() =>
+      mocks.capturedMsgHandlerRef.value?.({
+        type: "task",
+        from: "coordinator",
+        to: "worker-1",
+        payload: "task_id: T1\nbuild it",
+      }),
+    );
+    expect(g.__helpBarMessage).toContain("T1");
+    const onChange = (
+      mocks.tmOnChange.mock.calls[0] as unknown as [(t: unknown) => void]
+    )[0];
+    const done = {
+      id: "T1",
+      state: "done",
+      assignedTo: "worker-1",
+      blockedBy: [],
+    };
+    mocks.tmGetAll.mockReturnValue([done]);
+    act(() => onChange(done));
+    expect(g.__helpBarMessage).toMatch(/Lv|レベル|level/);
+    act(() =>
+      mocks.capturedMsgHandlerRef.value?.({
+        type: "error",
+        from: "worker-1",
+        to: "coordinator",
+        payload: "oops",
+      }),
+    );
+    const afterError = g.__helpBarMessage;
+    mocks.tmGetAll.mockReturnValue([{ ...done }]);
+    act(() => onChange(done));
+    expect(g.__helpBarMessage).toBe(afterError);
+    mocks.tmGetAll.mockReturnValue([]);
   });
 
   it("reminds the assignee of a stalled task once a minute check finds it", async () => {
