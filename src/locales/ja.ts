@@ -146,5 +146,21 @@ export const ja: Record<TransKey, string> = {
 
 - 自分のブランチ以外へのコミット、\`git push\`、ブランチの切り替え、作業フォルダの外のファイル編集はしない（\`.aihive/\` のメールボックスへの書き込みは除く）
 - 統合ブランチへのマージは Reviewer が行う`,
+  "report.title": "# aihive 完了レポート",
+  "report.created": "- 作成: {time}",
+  "report.summary": "- タスク: {total} 件（完了 {done} / 失敗 {failed}）",
+  "report.elapsed": "- 全体の時間: {duration}",
+  "report.state": "- 状態: {state}",
+  "report.done": "完了",
+  "report.failed": "失敗",
+  "report.assignee": "- 最後の担当: {name}",
+  "report.duration": "- 所要時間: {duration}",
+  "report.checksPassed": "- 確認コマンド: 成功（コミット {commit}）",
+  "report.checksFailed": "- 確認コマンド: 失敗（{command}）",
+  "report.result": "- 結果:",
+  "report.moreLines": "…ほか {count} 行",
+  "report.underMinute": "1分未満",
+  "report.minutes": "{m}分",
+  "report.hoursMinutes": "{h}時間{m}分",
   "xp.scoreLine": "    → +{xp} XP (伝:{a} 理:{c} 検:{r} 協:{co} 探:{i})",
 };

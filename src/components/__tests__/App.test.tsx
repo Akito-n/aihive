@@ -20,6 +20,10 @@ const mocks = vi.hoisted(() => {
     toRemind: [] as unknown[],
   }));
   const loadTasksMock = vi.fn().mockReturnValue([]);
+  const reportPrime = vi.fn();
+  const reportDue = vi.fn().mockReturnValue(false);
+  const formatReportMock = vi.fn().mockReturnValue("REPORT MD");
+  const writeReportMock = vi.fn().mockReturnValue("/proj/.aihive/reports/x.md");
   const saveTasksMock = vi.fn();
 
   // SkillManager instance methods
@@ -72,6 +76,10 @@ const mocks = vi.hoisted(() => {
     checkRunnerArgs,
     loadTasksMock,
     saveTasksMock,
+    reportPrime,
+    reportDue,
+    formatReportMock,
+    writeReportMock,
     smInit,
     smPropose,
     smApprove,
@@ -229,6 +237,15 @@ vi.mock("../PaneView.js", () => ({ PaneView: () => null }));
 vi.mock("../QuickCommandMenu.js", () => ({ QuickCommandMenu: () => null }));
 vi.mock("../SettingsScreen.js", () => ({ SettingsScreen: () => null }));
 vi.mock("../CommandInput.js", () => ({ CommandInput: () => null }));
+
+vi.mock("../../lib/report.js", () => ({
+  CompletionReporter: vi.fn(function (this: Record<string, unknown>) {
+    this.prime = mocks.reportPrime;
+    this.due = mocks.reportDue;
+  }),
+  formatReport: mocks.formatReportMock,
+  writeReport: mocks.writeReportMock,
+}));
 
 vi.mock("../../lib/checks.js", () => ({
   CheckRunner: vi.fn(function (
@@ -462,6 +479,61 @@ describe("App - initial state", () => {
       "reviewer",
       "check-result",
       "REPORT",
+    );
+  });
+
+  it("writes a completion report with the check results once every task has finished", async () => {
+    mocks.sessionExistsMock.mockReturnValue(true);
+    mocks.reportPrime.mockClear();
+    mocks.formatReportMock.mockClear();
+    mocks.writeReportMock.mockClear();
+    vi.mocked(loadConfig).mockReturnValueOnce({
+      session: "test-session",
+      checks: ["npm test"],
+      agents: [{ name: "Worker 1", role: "worker", window: "workers" }],
+    });
+    const intervalSpy = vi.spyOn(globalThis, "setInterval");
+    render(<App />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const tick = intervalSpy.mock.calls.find((c) => c[1] === 60_000)?.[0] as
+      | (() => void)
+      | undefined;
+    intervalSpy.mockRestore();
+    // Tasks restored on (re)start are not reported again
+    expect(mocks.reportPrime).toHaveBeenCalled();
+
+    const onDone = mocks.checkRunnerArgs.value?.[2] as (r: unknown) => void;
+    act(() =>
+      onDone({
+        worker: "Worker 1",
+        taskId: "T1",
+        result: { passed: true, runs: [], outputTail: "" },
+        commit: "abc1234",
+        payload: "REPORT",
+      }),
+    );
+
+    // Not due yet: nothing written
+    act(() => tick?.());
+    expect(mocks.writeReportMock).not.toHaveBeenCalled();
+
+    mocks.reportDue.mockReturnValueOnce(true);
+    act(() => tick?.());
+    const checks = mocks.formatReportMock.mock.calls[0]?.[1] as Map<
+      string,
+      unknown
+    >;
+    expect(checks.get("T1")).toEqual({
+      passed: true,
+      failedCommand: undefined,
+      commit: "abc1234",
+    });
+    expect(mocks.writeReportMock).toHaveBeenCalledWith(
+      expect.any(String),
+      "REPORT MD",
+      expect.any(Date),
     );
   });
 
