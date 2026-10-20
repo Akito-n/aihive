@@ -5,6 +5,7 @@ import path from "node:path";
 import { buildAgentCommand } from "./cli-registry.js";
 import type { AgentConfig, AihiveConfig } from "./config.js";
 import { getPaneTarget } from "./config.js";
+import type { AgentWorkspace } from "./worktrees.js";
 
 export type AgentStatus = "pending" | "running" | "done" | "error";
 
@@ -31,8 +32,11 @@ export function startSession(
   config: AihiveConfig,
   cols?: number,
   rows?: number,
+  workspaces?: Map<string, AgentWorkspace>,
 ): void {
   const projectDir = process.cwd();
+  const cwdOf = (agent: AgentConfig) =>
+    workspaces?.get(agent.name)?.cwd ?? projectDir;
   const width = cols ?? 200;
   const height = rows ?? 50;
   const session = config.session;
@@ -54,21 +58,21 @@ export function startSession(
     if (isFirst) {
       // Create session with the first window
       execSync(
-        `tmux new-session -d -s ${session} -n ${windowName} -x ${width} -y ${height} -c "${projectDir}"`,
+        `tmux new-session -d -s ${session} -n ${windowName} -x ${width} -y ${height} -c "${cwdOf(agents[0])}"`,
       );
       // Disable bracketed paste detection for normal typing (IME, short input)
       execSync(`tmux set -t ${session} assume-paste-time 0`);
       isFirst = false;
     } else {
       execSync(
-        `tmux new-window -t ${session} -n ${windowName} -c "${projectDir}"`,
+        `tmux new-window -t ${session} -n ${windowName} -c "${cwdOf(agents[0])}"`,
       );
     }
 
     // If multiple agents in one window, split into panes
     for (let i = 1; i < agents.length; i++) {
       execSync(
-        `tmux split-window -t ${session}:${windowName} -c "${projectDir}"`,
+        `tmux split-window -t ${session}:${windowName} -c "${cwdOf(agents[i])}"`,
       );
       execSync(`tmux select-layout -t ${session}:${windowName} tiled`);
     }
@@ -76,7 +80,11 @@ export function startSession(
     // Launch claude in each pane with role-specific config
     for (let i = 0; i < agents.length; i++) {
       const target = agents.length > 1 ? `${windowName}.${i}` : windowName;
-      sendKeys(session, target, buildAgentCommand(agents[i]));
+      sendKeys(
+        session,
+        target,
+        buildAgentCommand(agents[i], workspaces?.get(agents[i].name)),
+      );
     }
   }
 

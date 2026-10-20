@@ -188,6 +188,32 @@ describe("startSession", () => {
     const calls = mockExecSync.mock.calls.map((c) => c[0] as string);
     expect(calls.some((c) => c.includes("kill-session"))).toBe(false);
   });
+  it("starts each worker pane in its own workspace directory", () => {
+    const config = makeConfig({
+      agents: [
+        { name: "Coordinator", role: "coordinator", window: "coordinator" },
+        { name: "Worker 1", role: "worker", window: "workers", pane: 0 },
+        { name: "Worker 2", role: "worker", window: "workers", pane: 1 },
+      ],
+    });
+    const workspaces = new Map([
+      ["Worker 1", { cwd: "/wt/worker-1", addDirs: ["/proj"] }],
+      ["Worker 2", { cwd: "/wt/worker-2", addDirs: ["/proj"] }],
+    ]);
+
+    startSession(config, 100, 40, workspaces);
+
+    const calls = mockExecSync.mock.calls.map((c) => c[0] as string);
+    expect(
+      calls.find((c) => c.includes("new-window -t test-session -n workers")),
+    ).toContain('-c "/wt/worker-1"');
+    expect(calls.find((c) => c.includes("split-window"))).toContain(
+      '-c "/wt/worker-2"',
+    );
+    expect(calls.find((c) => c.includes("new-session"))).toContain(
+      `-c "${process.cwd()}"`,
+    );
+  });
 });
 
 describe("buildAgentList", () => {

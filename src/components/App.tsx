@@ -20,6 +20,7 @@ import {
   stopSession,
 } from "../lib/tmux.js";
 import { initWorkspace } from "../lib/workspace.js";
+import { prepareWorkspaces } from "../lib/worktrees.js";
 import { CommandInput } from "./CommandInput.js";
 import { Dashboard } from "./Dashboard.js";
 import { Header } from "./Header.js";
@@ -267,7 +268,9 @@ export function App() {
     try {
       // Subtract Dashboard(34) + margin(1) + border(2) + paddingX(2) + outer padding(2) = ~41
       const paneWidth = Math.max(80, columns - 41);
-      startSession(config, paneWidth, rows);
+      const plan = prepareWorkspaces(config, process.cwd());
+      for (const message of plan.messages) addLog(message);
+      startSession(config, paneWidth, rows, plan.workspaces);
       addLog(`All ${config.agents.length} agents started`);
       setState("running");
     } catch (e) {
