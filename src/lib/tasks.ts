@@ -18,6 +18,7 @@ export interface Task {
   assignedTo: string;
   state: TaskState;
   blockedBy: string[];
+  request?: string; // full text of the task message
   result?: string;
   createdAt: string;
   updatedAt: string;
@@ -33,6 +34,9 @@ const TASK_STATES = new Set<TaskState>([
   "done",
   "error",
 ]);
+
+/** Longest task request kept (the rest is dropped) */
+const REQUEST_MAX_CHARS = 4000;
 
 // ─── TaskManager ─────────────────────────────────────────────────────
 
@@ -54,6 +58,7 @@ export class TaskManager {
     description: string,
     assignedTo: string,
     blockedBy: string[] = [],
+    request?: string,
   ): Task {
     const now = new Date().toISOString();
     const hasUnresolved = blockedBy.some((depId) => {
@@ -67,6 +72,7 @@ export class TaskManager {
       assignedTo,
       state: hasUnresolved ? "blocked" : "pending",
       blockedBy,
+      ...(request ? { request: request.slice(0, REQUEST_MAX_CHARS) } : {}),
       createdAt: now,
       updatedAt: now,
     };
@@ -90,7 +96,7 @@ export class TaskManager {
         const blockedBy = Array.isArray(msg.blocked_by)
           ? msg.blocked_by.map(String)
           : extractList(payload, "blocked_by");
-        this.add(taskId, summarize(payload), msg.to, blockedBy);
+        this.add(taskId, summarize(payload), msg.to, blockedBy, payload);
       } else if (toRole !== "reviewer") {
         // Sent again (e.g. sent back after a failed review)
         this.reopen(taskId, msg.to);
@@ -273,6 +279,7 @@ function isTask(value: unknown): value is Task {
     TASK_STATES.has(t.state) &&
     Array.isArray(t.blockedBy) &&
     t.blockedBy.every((d) => typeof d === "string") &&
+    (t.request === undefined || typeof t.request === "string") &&
     (t.result === undefined || typeof t.result === "string") &&
     typeof t.createdAt === "string" &&
     typeof t.updatedAt === "string"
