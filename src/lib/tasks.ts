@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import type { Message } from "./mailbox.js";
 
 // ─── Types ───────────────────────────────────────────────────────────
@@ -22,6 +24,15 @@ export interface Task {
 }
 
 export type TaskChangeHandler = (task: Task) => void;
+
+const TASK_STATES = new Set<TaskState>([
+  "pending",
+  "blocked",
+  "running",
+  "review",
+  "done",
+  "error",
+]);
 
 // ─── TaskManager ─────────────────────────────────────────────────────
 
@@ -160,6 +171,11 @@ export class TaskManager {
     this.tasks.clear();
   }
 
+  /** Replace all tasks with saved ones (no change events) */
+  restore(tasks: Task[]): void {
+    this.tasks = new Map(tasks.map((t) => [t.id, t]));
+  }
+
   // ─── Internal ────────────────────────────────────────────────────
 
   private notify(task: Task): void {
@@ -186,6 +202,50 @@ export class TaskManager {
       }
     }
   }
+}
+
+// ─── Persistence ─────────────────────────────────────────────────────
+
+/** Where the task list is saved so a relaunched TUI can show it again */
+export function tasksFilePath(projectDir: string): string {
+  return path.join(projectDir, ".aihive", "tasks.json");
+}
+
+export function saveTasks(file: string, tasks: Task[]): void {
+  try {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, `${JSON.stringify(tasks, null, 2)}\n`);
+  } catch {
+    // Best effort: the list still works in memory
+  }
+}
+
+/** Saved tasks; a missing or broken file, or broken entries, are skipped */
+export function loadTasks(file: string): Task[] {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(file, "utf8"));
+    return Array.isArray(parsed) ? parsed.filter(isTask) : [];
+  } catch {
+    return [];
+  }
+}
+
+function isTask(value: unknown): value is Task {
+  const t = value as Partial<Task> | null;
+  return (
+    typeof t === "object" &&
+    t !== null &&
+    typeof t.id === "string" &&
+    typeof t.description === "string" &&
+    typeof t.assignedTo === "string" &&
+    typeof t.state === "string" &&
+    TASK_STATES.has(t.state) &&
+    Array.isArray(t.blockedBy) &&
+    t.blockedBy.every((d) => typeof d === "string") &&
+    (t.result === undefined || typeof t.result === "string") &&
+    typeof t.createdAt === "string" &&
+    typeof t.updatedAt === "string"
+  );
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────

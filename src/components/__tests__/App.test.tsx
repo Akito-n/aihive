@@ -12,6 +12,9 @@ const mocks = vi.hoisted(() => {
   const tmHandleMessage = vi.fn();
   const tmGetAll = vi.fn().mockReturnValue([]);
   const tmClear = vi.fn();
+  const tmRestore = vi.fn();
+  const loadTasksMock = vi.fn().mockReturnValue([]);
+  const saveTasksMock = vi.fn();
 
   // SkillManager instance methods
   const smInit = vi.fn();
@@ -55,6 +58,9 @@ const mocks = vi.hoisted(() => {
     tmHandleMessage,
     tmGetAll,
     tmClear,
+    tmRestore,
+    loadTasksMock,
+    saveTasksMock,
     smInit,
     smPropose,
     smApprove,
@@ -119,7 +125,11 @@ vi.mock("../../lib/tasks.js", () => ({
     this.handleMessage = mocks.tmHandleMessage;
     this.getAll = mocks.tmGetAll;
     this.clear = mocks.tmClear;
+    this.restore = mocks.tmRestore;
   }),
+  tasksFilePath: () => "/proj/.aihive/tasks.json",
+  loadTasks: mocks.loadTasksMock,
+  saveTasks: mocks.saveTasksMock,
 }));
 
 vi.mock("../../lib/skills.js", () => ({
@@ -303,6 +313,38 @@ describe("App - initial state", () => {
     });
     expect(mocks.mockBus.onMessage).toHaveBeenCalledTimes(1);
     expect(mocks.mockBus.startWatching).toHaveBeenCalledTimes(1);
+  });
+
+  it("restores the saved task list when reattaching", async () => {
+    mocks.sessionExistsMock.mockReturnValue(true);
+    const saved = [{ id: "T1" }];
+    mocks.loadTasksMock.mockReturnValueOnce(saved);
+    mocks.tmRestore.mockClear();
+    mocks.tmClear.mockClear();
+    render(<App />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(mocks.tmRestore).toHaveBeenCalledWith(saved);
+    expect(mocks.tmClear).not.toHaveBeenCalled();
+  });
+
+  it("saves the task list whenever a task changes", async () => {
+    mocks.sessionExistsMock.mockReturnValue(true);
+    mocks.saveTasksMock.mockClear();
+    mocks.tmOnChange.mockClear();
+    render(<App />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const onChange = (
+      mocks.tmOnChange.mock.calls[0] as unknown as [(t: unknown) => void]
+    )[0];
+    act(() => onChange({ id: "T1", state: "done", blockedBy: [] }));
+    expect(mocks.saveTasksMock).toHaveBeenCalledWith(
+      "/proj/.aihive/tasks.json",
+      expect.any(Array),
+    );
   });
 
   it("unsubscribes handlers when unmounted", async () => {
