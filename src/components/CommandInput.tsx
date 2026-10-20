@@ -1,4 +1,11 @@
-import { Box, Text, useInput, useWindowSize } from "ink";
+import {
+  Box,
+  type DOMElement,
+  Text,
+  useCursor,
+  useInput,
+  useWindowSize,
+} from "ink";
 import type React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { SlashCommand } from "../lib/commands.js";
@@ -15,6 +22,24 @@ interface CommandInputProps {
 }
 
 const PLACEHOLDER = "Send a message...";
+
+/** Where an element sits in Ink's output, from its last layout */
+export function outputPosition(
+  element: DOMElement | null,
+): { x: number; y: number } | undefined {
+  if (!element?.yogaNode) return undefined;
+  let x = 0;
+  let y = 0;
+  for (
+    let node: DOMElement | undefined = element;
+    node?.yogaNode;
+    node = node.parentNode
+  ) {
+    x += node.yogaNode.getComputedLeft();
+    y += node.yogaNode.getComputedTop();
+  }
+  return { x, y };
+}
 
 // Get display width of a string (CJK chars = 2, others = 1)
 export function displayWidth(str: string): number {
@@ -147,6 +172,8 @@ export function CommandInput({
     timer: null as ReturnType<typeof setTimeout> | null,
   });
   const { columns } = useWindowSize();
+  const lineRef = useRef<DOMElement>(null);
+  const { setCursorPosition } = useCursor();
 
   const viewWidth = Math.max(20, columns - 6);
 
@@ -575,6 +602,19 @@ export function CommandInput({
     );
   };
 
+  // Put the terminal's own cursor where the user types, so an IME shows the
+  // text being composed in the input line rather than below the screen
+  const linePosition = outputPosition(lineRef.current);
+  setCursorPosition(
+    linePosition && {
+      x:
+        linePosition.x +
+        (!isEmpty && scrollOffset > 0 ? 1 : 0) +
+        displayWidth(visibleBefore),
+      y: linePosition.y,
+    },
+  );
+
   const visibleStart = Math.max(
     0,
     Math.min(
@@ -634,7 +674,7 @@ export function CommandInput({
         width="100%"
       >
         <Box height={3} alignItems="center" overflowX="hidden">
-          {renderContent()}
+          <Box ref={lineRef}>{renderContent()}</Box>
         </Box>
 
         {promptInfo.detected && (
