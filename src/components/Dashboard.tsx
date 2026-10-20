@@ -2,7 +2,6 @@ import { Box, Text } from "ink";
 import { t, tf } from "../lib/i18n.js";
 import { toSlug } from "../lib/mailbox.js";
 import { formatDuration } from "../lib/report.js";
-import { levelOf } from "../lib/rpg-messages.js";
 import type { Task, TaskState } from "../lib/tasks.js";
 import { conditionOf, isRetro, jobKeyOf } from "../lib/theme.js";
 import type { AgentInfo } from "../lib/tmux.js";
@@ -23,6 +22,8 @@ interface DashboardProps {
   skillCounts?: SkillCounts;
   memoryCount?: number;
   now?: number; // for elapsed times; defaults to the render time
+  /** Lasting levels by agent name (retro look); 1 when missing */
+  levels?: Record<string, number>;
 }
 
 const STATUS_ICON: Record<AgentInfo["status"], string> = {
@@ -137,6 +138,7 @@ function RetroDashboard({
   skillCounts,
   memoryCount = 0,
   now = Date.now(),
+  levels = {},
 }: DashboardProps) {
   const blink = useBlink();
   const counts: Partial<Record<TaskState, number>> = {};
@@ -165,7 +167,7 @@ function RetroDashboard({
                   </Text>
                 </Box>
                 <Text dimColor> {jobKey ? t(jobKey) : agent.role}</Text>
-                <Text> Lv{levelOf(agent.name, tasks)}</Text>
+                <Text> Lv{levels[agent.name] ?? 1}</Text>
               </Box>
               <Box marginLeft={2}>
                 <Text wrap="truncate-end">

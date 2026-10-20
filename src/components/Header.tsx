@@ -1,5 +1,5 @@
 import { Box, Text } from "ink";
-import { t } from "../lib/i18n.js";
+import { t, tf } from "../lib/i18n.js";
 import { isRetro } from "../lib/theme.js";
 import type { AgentInfo } from "../lib/tmux.js";
 import { VERSION } from "../lib/version.js";
@@ -23,6 +23,7 @@ interface HeaderProps {
   taskCount?: number;
   skillCount?: number;
   memoryCount?: number;
+  partyLevel?: number;
 }
 
 export function Header({
@@ -31,6 +32,7 @@ export function Header({
   taskCount = 0,
   skillCount = 0,
   memoryCount = 0,
+  partyLevel,
 }: HeaderProps) {
   const status = STATUS_KEYS[state];
 
@@ -59,6 +61,12 @@ export function Header({
         )}
         <Text> </Text>
         <Text dimColor>v{VERSION}</Text>
+        {partyLevel !== undefined && (
+          <Text color="yellow">
+            {" "}
+            {tf("header.partyLevel", { level: partyLevel })}
+          </Text>
+        )}
         <Text> </Text>
         <Text bold color={status.color}>
           [{t(status.labelKey)}]

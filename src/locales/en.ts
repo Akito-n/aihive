@@ -253,6 +253,18 @@ export const en = {
   "retro.startup.coordinator": "The Sage joined the party!",
   "retro.startup.workers": "The Fighters joined the party!",
   "retro.startup.ready": "The party is ready!",
+  "retro.msg.xp": "{name} gained {xp} XP!",
+  "retro.msg.partyLevelUp": "The party reached level {level}!",
+  "retro.msg.boss": "Boss {task} defeated! {name} gained {xp} XP!",
+  "header.partyLevel": "Party Lv{level}",
+  "help.status": "Status",
+  "retro.cmd.status": "Status",
+  "status.title": "Status",
+  "status.party": "Party",
+  "status.nextLevel": "{xp} XP to next level",
+  "status.tasksDone": "Quests done: {count}",
+  "status.bosses": "Bosses defeated: {count}",
+  "status.memberLine": "{xp} XP · {count} quests",
 } as const;
 
 export type TransKey = keyof typeof en;

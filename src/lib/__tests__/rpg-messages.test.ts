@@ -1,42 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { setLocale } from "../i18n.js";
+import type { Award } from "../progress.js";
+import { emptyProgress } from "../progress.js";
 import {
-  levelOf,
+  awardMessage,
   levelUpMessage,
   mailMessage,
   poisonMessage,
 } from "../rpg-messages.js";
-import type { Task } from "../tasks.js";
 
 beforeEach(() => setLocale("ja"));
 afterEach(() => setLocale("ja"));
-
-function task(overrides: Partial<Task>): Task {
-  const now = new Date().toISOString();
-  return {
-    id: "T1",
-    description: "",
-    assignedTo: "worker-1",
-    state: "done",
-    blockedBy: [],
-    createdAt: now,
-    updatedAt: now,
-    ...overrides,
-  };
-}
-
-describe("levelOf", () => {
-  it("starts at 1 and counts the agent's finished tasks by name or slug", () => {
-    const tasks = [
-      task({ id: "T1" }),
-      task({ id: "T2", assignedTo: "Worker 1" }),
-      task({ id: "T3", state: "running" }),
-      task({ id: "T4", assignedTo: "worker-2" }),
-    ];
-    expect(levelOf("Worker 1", tasks)).toBe(3);
-    expect(levelOf("Reviewer", tasks)).toBe(1);
-  });
-});
 
 describe("mailMessage", () => {
   it("tells who received which quest", () => {
@@ -79,5 +53,44 @@ describe("level up and poison", () => {
       text: "Worker 2は どくに おかされた！（T2 が とまっている）",
       color: "magenta",
     });
+  });
+});
+
+describe("awardMessage", () => {
+  const award = (overrides: Partial<Award>): Award => ({
+    xp: 35,
+    member: "Worker 1",
+    memberLevel: { before: 2, after: 2 },
+    partyLevel: { before: 3, after: 3 },
+    boss: false,
+    progress: emptyProgress(),
+    ...overrides,
+  });
+
+  it("tells the experience gained", () => {
+    expect(awardMessage(award({}), "T1").text).toBe(
+      "Worker 1は 35ポイントの けいけんちを かくとく！",
+    );
+  });
+
+  it("puts a party level up first, then a member's, then a boss", () => {
+    expect(
+      awardMessage(
+        award({
+          partyLevel: { before: 3, after: 4 },
+          memberLevel: { before: 2, after: 3 },
+        }),
+        "T1",
+      ).text,
+    ).toBe("パーティの レベルが 4に あがった！");
+    expect(
+      awardMessage(
+        award({ memberLevel: { before: 2, after: 3 }, boss: true }),
+        "T1",
+      ).text,
+    ).toBe("Worker 1の レベルが 3に あがった！");
+    expect(awardMessage(award({ boss: true }), "T1").text).toContain(
+      "ボス T1 を たおした！",
+    );
   });
 });

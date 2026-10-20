@@ -24,6 +24,7 @@ export function retroCommands(
       ["T", "retro.cmd.quests"],
       ["O", "retro.cmd.overview"],
       ["L", "retro.cmd.log"],
+      ["S", "retro.cmd.status"],
       ["x", "retro.cmd.stop"],
     );
   }
@@ -89,6 +90,12 @@ export function HelpBar({ state, message }: HelpBarProps) {
               [L]
             </Text>{" "}
             {t("help.log")}
+          </Text>
+          <Text>
+            <Text bold color="yellow">
+              [S]
+            </Text>{" "}
+            {t("help.status")}
           </Text>
           <Text>
             <Text bold color="red">
