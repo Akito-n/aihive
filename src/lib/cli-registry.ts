@@ -3,6 +3,7 @@
 
 import type { AgentConfig } from "./config.js";
 import { getInstructionsPath } from "./config.js";
+import type { AgentWorkspace } from "./worktrees.js";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -14,7 +15,7 @@ export interface CliDefinition {
   /** Supported model identifiers */
   models: string[];
   /** Build the full CLI command for an agent */
-  buildCommand: (agent: AgentConfig) => string;
+  buildCommand: (agent: AgentConfig, workspace?: AgentWorkspace) => string;
 }
 
 // ─── Tool Restrictions ───────────────────────────────────────────────
@@ -28,7 +29,7 @@ const claudeCli: CliDefinition = {
   name: "claude",
   binary: "claude",
   models: ["opus", "sonnet", "haiku"],
-  buildCommand(agent) {
+  buildCommand(agent, workspace) {
     const tools = agent.role === "scout" ? SCOUT_TOOLS : DEFAULT_TOOLS;
     const parts = ["claude", "--allowedTools", tools];
 
@@ -36,9 +37,14 @@ const claudeCli: CliDefinition = {
       parts.push(`--model ${agent.model}`);
     }
 
-    const instructionsPath = getInstructionsPath(agent.role);
+    if (workspace?.addDirs.length) {
+      parts.push(`--add-dir ${workspace.addDirs.map(shellQuote).join(" ")}`);
+    }
+
+    const instructionsPath =
+      workspace?.promptFile ?? getInstructionsPath(agent.role);
     if (instructionsPath) {
-      parts.push(`--append-system-prompt-file ${instructionsPath}`);
+      parts.push(`--append-system-prompt-file ${shellQuote(instructionsPath)}`);
     }
 
     return parts.join(" ");
@@ -111,7 +117,17 @@ export function getCliModels(cliKey: string): string[] {
 }
 
 /** Build the full command for an agent, respecting its CLI setting */
-export function buildAgentCommand(agent: AgentConfig): string {
+export function buildAgentCommand(
+  agent: AgentConfig,
+  workspace?: AgentWorkspace,
+): string {
   const cli = getCli(agent.cli ?? "claude");
-  return cli.buildCommand(agent);
+  return cli.buildCommand(agent, workspace);
+}
+
+/** Quote a path for the pane's shell when it contains special characters */
+export function shellQuote(value: string): string {
+  return /^[A-Za-z0-9_./~@%+=:,-]+$/.test(value)
+    ? value
+    : `'${value.replace(/'/g, "'\\''")}'`;
 }

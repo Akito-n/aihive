@@ -128,6 +128,8 @@ timestamp: "2024-01-01T12:00:00Z"
 
 各Workerが完了すると、`.aihive/mailbox/coordinator/inbox/` に結果メッセージが届きます。
 
+Workerの `result` にブランチ名とコミットが含まれている場合（Worker ごとに git worktree が用意されているとき）は、そのブランチ名・作業フォルダ・コミットを書いて Reviewer にレビューを依頼してください。Reviewer が PASS して統合ブランチにマージしたら、そのサブタスクは完了です。FAIL の場合は指摘内容を付けて Worker に差し戻します。
+
 Workerの `result` に確認コマンド（テスト、型チェック、lint など）の実行結果が含まれていない場合は、実行して報告し直すようそのWorkerに差し戻してください。
 
 全Workerの完了を確認したら：

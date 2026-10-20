@@ -142,6 +142,13 @@ vi.mock("../../lib/memory.js", async (importOriginal) => ({
   }),
 }));
 
+vi.mock("../../lib/worktrees.js", () => ({
+  prepareWorkspaces: vi.fn().mockReturnValue({
+    workspaces: new Map(),
+    messages: [],
+  }),
+}));
+
 vi.mock("../../lib/commands.js", () => ({
   loadSlashCommands: vi.fn().mockReturnValue([]),
 }));

@@ -24,6 +24,7 @@ export interface AgentConfig {
 export interface AihiveConfig {
   session: string; // tmux session name
   agents: AgentConfig[];
+  worktrees?: boolean; // give each worker its own git worktree (default: true)
 }
 
 // ─── Paths ───────────────────────────────────────────────────────────
@@ -84,6 +85,7 @@ export function loadConfig(): AihiveConfig {
   return {
     session: parsed.session || "aihive",
     agents: resolveWindowLayout(agents),
+    ...(parsed.worktrees === false ? { worktrees: false } : {}),
   };
 }
 
@@ -99,6 +101,7 @@ export function saveConfig(config: AihiveConfig): void {
       ...(a.cli && a.cli !== "claude" ? { cli: a.cli } : {}),
       ...(a.model ? { model: a.model } : {}),
     })),
+    ...(config.worktrees === false ? { worktrees: false } : {}),
   };
   const yaml = stringify(saveData, { indent: 2 });
   const header = `# aihive configuration
@@ -114,6 +117,9 @@ export function saveConfig(config: AihiveConfig): void {
 #   orchestrator, coordinator, reviewer → dedicated window
 #   worker → grouped into "workers" window
 #   custom roles → grouped by role name
+#
+# In a git repository each worker gets its own branch and worktree under
+# ~/.aihive/worktrees/. Set "worktrees: false" to run everyone in the project dir.
 #
 # Instructions are loaded from ~/.aihive/instructions/{role}.md
 # If not found, bundled defaults are used.

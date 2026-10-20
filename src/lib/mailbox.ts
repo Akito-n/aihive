@@ -219,7 +219,8 @@ export class MessageBus {
       count = 1;
     }
 
-    const nudgeText = `[inbox: ${count}件の新着 from ${msg.from}] .aihive/mailbox/${agentSlug}/inbox/ を確認してください`;
+    // Absolute path: workers run in their own worktree, not the project dir
+    const nudgeText = `[inbox: ${count}件の新着 from ${msg.from}] ${inboxDir}/ を確認してください`;
     try {
       // Clear any stale input first (needed for codex CLI which preserves input)
       execSync(`tmux send-keys -t ${sessionName}:${target} C-u`, {

@@ -19,7 +19,7 @@ npm test            # テスト (Vitest)
 
 - `src/bin/aihive.tsx` — エントリーポイント
 - `src/components/` — Ink の画面コンポーネント（`App.tsx` がメッセージ処理と状態の中心）
-- `src/lib/` — コアロジック（`mailbox.ts` メッセージ、`tasks.ts` タスク、`skills.ts` スキル、`memory.ts` メモリ、`tmux.ts` / `cli-registry.ts` エージェント起動、`config.ts` 設定）
+- `src/lib/` — コアロジック（`mailbox.ts` メッセージ、`tasks.ts` タスク、`skills.ts` スキル、`memory.ts` メモリ、`tmux.ts` / `cli-registry.ts` エージェント起動、`worktrees.ts` Worker ごとの git worktree、`config.ts` 設定）
 - `src/locales/` — 画面の文言（`ja.ts` と `en.ts` の両方に追加する）
 - `instructions/*.md` — 各ロールのエージェントに渡す指示ファイル
 
