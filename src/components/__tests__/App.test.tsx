@@ -13,6 +13,8 @@ const mocks = vi.hoisted(() => {
   const tmGetAll = vi.fn().mockReturnValue([]);
   const tmClear = vi.fn();
   const tmRestore = vi.fn();
+  const checkRun = vi.fn(() => Promise.resolve());
+  const checkRunnerArgs: { value: unknown[] | null } = { value: null };
   const stallCheck = vi.fn(() => ({
     stalled: [] as unknown[],
     toRemind: [] as unknown[],
@@ -66,6 +68,8 @@ const mocks = vi.hoisted(() => {
     tmClear,
     tmRestore,
     stallCheck,
+    checkRun,
+    checkRunnerArgs,
     loadTasksMock,
     saveTasksMock,
     smInit,
@@ -138,6 +142,8 @@ vi.mock("../../lib/tasks.js", () => ({
   StallMonitor: vi.fn(function (this: Record<string, unknown>) {
     this.check = mocks.stallCheck;
   }),
+  taskIdOf: (m: { payload?: string }) =>
+    /task_id:\s*(\S+)/.exec(m.payload ?? "")?.[1],
   tasksFilePath: () => "/proj/.aihive/tasks.json",
   loadTasks: mocks.loadTasksMock,
   saveTasks: mocks.saveTasksMock,
@@ -224,8 +230,19 @@ vi.mock("../QuickCommandMenu.js", () => ({ QuickCommandMenu: () => null }));
 vi.mock("../SettingsScreen.js", () => ({ SettingsScreen: () => null }));
 vi.mock("../CommandInput.js", () => ({ CommandInput: () => null }));
 
+vi.mock("../../lib/checks.js", () => ({
+  CheckRunner: vi.fn(function (
+    this: Record<string, unknown>,
+    ...args: unknown[]
+  ) {
+    mocks.checkRunnerArgs.value = args;
+    this.run = mocks.checkRun;
+  }),
+}));
+
 // ─── Imports (after vi.mock) ──────────────────────────────────────────────────
 import { render } from "ink-testing-library";
+import { loadConfig } from "../../lib/config.js";
 import { App } from "../App.js";
 
 // ─── Test helpers ─────────────────────────────────────────────────────────────
@@ -382,6 +399,69 @@ describe("App - initial state", () => {
       "worker-1",
       "T1-2",
       15,
+    );
+  });
+
+  it("runs the configured checks when a worker reports, and sends the outcome to the reviewer", async () => {
+    mocks.sessionExistsMock.mockReturnValue(true);
+    mocks.checkRun.mockClear();
+    mocks.mockBus.send.mockClear();
+    mocks.mockBus.onMessage.mockImplementation((h: (msg: unknown) => void) => {
+      mocks.capturedMsgHandlerRef.value = h;
+      return mocks.busUnsubscribe;
+    });
+    vi.mocked(loadConfig).mockReturnValueOnce({
+      session: "test-session",
+      checks: ["npm test"],
+      agents: [
+        { name: "Worker 1", role: "worker", window: "workers", pane: 0 },
+        { name: "Reviewer", role: "reviewer", window: "reviewer" },
+      ],
+    });
+    render(<App />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    act(() =>
+      mocks.capturedMsgHandlerRef.value?.(
+        makeMsg({
+          type: "result",
+          from: "worker-1",
+          payload: "task_id: T1-2\ndone",
+        }),
+      ),
+    );
+    expect(mocks.checkRun).toHaveBeenCalledWith("Worker 1", "T1-2");
+
+    // A result from a non-worker does not start checks
+    mocks.checkRun.mockClear();
+    act(() =>
+      mocks.capturedMsgHandlerRef.value?.(
+        makeMsg({ type: "result", from: "reviewer" }),
+      ),
+    );
+    expect(mocks.checkRun).not.toHaveBeenCalled();
+
+    const onDone = mocks.checkRunnerArgs.value?.[2] as (r: unknown) => void;
+    act(() =>
+      onDone({
+        worker: "Worker 1",
+        taskId: "T1-2",
+        result: {
+          passed: false,
+          failedCommand: "npm test",
+          runs: [],
+          outputTail: "",
+        },
+        payload: "REPORT",
+      }),
+    );
+    expect(mocks.mockBus.send).toHaveBeenCalledWith(
+      "system",
+      "reviewer",
+      "check-result",
+      "REPORT",
     );
   });
 

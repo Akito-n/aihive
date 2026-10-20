@@ -99,6 +99,13 @@ If the request includes the Worker's branch name and working folder (when aihive
 4. If there is a conflict, or the checks fail after integrating, revert with `git merge --abort` (or `git reset --hard ORIG_HEAD` if the merge has already been completed), and report a FAIL with the cause and the conflicting files
 5. Do not `git push`. Include the hash of the commit after integration in your result
 
+#### Check Results from aihive (check-result)
+
+When check commands are configured in aihive, aihive runs them in the Worker's working folder as soon as the Worker sends a `result`, and sends the outcome to your inbox as a `type: "check-result"` message (from `system`).
+
+- If `passed: false`, do not merge that work: report a FAIL with the `failed_command` and `output`
+- Even if `passed: true`, confirm that `commit` is the commit you are reviewing. If it differs, or no check-result has arrived yet, run the check commands yourself as before
+
 ### 3. Report the Result
 
 After the review is complete, write the result to `.aihive/mailbox/coordinator/inbox/`.

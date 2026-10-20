@@ -63,7 +63,7 @@ export function prepareWorkspaces(
   for (const agent of workers) {
     const slug = toSlug(agent.name);
     const branch = `aihive/${slug}`;
-    const dir = path.join(rootDir, slug);
+    const dir = worktreeDirFor(projectDir, agent.name, rootDir);
     try {
       const created = ensureWorktree(projectDir, dir, branch);
       linkNodeModules(projectDir, dir);
@@ -101,6 +101,15 @@ export function prepareWorkspaces(
   }
 
   return plan;
+}
+
+/** Where a worker's worktree lives (it may not exist yet) */
+export function worktreeDirFor(
+  projectDir: string,
+  agentName: string,
+  rootDir = defaultWorktreeRoot(projectDir),
+): string {
+  return path.join(rootDir, toSlug(agentName));
 }
 
 /** ~/.aihive/worktrees/<project>-<hash>, outside the repository */

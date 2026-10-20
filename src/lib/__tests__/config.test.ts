@@ -197,6 +197,28 @@ describe("stallMinutes", () => {
   });
 });
 
+describe("checks", () => {
+  it("reads the command list and drops empty or non-text entries", () => {
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+    vi.mocked(fs.readFileSync).mockReturnValue(
+      'session: aihive\nchecks:\n  - npm run typecheck\n  - ""\n  - 3\n  - npm test\nagents:\n  - name: Worker 1\n    role: worker\n',
+    );
+    expect(loadConfig().checks).toEqual(["npm run typecheck", "npm test"]);
+  });
+
+  it("is saved only when there are commands", () => {
+    vi.mocked(fs.writeFileSync).mockReset();
+    const agents = [makeAgent({ name: "W", role: "worker" })];
+    saveConfig({ session: "aihive", agents, checks: ["npm test"] });
+    saveConfig({ session: "aihive", agents, checks: [] });
+    const [withIt, without] = vi
+      .mocked(fs.writeFileSync)
+      .mock.calls.map((c) => parse(c[1] as string));
+    expect(withIt.checks).toEqual(["npm test"]);
+    expect(without.checks).toBeUndefined();
+  });
+});
+
 describe("saveConfig", () => {
   beforeEach(() => {
     vi.mocked(fs.existsSync).mockReturnValue(true);

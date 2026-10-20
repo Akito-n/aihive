@@ -23,7 +23,8 @@ export interface Message {
     | "skill-rejected"
     | "memory-write"
     | "memory-read"
-    | "memory-response";
+    | "memory-response"
+    | "check-result";
   payload: string;
   timestamp: string;
   task_id?: string; // the task this message belongs to (same id on task, result, error)
