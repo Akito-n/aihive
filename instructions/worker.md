@@ -48,12 +48,14 @@ id: "一意のID"
 from: "worker-1"
 to: "coordinator"
 type: "result"
+task_id: "T1-1"
 payload: |
   メッセージ本文
 timestamp: "2024-01-01T12:00:00Z"
 ```
 
 - `type` は `task` / `result` / `error` / `status` / `info` のいずれか
+- `task_id` はタスクの番号です。受け取った `task` の `task_id` を、`result` / `error` にもそのまま付けてください（aihive がタスクの状態を追うのに使います）
 
 ### メッセージの送信手順
 
@@ -101,6 +103,7 @@ id: "result-worker1-001"
 from: "worker-1"
 to: "coordinator"
 type: "result"
+task_id: "T1-1"
 payload: |
   タスクが完了しました。
   結果の概要...
@@ -116,6 +119,7 @@ id: "error-worker1-001"
 from: "worker-1"
 to: "coordinator"
 type: "error"
+task_id: "T1-1"
 payload: |
   エラーが発生しました。
   エラー内容: ...

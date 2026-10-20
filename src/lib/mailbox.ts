@@ -25,6 +25,7 @@ export interface Message {
     | "memory-response";
   payload: string;
   timestamp: string;
+  task_id?: string; // the task this message belongs to (same id on task, result, error)
   blocked_by?: string[]; // task IDs that must complete before this message is actionable
 }
 

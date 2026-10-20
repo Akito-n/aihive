@@ -339,19 +339,19 @@ describe("App - message handlers", () => {
   it("type='result' → TaskManager.handleMessage() is called", () => {
     const msg = makeMsg({ type: "result", from: "worker-1" });
     mocks.capturedMsgHandlerRef.value?.(msg);
-    expect(mocks.tmHandleMessage).toHaveBeenCalledWith(msg);
+    expect(mocks.tmHandleMessage).toHaveBeenCalledWith(msg, undefined);
   });
 
   it("type='error' → TaskManager.handleMessage() is called", () => {
     const msg = makeMsg({ type: "error", from: "worker-1" });
     mocks.capturedMsgHandlerRef.value?.(msg);
-    expect(mocks.tmHandleMessage).toHaveBeenCalledWith(msg);
+    expect(mocks.tmHandleMessage).toHaveBeenCalledWith(msg, undefined);
   });
 
   it("type='task' → TaskManager.handleMessage() is called", () => {
     const msg = makeMsg({ type: "task", from: "coordinator", to: "worker-1" });
     mocks.capturedMsgHandlerRef.value?.(msg);
-    expect(mocks.tmHandleMessage).toHaveBeenCalledWith(msg);
+    expect(mocks.tmHandleMessage).toHaveBeenCalledWith(msg, undefined);
   });
 
   it("type='skill-proposal' with valid JSON → SkillManager.propose() is called", () => {

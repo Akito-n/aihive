@@ -2,7 +2,7 @@ import { render } from "ink-testing-library";
 import { describe, expect, it } from "vitest";
 import type { Task } from "../../lib/tasks.js";
 import type { AgentInfo } from "../../lib/tmux.js";
-import { Dashboard } from "../Dashboard.js";
+import { Dashboard, tasksToList } from "../Dashboard.js";
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 
@@ -254,5 +254,43 @@ describe("Dashboard model display", () => {
     // Should contain model but NOT "claude:sonnet"
     expect(frame).toContain("sonnet");
     expect(frame).not.toContain("claude:sonnet");
+  });
+});
+
+describe("Dashboard task list", () => {
+  it("lists tasks with their id and assignee", () => {
+    const { lastFrame } = render(
+      <Dashboard
+        agents={[]}
+        selectedIndex={0}
+        tasks={[
+          makeTask({ id: "T1-2", assignedTo: "worker-2", state: "review" }),
+        ]}
+      />,
+    );
+    expect(lastFrame()).toContain("T1-2");
+    expect(lastFrame()).toContain("worker-2");
+  });
+
+  it("shows unfinished tasks first and counts the rest", () => {
+    const tasks = Array.from({ length: 8 }, (_, i) =>
+      makeTask({
+        id: `t${i}`,
+        state: i < 4 ? "done" : "pending",
+        updatedAt: `2026-01-01T00:00:0${i}Z`,
+      }),
+    );
+    expect(tasksToList(tasks).map((t) => t.id)).toEqual([
+      "t7",
+      "t6",
+      "t5",
+      "t4",
+      "t3",
+      "t2",
+    ]);
+    const { lastFrame } = render(
+      <Dashboard agents={[]} selectedIndex={0} tasks={tasks} />,
+    );
+    expect(lastFrame()).toContain("+2 more");
   });
 });

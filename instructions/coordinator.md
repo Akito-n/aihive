@@ -80,12 +80,18 @@ id: "一意のID"
 from: "coordinator"
 to: "worker-1"
 type: "task"
+task_id: "T1-1"
 payload: |
   メッセージ本文
 timestamp: "2024-01-01T12:00:00Z"
 ```
 
 - `type` は `task` / `result` / `error` / `status` / `info` のいずれか
+- `task_id` はタスクの番号です（aihive がタスクの状態を追うのに使います）
+  - Orchestrator から受けたタスク（例: `T1`）のサブタスクには `T1-1`, `T1-2`, ... と付ける
+  - 他のサブタスクの完了を待つ必要がある場合は `blocked_by: ["T1-1"]` を付ける
+  - Reviewer へのレビュー依頼と、Worker への差し戻しには、元のサブタスクと**同じ** `task_id` を付ける
+  - Orchestrator への完了報告には、Orchestrator から受けた `task_id`（例: `T1`）を付ける
 
 ### メッセージの送信手順
 
@@ -117,6 +123,7 @@ id: "subtask-001"
 from: "coordinator"
 to: "worker-1"
 type: "task"
+task_id: "T1-1"
 payload: |
   実行すべきタスクの内容
 timestamp: "2024-01-01T12:00:00Z"
@@ -141,6 +148,7 @@ id: "result-001"
 from: "coordinator"
 to: "orchestrator"
 type: "result"
+task_id: "T1"
 payload: |
   全サブタスクが完了しました。
   結果の概要...

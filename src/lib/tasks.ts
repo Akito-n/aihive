@@ -65,24 +65,41 @@ export class TaskManager {
     return task;
   }
 
-  /** Update task state based on an incoming message */
-  handleMessage(msg: Message): void {
-    if (msg.type === "task") {
-      // Extract task ID from payload if present, or use message ID
-      const taskId = extractField(msg.payload, "task_id") || msg.id;
-      const blockedBy = extractList(msg.payload, "blocked_by");
-      const existing = this.tasks.get(taskId);
+  /**
+   * Update task state based on an incoming message. `toRole` is the role of
+   * the recipient: a task sent to a reviewer puts that task under review.
+   */
+  handleMessage(msg: Message, toRole?: string): void {
+    const payload = typeof msg.payload === "string" ? msg.payload : "";
+    const taskId = taskIdOf(msg) || msg.id;
 
+    if (msg.type === "task") {
+      const existing = this.tasks.get(taskId);
       if (!existing) {
-        this.add(taskId, msg.payload.slice(0, 100), msg.to, blockedBy);
+        const blockedBy = Array.isArray(msg.blocked_by)
+          ? msg.blocked_by.map(String)
+          : extractList(payload, "blocked_by");
+        this.add(taskId, summarize(payload), msg.to, blockedBy);
+      } else if (toRole !== "reviewer") {
+        // Sent again (e.g. sent back after a failed review)
+        this.reopen(taskId, msg.to);
       }
+      if (toRole === "reviewer") this.review(taskId);
     } else if (msg.type === "result") {
-      const taskId = extractField(msg.payload, "task_id") || msg.id;
-      this.complete(taskId, msg.payload);
+      this.complete(taskId, payload);
     } else if (msg.type === "error") {
-      const taskId = extractField(msg.payload, "task_id") || msg.id;
-      this.fail(taskId, msg.payload);
+      this.fail(taskId, payload);
     }
+  }
+
+  /** Put a finished or failed task back to pending for another attempt */
+  reopen(id: string, assignedTo?: string): void {
+    const task = this.tasks.get(id);
+    if (!task || task.state === "blocked") return;
+    task.state = "pending";
+    if (assignedTo) task.assignedTo = assignedTo;
+    task.updatedAt = new Date().toISOString();
+    this.notify(task);
   }
 
   /** Mark task as running */
@@ -172,6 +189,26 @@ export class TaskManager {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────
+
+/** The task id from the top-level field, or a `task_id:` line in the payload */
+export function taskIdOf(msg: Message): string | undefined {
+  const raw = (msg as { task_id?: unknown }).task_id;
+  if (typeof raw === "string" && raw.trim()) return raw.trim();
+  if (typeof raw === "number") return String(raw);
+  return typeof msg.payload === "string"
+    ? extractField(msg.payload, "task_id")
+    : undefined;
+}
+
+/** First non-empty line of a payload, shortened for display */
+function summarize(payload: string): string {
+  const line =
+    payload
+      .split("\n")
+      .map((l) => l.trim())
+      .find((l) => l && !/^(task_id|blocked_by):/.test(l)) ?? "";
+  return line.length > 100 ? `${line.slice(0, 99)}…` : line;
+}
 
 /** Extract a simple field value from payload text */
 export function extractField(

@@ -171,9 +171,12 @@ export function App() {
 
     const unsubscribeMessages = bus.onMessage((msg) => {
       addLog(
-        `[${msg.from} → ${msg.to}] ${msg.type}: ${msg.payload.slice(0, 60)}`,
+        `[${msg.from} → ${msg.to}] ${msg.type}: ${String(msg.payload ?? "").slice(0, 60)}`,
       );
-      tm.handleMessage(msg);
+      tm.handleMessage(
+        msg,
+        config.agents.find((a) => toSlug(a.name) === toSlug(msg.to))?.role,
+      );
 
       if (msg.type === "result") {
         updateAgentStatus(msg.from, "done");

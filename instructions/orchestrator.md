@@ -60,12 +60,14 @@ id: "一意のID（例: task-20240101-001）"
 from: "orchestrator"
 to: "coordinator"
 type: "task"
+task_id: "T1"
 payload: |
   メッセージ本文
 timestamp: "2024-01-01T12:00:00Z"
 ```
 
 - `type` は `task` / `result` / `error` / `status` / `info` のいずれか
+- `task_id` はタスクの番号です。人間から受けたタスクごとに `T1`, `T2`, ... と一意に付けてください。Coordinator はサブタスクに `T1-1`, `T1-2`, ... と付け、完了報告にも同じ `task_id` を付けて返します
 - `id` はファイル名にも使用する（例: `task-20240101-001.yaml`）
 
 ### メッセージの送信手順
@@ -120,6 +122,7 @@ id: "task-001"
 from: "orchestrator"
 to: "coordinator"
 type: "task"
+task_id: "T1"
 payload: |
   以下のサブタスクをWorkerに割り振って実行してください:
   1. サブタスク1の内容
