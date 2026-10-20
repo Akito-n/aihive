@@ -6,11 +6,14 @@ import type { AihiveConfig } from "../lib/config.js";
 import {
   initInstructions,
   loadConfig,
+  notifyModeOf,
   saveConfig,
   stallMinutesOf,
 } from "../lib/config.js";
+import { tf } from "../lib/i18n.js";
 import { type MessageBus, SYSTEM_MAILBOX, toSlug } from "../lib/mailbox.js";
 import { MemoryManager, normalizeMemoryEntry } from "../lib/memory.js";
+import { notify } from "../lib/notify.js";
 import type { QuickCommand } from "../lib/quick-commands.js";
 import { groupByCategory, loadQuickCommands } from "../lib/quick-commands.js";
 import {
@@ -208,6 +211,8 @@ export function App() {
     // Run the user's check commands when a worker reports a result, and send
     // the outcome to the reviewers (or the coordinator when there is none)
     let disposed = false;
+    const alert = (body: string) =>
+      notify(notifyModeOf(config), "aihive", body);
     const checkResults = new Map<string, TaskCheck>();
     const checks = config.checks ?? [];
     const checkRunner =
@@ -228,6 +233,15 @@ export function App() {
               addLog(
                 `Checks ${result.passed ? "passed" : `failed (${result.failedCommand})`} for ${worker}${taskId ? ` ${taskId}` : ""}`,
               );
+              if (!result.passed) {
+                alert(
+                  tf("notify.checksFailed", {
+                    worker,
+                    task: taskId ?? "-",
+                    command: result.failedCommand ?? "-",
+                  }),
+                );
+              }
               const reviewers = config.agents.filter(
                 (a) => a.role === "reviewer",
               );
@@ -353,6 +367,8 @@ export function App() {
       const now = Date.now();
       const all = tm.getAll();
       if (reporter.due(all, now)) {
+        const done = all.filter((t) => t.state === "done").length;
+        alert(tf("notify.allDone", { done, failed: all.length - done }));
         try {
           const file = writeReport(
             process.cwd(),
@@ -366,6 +382,14 @@ export function App() {
       }
       const { stalled, toRemind } = monitor.check(all, now);
       setStalledIds(stalled.map((t) => t.id));
+      if (toRemind.length > 0) {
+        alert(
+          tf("notify.stalled", {
+            ids: toRemind.map((t) => t.id).join(", "),
+            minutes: stallMinutes,
+          }),
+        );
+      }
       for (const task of toRemind) {
         const reminded = bus.remindStalled(
           toSlug(task.assignedTo),

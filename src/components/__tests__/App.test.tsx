@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => {
     toRemind: [] as unknown[],
   }));
   const loadTasksMock = vi.fn().mockReturnValue([]);
+  const notifyMock = vi.fn();
   const reportPrime = vi.fn();
   const reportDue = vi.fn().mockReturnValue(false);
   const formatReportMock = vi.fn().mockReturnValue("REPORT MD");
@@ -76,6 +77,7 @@ const mocks = vi.hoisted(() => {
     checkRunnerArgs,
     loadTasksMock,
     saveTasksMock,
+    notifyMock,
     reportPrime,
     reportDue,
     formatReportMock,
@@ -117,6 +119,7 @@ vi.mock("../../lib/config.js", () => ({
     .mockReturnValue({ installed: [], updated: [], kept: [] }),
   getPaneTarget: vi.fn().mockReturnValue("orchestrator"),
   stallMinutesOf: () => 15,
+  notifyModeOf: () => "bell",
 }));
 
 vi.mock("../../lib/tmux.js", () => ({
@@ -248,6 +251,8 @@ vi.mock("../TaskView.js", () => ({
     return null;
   },
 }));
+
+vi.mock("../../lib/notify.js", () => ({ notify: mocks.notifyMock }));
 
 vi.mock("../../lib/report.js", () => ({
   CompletionReporter: vi.fn(function (this: Record<string, unknown>) {
@@ -404,6 +409,7 @@ describe("App - initial state", () => {
   });
 
   it("reminds the assignee of a stalled task once a minute check finds it", async () => {
+    mocks.notifyMock.mockClear();
     mocks.sessionExistsMock.mockReturnValue(true);
     mocks.mockBus.remindStalled.mockClear();
     const intervalSpy = vi.spyOn(globalThis, "setInterval");
@@ -428,9 +434,15 @@ describe("App - initial state", () => {
       "T1-2",
       15,
     );
+    expect(mocks.notifyMock).toHaveBeenCalledWith(
+      "bell",
+      "aihive",
+      expect.stringContaining("T1-2"),
+    );
   });
 
   it("runs the configured checks when a worker reports, and sends the outcome to the reviewer", async () => {
+    mocks.notifyMock.mockClear();
     mocks.sessionExistsMock.mockReturnValue(true);
     mocks.checkRun.mockClear();
     mocks.mockBus.send.mockClear();
@@ -491,9 +503,15 @@ describe("App - initial state", () => {
       "check-result",
       "REPORT",
     );
+    expect(mocks.notifyMock).toHaveBeenCalledWith(
+      "bell",
+      "aihive",
+      expect.stringContaining("npm test"),
+    );
   });
 
   it("writes a completion report with the check results once every task has finished", async () => {
+    mocks.notifyMock.mockClear();
     mocks.sessionExistsMock.mockReturnValue(true);
     mocks.reportPrime.mockClear();
     mocks.formatReportMock.mockClear();
@@ -545,6 +563,11 @@ describe("App - initial state", () => {
       expect.any(String),
       "REPORT MD",
       expect.any(Date),
+    );
+    expect(mocks.notifyMock).toHaveBeenCalledWith(
+      "bell",
+      "aihive",
+      expect.any(String),
     );
   });
 
