@@ -1,6 +1,10 @@
 import { Box, Text } from "ink";
+import { t, tf } from "../lib/i18n.js";
+import { toSlug } from "../lib/mailbox.js";
+import { formatDuration } from "../lib/report.js";
 import type { Task, TaskState } from "../lib/tasks.js";
 import type { AgentInfo } from "../lib/tmux.js";
+import type { TransKey } from "../locales/en.js";
 
 interface SkillCounts {
   proposed: number;
@@ -15,6 +19,7 @@ interface DashboardProps {
   stalledIds?: string[]; // tasks with no update for a while
   skillCounts?: SkillCounts;
   memoryCount?: number;
+  now?: number; // for elapsed times; defaults to the render time
 }
 
 const STATUS_ICON: Record<AgentInfo["status"], string> = {
@@ -59,6 +64,29 @@ const TASK_ICON: Record<TaskState, string> = {
 /** Marks a task with no update for a while */
 const STALLED_ICON = "⏱";
 
+const STATE_LABEL: Record<TaskState, TransKey> = {
+  pending: "taskState.pending",
+  blocked: "taskState.blocked",
+  running: "taskState.running",
+  review: "taskState.review",
+  done: "taskState.done",
+  error: "taskState.error",
+};
+
+/** States in which a task is in an agent's hands */
+const ACTIVE_STATES = new Set<TaskState>(["pending", "running", "review"]);
+
+/** The task an agent is working on now: its most recently updated active one */
+export function currentTaskOf(
+  agent: AgentInfo,
+  tasks: Task[],
+): Task | undefined {
+  const slug = toSlug(agent.name);
+  return tasks
+    .filter((t) => ACTIVE_STATES.has(t.state) && toSlug(t.assignedTo) === slug)
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+}
+
 /** How many tasks to list under the counts */
 const TASK_LIST_LIMIT = 6;
 
@@ -96,36 +124,60 @@ export function Dashboard({
   stalledIds = [],
   skillCounts,
   memoryCount = 0,
+  now = Date.now(),
 }: DashboardProps) {
   return (
     <Box flexDirection="column">
       <Text bold underline>
-        Agents
+        {t("dashboard.agents")}
       </Text>
       <Box marginTop={1} flexDirection="column">
         {agents.map((agent, i) => {
           const isSelected = i === selectedIndex;
           const roleIcon = ROLE_ICON[agent.role] ?? "⬡";
           const roleColor = ROLE_COLOR[agent.role] ?? "white";
+          const current = currentTaskOf(agent, tasks);
+          const stalled = current && stalledIds.includes(current.id);
           return (
-            <Box key={agent.name} gap={1}>
-              <Text color="cyan">{isSelected ? "▶" : " "}</Text>
-              <Text>{roleIcon}</Text>
-              <Text color={STATUS_COLOR[agent.status]}>
-                {STATUS_ICON[agent.status]}
-              </Text>
-              <Text
-                color={isSelected ? "cyan" : roleColor}
-                bold={isSelected || agent.role !== "worker"}
-              >
-                {agent.name}
-              </Text>
-              {agent.model && (
-                <Text dimColor>
-                  [{agent.cli && agent.cli !== "claude" ? `${agent.cli}:` : ""}
-                  {agent.model}]
+            <Box key={agent.name} flexDirection="column">
+              <Box gap={1}>
+                <Text color="cyan">{isSelected ? "▶" : " "}</Text>
+                <Text>{roleIcon}</Text>
+                <Text color={STATUS_COLOR[agent.status]}>
+                  {STATUS_ICON[agent.status]}
                 </Text>
-              )}
+                <Text
+                  color={isSelected ? "cyan" : roleColor}
+                  bold={isSelected || agent.role !== "worker"}
+                >
+                  {agent.name}
+                </Text>
+                {agent.model && (
+                  <Text dimColor>
+                    [
+                    {agent.cli && agent.cli !== "claude" ? `${agent.cli}:` : ""}
+                    {agent.model}]
+                  </Text>
+                )}
+              </Box>
+              <Box marginLeft={5}>
+                {current ? (
+                  <Text wrap="truncate-end">
+                    <Text color={stalled ? "red" : TASK_COLOR[current.state]}>
+                      {stalled ? STALLED_ICON : "└"} {current.id}
+                    </Text>{" "}
+                    <Text
+                      color={stalled ? "red" : undefined}
+                      dimColor={!stalled}
+                    >
+                      {formatDuration(now - Date.parse(current.updatedAt))}
+                    </Text>{" "}
+                    <Text dimColor>{current.description}</Text>
+                  </Text>
+                ) : (
+                  <Text dimColor>└ {t("dashboard.noTask")}</Text>
+                )}
+              </Box>
             </Box>
           );
         })}
@@ -143,17 +195,18 @@ export function Dashboard({
           return (
             <Box marginTop={1} flexDirection="column">
               <Text bold underline>
-                Tasks
+                {t("dashboard.tasks")}
               </Text>
-              <Box marginTop={1} gap={2} flexWrap="wrap">
+              <Box marginTop={1} columnGap={2} flexWrap="wrap">
                 {entries.map(([state, count]) => (
                   <Text key={state} color={TASK_COLOR[state]}>
-                    {TASK_ICON[state]} {count} {state}
+                    {TASK_ICON[state]} {count} {t(STATE_LABEL[state])}
                   </Text>
                 ))}
                 {stalledIds.length > 0 && (
                   <Text color="red" bold>
-                    {STALLED_ICON} {stalledIds.length} stalled
+                    {STALLED_ICON}{" "}
+                    {tf("dashboard.stalled", { count: stalledIds.length })}
                   </Text>
                 )}
               </Box>
@@ -174,7 +227,11 @@ export function Dashboard({
                   </Box>
                 ))}
                 {tasks.length > TASK_LIST_LIMIT && (
-                  <Text dimColor>+{tasks.length - TASK_LIST_LIMIT} more</Text>
+                  <Text dimColor>
+                    {tf("dashboard.more", {
+                      count: tasks.length - TASK_LIST_LIMIT,
+                    })}
+                  </Text>
                 )}
               </Box>
             </Box>
@@ -185,14 +242,24 @@ export function Dashboard({
         (skillCounts.approved > 0 || skillCounts.proposed > 0) && (
           <Box marginTop={1} flexDirection="column">
             <Text bold underline>
-              Skills
+              {t("dashboard.skills")}
             </Text>
             <Box marginTop={1} gap={2}>
               {skillCounts.approved > 0 && (
-                <Text color="green">✓ {skillCounts.approved} approved</Text>
+                <Text color="green">
+                  ✓{" "}
+                  {tf("dashboard.skillsApproved", {
+                    count: skillCounts.approved,
+                  })}
+                </Text>
               )}
               {skillCounts.proposed > 0 && (
-                <Text color="yellow">○ {skillCounts.proposed} pending</Text>
+                <Text color="yellow">
+                  ○{" "}
+                  {tf("dashboard.skillsPending", {
+                    count: skillCounts.proposed,
+                  })}
+                </Text>
               )}
             </Box>
           </Box>
@@ -201,10 +268,12 @@ export function Dashboard({
       {memoryCount > 0 && (
         <Box marginTop={1} flexDirection="column">
           <Text bold underline>
-            Memory
+            {t("dashboard.memory")}
           </Text>
           <Box marginTop={1}>
-            <Text color="cyan">🧠 {memoryCount} entries</Text>
+            <Text color="cyan">
+              🧠 {tf("dashboard.memoryEntries", { count: memoryCount })}
+            </Text>
           </Box>
         </Box>
       )}

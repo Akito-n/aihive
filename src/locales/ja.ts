@@ -146,6 +146,16 @@ export const ja: Record<TransKey, string> = {
 
 - 自分のブランチ以外へのコミット、\`git push\`、ブランチの切り替え、作業フォルダの外のファイル編集はしない（\`.aihive/\` のメールボックスへの書き込みは除く）
 - 統合ブランチへのマージは Reviewer が行う`,
+  "dashboard.agents": "エージェント",
+  "dashboard.noTask": "待機中",
+  "dashboard.tasks": "タスク",
+  "dashboard.stalled": "停滞 {count}",
+  "dashboard.more": "ほか {count} 件（T で一覧）",
+  "dashboard.skills": "スキル",
+  "dashboard.skillsApproved": "承認済み {count}",
+  "dashboard.skillsPending": "承認待ち {count}",
+  "dashboard.memory": "メモリ",
+  "dashboard.memoryEntries": "{count} 件",
   "taskView.title": "タスク",
   "taskView.filter.all": "すべて",
   "taskView.filter.open": "未完了",
