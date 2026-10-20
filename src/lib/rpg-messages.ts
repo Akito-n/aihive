@@ -3,22 +3,11 @@
 // window. The detailed log stays on the log screen.
 
 import { tf } from "./i18n.js";
-import { toSlug } from "./mailbox.js";
-import type { Task } from "./tasks.js";
+import type { Award } from "./progress.js";
 
 export interface RpgMessage {
   text: string;
   color?: string;
-}
-
-/** An agent's level: 1 + the tasks it has finished */
-export function levelOf(name: string, tasks: Task[]): number {
-  const slug = toSlug(name);
-  return (
-    1 +
-    tasks.filter((t) => t.state === "done" && toSlug(t.assignedTo) === slug)
-      .length
-  );
 }
 
 /** The message for a mailbox message, or none for the quiet kinds */
@@ -59,4 +48,28 @@ export function poisonMessage(name: string, taskId: string): RpgMessage {
     text: tf("retro.msg.poison", { name, task: taskId }),
     color: "magenta",
   };
+}
+
+/** The message for a task's reward: a level up beats plain experience */
+export function awardMessage(award: Award, taskId: string): RpgMessage {
+  if (award.partyLevel.after > award.partyLevel.before) {
+    return {
+      text: tf("retro.msg.partyLevelUp", { level: award.partyLevel.after }),
+      color: "yellow",
+    };
+  }
+  if (award.memberLevel.after > award.memberLevel.before) {
+    return levelUpMessage(award.member, award.memberLevel.after);
+  }
+  if (award.boss) {
+    return {
+      text: tf("retro.msg.boss", {
+        task: taskId,
+        name: award.member,
+        xp: award.xp,
+      }),
+      color: "yellow",
+    };
+  }
+  return { text: tf("retro.msg.xp", { name: award.member, xp: award.xp }) };
 }

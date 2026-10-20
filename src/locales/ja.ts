@@ -256,4 +256,17 @@ export const ja: Record<TransKey, string> = {
   "retro.startup.coordinator": "けんじゃが なかまに くわわった！",
   "retro.startup.workers": "せんしたちが なかまに くわわった！",
   "retro.startup.ready": "パーティの じゅんびが ととのった！",
+  "retro.msg.xp": "{name}は {xp}ポイントの けいけんちを かくとく！",
+  "retro.msg.partyLevelUp": "パーティの レベルが {level}に あがった！",
+  "retro.msg.boss":
+    "ボス {task} を たおした！ {name}は {xp}ポイントの けいけんちを かくとく！",
+  "header.partyLevel": "パーティ Lv{level}",
+  "help.status": "つよさ",
+  "retro.cmd.status": "つよさ",
+  "status.title": "つよさ",
+  "status.party": "パーティ",
+  "status.nextLevel": "つぎのレベルまで {xp}",
+  "status.tasksDone": "クエスト達成 {count}",
+  "status.bosses": "たおしたボス {count}",
+  "status.memberLine": "{xp} XP・クエスト {count}",
 };

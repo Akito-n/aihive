@@ -14,6 +14,13 @@ import { t, tf } from "../lib/i18n.js";
 import { type MessageBus, SYSTEM_MAILBOX, toSlug } from "../lib/mailbox.js";
 import { MemoryManager, normalizeMemoryEntry } from "../lib/memory.js";
 import { notify } from "../lib/notify.js";
+import {
+  awardTask,
+  loadProgress,
+  memberLevelOf,
+  type Progress,
+  partyLevelOf,
+} from "../lib/progress.js";
 import type { QuickCommand } from "../lib/quick-commands.js";
 import { groupByCategory, loadQuickCommands } from "../lib/quick-commands.js";
 import {
@@ -23,8 +30,7 @@ import {
   writeReport,
 } from "../lib/report.js";
 import {
-  levelOf,
-  levelUpMessage,
+  awardMessage,
   mailMessage,
   poisonMessage,
   type RpgMessage,
@@ -63,13 +69,14 @@ import { PaneView } from "./PaneView.js";
 import { QuickCommandMenu } from "./QuickCommandMenu.js";
 import { SettingsScreen } from "./SettingsScreen.js";
 import { StartupScreen } from "./StartupScreen.js";
+import { StatusView } from "./StatusView.js";
 import { TaskView } from "./TaskView.js";
 
 /** Log lines kept for the log screen */
 const LOG_LIMIT = 500;
 
 type AppState = "idle" | "settings" | "starting" | "running" | "stopping";
-type Mode = "normal" | "input" | "quickcmd" | "tasks" | "log";
+type Mode = "normal" | "input" | "quickcmd" | "tasks" | "log" | "status";
 
 export function App() {
   const { exit } = useApp();
@@ -113,6 +120,8 @@ export function App() {
   const [memoryCount, setMemoryCount] = useState(0);
   // Latest line for the retro message window
   const [message, setMessage] = useState<RpgMessage | undefined>();
+  // aihive's lasting adventure record (levels across sessions)
+  const [progress, setProgress] = useState<Progress>(() => loadProgress());
   const selectedAgent = agents[selectedIndex];
 
   const addLog = useCallback((message: string) => {
@@ -212,7 +221,8 @@ export function App() {
     const tasksFile = tasksFilePath(process.cwd());
     const nameOf = (slug: string) =>
       config.agents.find((a) => toSlug(a.name) === toSlug(slug))?.name ?? slug;
-    // Level up once per task as it finishes, not for ones already finished
+    // Reward each task once as it finishes, not ones already finished
+    const everStalled = new Set<string>();
     const finished = new Set(
       tm
         .getAll()
@@ -226,7 +236,27 @@ export function App() {
       if (task.state === "done" && task.assignedTo && !finished.has(task.id)) {
         finished.add(task.id);
         const name = nameOf(task.assignedTo);
-        setMessage(levelUpMessage(name, levelOf(name, tm.getAll())));
+        try {
+          const award = awardTask({
+            project: process.cwd(),
+            task,
+            member: {
+              name,
+              role:
+                config.agents.find((a) => a.name === name)?.role ?? "worker",
+            },
+            checksPassed: checkResults.get(task.id)?.passed === true,
+            stalled: everStalled.has(task.id),
+            all: tm.getAll(),
+          });
+          if (award) {
+            setProgress(award.progress);
+            setMessage(awardMessage(award, task.id));
+            addLog(`+${award.xp} XP ${name} (${task.id})`);
+          }
+        } catch (e) {
+          addLog(`Could not save progress: ${e}`);
+        }
       }
       if (task.state === "blocked") {
         addLog(`Task ${task.id} blocked by: ${task.blockedBy.join(", ")}`);
@@ -414,6 +444,7 @@ export function App() {
       }
       const { stalled, toRemind } = monitor.check(all, now);
       setStalledIds(stalled.map((t) => t.id));
+      for (const task of stalled) everStalled.add(task.id);
       if (toRemind.length > 0) {
         alert(
           tf("notify.stalled", {
@@ -519,6 +550,10 @@ export function App() {
         setMode("log");
         return;
       }
+      if (input === "S") {
+        setMode("status");
+        return;
+      }
       if (input === "q") {
         stopSession(config.session);
         exit();
@@ -610,6 +645,7 @@ export function App() {
         <Header
           state={state}
           agents={agents}
+          partyLevel={partyLevelOf(progress)}
           taskCount={tasks.length}
           skillCount={skillCounts.approved}
           memoryCount={memoryCount}
@@ -624,12 +660,34 @@ export function App() {
       </Box>
     );
   }
+  if (mode === "status") {
+    return (
+      <Box flexDirection="column" padding={1} height={termHeight}>
+        <Header
+          state={state}
+          agents={agents}
+          partyLevel={partyLevelOf(progress)}
+          taskCount={tasks.length}
+          skillCount={skillCounts.approved}
+          memoryCount={memoryCount}
+        />
+        <Box marginTop={1} flexGrow={1} overflow="hidden">
+          <StatusView
+            progress={progress}
+            members={config.agents}
+            onClose={() => setMode("normal")}
+          />
+        </Box>
+      </Box>
+    );
+  }
   if (mode === "tasks") {
     return (
       <Box flexDirection="column" padding={1} height={termHeight}>
         <Header
           state={state}
           agents={agents}
+          partyLevel={partyLevelOf(progress)}
           taskCount={tasks.length}
           skillCount={skillCounts.approved}
           memoryCount={memoryCount}
@@ -653,6 +711,7 @@ export function App() {
         <Header
           state={state}
           agents={agents}
+          partyLevel={partyLevelOf(progress)}
           taskCount={tasks.length}
           skillCount={skillCounts.approved}
           memoryCount={memoryCount}
@@ -672,6 +731,7 @@ export function App() {
       <Header
         state={state}
         agents={agents}
+        partyLevel={partyLevelOf(progress)}
         taskCount={tasks.length}
         skillCount={skillCounts.approved}
       />
@@ -686,6 +746,9 @@ export function App() {
           >
             <Dashboard
               agents={agents}
+              levels={Object.fromEntries(
+                agents.map((a) => [a.name, memberLevelOf(progress, a.name)]),
+              )}
               selectedIndex={selectedIndex}
               tasks={tasks}
               stalledIds={stalledIds}

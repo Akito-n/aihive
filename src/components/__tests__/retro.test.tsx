@@ -5,7 +5,6 @@ import { Text } from "ink";
 import { render } from "ink-testing-library";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setLocale } from "../../lib/i18n.js";
-import { levelOf } from "../../lib/rpg-messages.js";
 import type { Task } from "../../lib/tasks.js";
 import { getTheme, setTheme } from "../../lib/theme.js";
 import type { AgentInfo } from "../../lib/tmux.js";
@@ -101,14 +100,17 @@ describe("retro dashboard", () => {
     expect(frame).toContain("どく 1");
   });
 
-  it("levels an agent up with each task it finished", () => {
-    const tasks = [
-      makeTask({ id: "T1", state: "done" }),
-      makeTask({ id: "T2", state: "done" }),
-      makeTask({ id: "T3", state: "running" }),
-      makeTask({ id: "T4", state: "done", assignedTo: "worker-2" }),
-    ];
-    expect(levelOf("Worker 1", tasks)).toBe(3);
+  it("shows each member's lasting level", () => {
+    const { lastFrame } = render(
+      <Dashboard
+        agents={[makeAgent(), makeAgent({ name: "Worker 2" })]}
+        selectedIndex={0}
+        levels={{ "Worker 1": 7 }}
+      />,
+    );
+    const frame = lastFrame() ?? "";
+    expect(frame).toContain("せんし Lv7");
+    expect(frame).toContain("せんし Lv1");
   });
 
   it("keeps skills and memory in the bag", () => {

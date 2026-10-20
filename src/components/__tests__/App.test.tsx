@@ -26,6 +26,7 @@ const mocks = vi.hoisted(() => {
   const formatReportMock = vi.fn().mockReturnValue("REPORT MD");
   const writeReportMock = vi.fn().mockReturnValue("/proj/.aihive/reports/x.md");
   const saveTasksMock = vi.fn();
+  const awardTaskMock = vi.fn();
 
   // SkillManager instance methods
   const smInit = vi.fn();
@@ -77,6 +78,7 @@ const mocks = vi.hoisted(() => {
     checkRunnerArgs,
     loadTasksMock,
     saveTasksMock,
+    awardTaskMock,
     notifyMock,
     reportPrime,
     reportDue,
@@ -260,6 +262,17 @@ vi.mock("../TaskView.js", () => ({
 
 vi.mock("../../lib/notify.js", () => ({ notify: mocks.notifyMock }));
 
+// Never touch the real ~/.aihive/progress.json from tests
+vi.mock("../../lib/progress.js", async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import("../../lib/progress.js")>();
+  return {
+    ...original,
+    loadProgress: () => original.emptyProgress(),
+    awardTask: mocks.awardTaskMock,
+  };
+});
+
 vi.mock("../../lib/report.js", () => ({
   CompletionReporter: vi.fn(function (this: Record<string, unknown>) {
     this.prime = mocks.reportPrime;
@@ -282,6 +295,7 @@ vi.mock("../../lib/checks.js", () => ({
 // ─── Imports (after vi.mock) ──────────────────────────────────────────────────
 import { render } from "ink-testing-library";
 import { loadConfig } from "../../lib/config.js";
+import { emptyProgress } from "../../lib/progress.js";
 import { App } from "../App.js";
 
 // ─── Test helpers ─────────────────────────────────────────────────────────────
@@ -414,9 +428,18 @@ describe("App - initial state", () => {
     );
   });
 
-  it("tells the story in the message window: quests, then a level up once per task", async () => {
+  it("tells the story in the message window: quests, then the reward once per task", async () => {
     mocks.sessionExistsMock.mockReturnValue(true);
     mocks.tmOnChange.mockClear();
+    mocks.awardTaskMock.mockReset();
+    mocks.awardTaskMock.mockReturnValue({
+      xp: 35,
+      member: "worker-1",
+      memberLevel: { before: 1, after: 2 },
+      partyLevel: { before: 1, after: 1 },
+      boss: false,
+      progress: { ...emptyProgress(), partyXp: 35 },
+    });
     const g = globalThis as Record<string, unknown>;
     render(<App />);
     await act(async () => {
@@ -442,20 +465,35 @@ describe("App - initial state", () => {
     };
     mocks.tmGetAll.mockReturnValue([done]);
     act(() => onChange(done));
-    expect(g.__helpBarMessage).toMatch(/Lv|レベル|level/);
-    act(() =>
-      mocks.capturedMsgHandlerRef.value?.({
-        type: "error",
-        from: "worker-1",
-        to: "coordinator",
-        payload: "oops",
-      }),
-    );
-    const afterError = g.__helpBarMessage;
+    expect(mocks.awardTaskMock).toHaveBeenCalledTimes(1);
+    expect(mocks.awardTaskMock.mock.calls[0][0]).toMatchObject({
+      task: done,
+      member: { name: "worker-1", role: "worker" },
+      checksPassed: false,
+      stalled: false,
+    });
+    expect(g.__helpBarMessage).toMatch(/レベル|level/);
     mocks.tmGetAll.mockReturnValue([{ ...done }]);
     act(() => onChange(done));
-    expect(g.__helpBarMessage).toBe(afterError);
+    expect(mocks.awardTaskMock).toHaveBeenCalledTimes(1);
     mocks.tmGetAll.mockReturnValue([]);
+  });
+
+  it("S opens the status screen with the party's record, and it can close", async () => {
+    mocks.sessionExistsMock.mockReturnValue(true);
+    const { stdin, lastFrame } = render(<App />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await act(async () => {
+      stdin.write("S");
+    });
+    expect(lastFrame()).toMatch(/つよさ|Status/);
+    await act(async () => {
+      stdin.write("\u001B");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(lastFrame()).not.toMatch(/つよさ|Status/);
   });
 
   it("reminds the assignee of a stalled task once a minute check finds it", async () => {
