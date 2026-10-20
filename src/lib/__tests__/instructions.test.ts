@@ -126,3 +126,32 @@ describe("LEGACY_BUNDLED_HASHES", () => {
     expect(Object.keys(LEGACY_BUNDLED_HASHES).sort()).toEqual(bundled.sort());
   });
 });
+
+describe("bundled English instructions", () => {
+  const dir = path.join(import.meta.dirname, "..", "..", "..", "instructions");
+  const mdFiles = (d: string) =>
+    fs
+      .readdirSync(d)
+      .filter((f) => f.endsWith(".md"))
+      .sort();
+
+  it("has an English version of every Japanese instruction file", () => {
+    expect(mdFiles(path.join(dir, "en"))).toEqual(mdFiles(dir));
+  });
+
+  it("keeps the same rule IDs and message types as the Japanese version", () => {
+    const tokens = (text: string) =>
+      [
+        ...text.matchAll(
+          /\bF\d{3}\b|`(?:task|result|error|consult|advice|skill-proposal|memory-write|memory-read)`/g,
+        ),
+      ]
+        .map((m) => m[0])
+        .sort();
+    for (const file of mdFiles(dir)) {
+      const ja = fs.readFileSync(path.join(dir, file), "utf8");
+      const en = fs.readFileSync(path.join(dir, "en", file), "utf8");
+      expect(new Set(tokens(en)), file).toEqual(new Set(tokens(ja)));
+    }
+  });
+});
