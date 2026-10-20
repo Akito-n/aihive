@@ -115,6 +115,37 @@ export const en = {
   "commandInput.commands": "Commands",
   "commandInput.actionRequired": "⚡ Action required:",
   "commandInput.pressKey": "Press a key to respond (input must be empty)",
+
+  // ─── Agent-facing text (typed into panes or written for agents) ──
+  "agentMsg.inboxNudge": "[inbox: {count} new from {from}] Check {dir}/",
+  "agentMsg.stallReminder":
+    "[aihive] Task {id} has had no update for {minutes} min. Check {dir}/ and {dir}/{processed}/ and keep working. Send a result if it is done, or an error if you cannot go on",
+  "skillsIndex.title": "# Approved skills",
+  "skillsIndex.intro":
+    "aihive generates this file. Do not edit it.\nIf your work matches a skill's trigger, follow its steps.",
+  "skillsIndex.empty": "No approved skills yet.",
+  "skillsIndex.trigger": "- Trigger: {trigger}",
+  "skillsIndex.proposedBy": "- Proposed by: {by}",
+  "skillsIndex.approvedBy": " / approved by: {by}",
+  "skillsIndex.steps": "### Steps",
+  "worktree.prompt": `## Where you work (set up by aihive)
+
+- Working folder: \`{worktreeDir}\` (edit files here)
+- Your branch: \`{branch}\`
+- Integration branch: \`{integrationBranch}\` (the branch checked out in the project at \`{projectDir}\`)
+- Every path in these instructions that starts with \`.aihive/\` (mailbox, skills, memory) means \`{projectDir}/.aihive/\`, not \`.aihive/\` inside your working folder
+
+### Git workflow
+
+1. **When you start a task**: run \`git merge {integrationBranch}\` to bring in the latest integrated work. Resolve any conflict; if you cannot, report it with \`error\`
+2. **Before you finish**: run the check commands and make them pass
+3. **When you finish**: commit the files you changed, naming them with \`git add <file>\` (do not use \`git add -A\`, and never commit \`node_modules\`)
+4. **Report**: include the branch name, the working folder and the commit hash (\`git rev-parse --short HEAD\`) in the \`result\` payload
+
+- Do not commit to any other branch, \`git push\`, switch branches, or edit files outside your working folder (writing to the \`.aihive/\` mailbox is the exception)
+- The Reviewer merges into the integration branch`,
+  "xp.scoreLine":
+    "    → +{xp} XP (articulation:{a} comprehension:{c} review:{r} collaboration:{co} inquiry:{i})",
 } as const;
 
 export type TransKey = keyof typeof en;

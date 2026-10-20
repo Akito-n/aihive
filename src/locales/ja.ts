@@ -116,4 +116,35 @@ export const ja: Record<TransKey, string> = {
   "commandInput.commands": "コマンド",
   "commandInput.actionRequired": "⚡ アクションが必要:",
   "commandInput.pressKey": "キーを押して応答 (入力欄が空の状態で)",
+
+  // ─── Agent-facing text (typed into panes or written for agents) ──
+  "agentMsg.inboxNudge":
+    "[inbox: {count}件の新着 from {from}] {dir}/ を確認してください",
+  "agentMsg.stallReminder":
+    "[aihive] タスク {id} が {minutes}分間更新されていません。{dir}/ と {dir}/{processed}/ を確認して作業を続けてください。終わっていれば result、進められなければ error を送ってください",
+  "skillsIndex.title": "# 承認済みスキル",
+  "skillsIndex.intro":
+    "このファイルは aihive が自動生成します。編集しないでください。\n作業内容が「適用条件」に当てはまるスキルがあれば、その手順に従ってください。",
+  "skillsIndex.empty": "承認済みスキルはまだありません。",
+  "skillsIndex.trigger": "- 適用条件: {trigger}",
+  "skillsIndex.proposedBy": "- 提案: {by}",
+  "skillsIndex.approvedBy": " / 承認: {by}",
+  "skillsIndex.steps": "### 手順",
+  "worktree.prompt": `## あなたの作業場所（aihive が自動で設定）
+
+- 作業フォルダ: \`{worktreeDir}\`（ここでファイルを編集する）
+- あなたのブランチ: \`{branch}\`
+- 統合ブランチ: \`{integrationBranch}\`（プロジェクト本体 \`{projectDir}\` でチェックアウトされているブランチ）
+- この指示書に出てくる \`.aihive/\` から始まるパス（メールボックス、スキル、メモリ）は、すべて \`{projectDir}/.aihive/\` を指します。作業フォルダ内の \`.aihive/\` ではありません
+
+### git の流れ
+
+1. **タスク開始時**: \`git merge {integrationBranch}\` で最新の統合結果を取り込む。衝突したら解消し、できなければ \`error\` で報告する
+2. **完了前**: 確認コマンドを実行して成功させる
+3. **完了時**: 変更したファイルを \`git add <ファイル>\` で指定してコミットする（\`git add -A\` は使わない。\`node_modules\` はコミットしない）
+4. **完了報告**: \`result\` の payload にブランチ名、作業フォルダ、コミットのハッシュ（\`git rev-parse --short HEAD\`）を含める
+
+- 自分のブランチ以外へのコミット、\`git push\`、ブランチの切り替え、作業フォルダの外のファイル編集はしない（\`.aihive/\` のメールボックスへの書き込みは除く）
+- 統合ブランチへのマージは Reviewer が行う`,
+  "xp.scoreLine": "    → +{xp} XP (伝:{a} 理:{c} 検:{r} 協:{co} 探:{i})",
 };

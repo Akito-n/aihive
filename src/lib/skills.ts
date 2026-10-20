@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { parse, stringify } from "yaml";
+import { t, tf } from "./i18n.js";
 import { asString, asStringList, isSafeId } from "./validate.js";
 
 // ─── Types ───────────────────────────────────────────────────────────
@@ -190,13 +191,10 @@ export function normalizeSkill(data: unknown): Skill | null {
 
 /** Render approved skills as Markdown for agents to read */
 export function renderApprovedIndex(skills: Skill[]): string {
-  const header =
-    "# 承認済みスキル\n\n" +
-    "このファイルは aihive が自動生成します。編集しないでください。\n" +
-    "作業内容が「適用条件」に当てはまるスキルがあれば、その手順に従ってください。\n";
+  const header = `${t("skillsIndex.title")}\n\n${t("skillsIndex.intro")}\n`;
 
   if (skills.length === 0) {
-    return `${header}\n承認済みスキルはまだありません。\n`;
+    return `${header}\n${t("skillsIndex.empty")}\n`;
   }
 
   const sections = [...skills]
@@ -208,10 +206,13 @@ export function renderApprovedIndex(skills: Skill[]): string {
         "",
         s.description,
         "",
-        `- 適用条件: ${s.trigger}`,
-        `- 提案: ${s.created_by}${s.approved_by ? ` / 承認: ${s.approved_by}` : ""}`,
+        tf("skillsIndex.trigger", { trigger: s.trigger }),
+        tf("skillsIndex.proposedBy", { by: s.created_by }) +
+          (s.approved_by
+            ? tf("skillsIndex.approvedBy", { by: s.approved_by })
+            : ""),
         "",
-        "### 手順",
+        t("skillsIndex.steps"),
         "",
         steps,
       ].join("\n");

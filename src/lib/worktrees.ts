@@ -5,6 +5,7 @@ import { homedir } from "node:os";
 import path from "node:path";
 import type { AihiveConfig } from "./config.js";
 import { getInstructionsPath } from "./config.js";
+import { tf } from "./i18n.js";
 import { toSlug } from "./mailbox.js";
 
 // ─── Types ───────────────────────────────────────────────────────────
@@ -129,27 +130,7 @@ export function renderWorkspacePrompt(
   const instructions = instructionsPath
     ? fs.readFileSync(instructionsPath, "utf8")
     : "";
-  const section = `
-
----
-
-## あなたの作業場所（aihive が自動で設定）
-
-- 作業フォルダ: \`${ctx.worktreeDir}\`（ここでファイルを編集する）
-- あなたのブランチ: \`${ctx.branch}\`
-- 統合ブランチ: \`${ctx.integrationBranch}\`（プロジェクト本体 \`${ctx.projectDir}\` でチェックアウトされているブランチ）
-- この指示書に出てくる \`.aihive/\` から始まるパス（メールボックス、スキル、メモリ）は、すべて \`${ctx.projectDir}/.aihive/\` を指します。作業フォルダ内の \`.aihive/\` ではありません
-
-### git の流れ
-
-1. **タスク開始時**: \`git merge ${ctx.integrationBranch}\` で最新の統合結果を取り込む。衝突したら解消し、できなければ \`error\` で報告する
-2. **完了前**: 確認コマンドを実行して成功させる
-3. **完了時**: 変更したファイルを \`git add <ファイル>\` で指定してコミットする（\`git add -A\` は使わない。\`node_modules\` はコミットしない）
-4. **完了報告**: \`result\` の payload にブランチ名、作業フォルダ、コミットのハッシュ（\`git rev-parse --short HEAD\`）を含める
-
-- 自分のブランチ以外へのコミット、\`git push\`、ブランチの切り替え、作業フォルダの外のファイル編集はしない（\`.aihive/\` のメールボックスへの書き込みは除く）
-- 統合ブランチへのマージは Reviewer が行う
-`;
+  const section = `\n\n---\n\n${tf("worktree.prompt", ctx)}\n`;
   return instructions + section;
 }
 

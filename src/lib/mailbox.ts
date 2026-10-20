@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { parse, stringify } from "yaml";
+import { tf } from "./i18n.js";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -261,7 +262,7 @@ export class MessageBus {
     // Absolute path: workers run in their own worktree, not the project dir.
     // One line only: a newline in `from` would submit the prompt early.
     const from = oneLine(String(msg.from ?? ""));
-    const nudgeText = `[inbox: ${count}件の新着 from ${from}] ${inboxDir}/ を確認してください`;
+    const nudgeText = tf("agentMsg.inboxNudge", { count, from, dir: inboxDir });
     this.typeIntoPane(agentSlug, nudgeText);
   }
 
@@ -271,7 +272,12 @@ export class MessageBus {
     const id = oneLine(taskId);
     return this.typeIntoPane(
       agentSlug,
-      `[aihive] タスク ${id} が ${minutes}分間更新されていません。${inboxDir}/ と ${inboxDir}/${PROCESSED_DIR}/ を確認して作業を続けてください。終わっていれば result、進められなければ error を送ってください`,
+      tf("agentMsg.stallReminder", {
+        id,
+        minutes,
+        dir: inboxDir,
+        processed: PROCESSED_DIR,
+      }),
     );
   }
 
