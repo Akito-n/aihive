@@ -12,6 +12,7 @@ interface DashboardProps {
   agents: AgentInfo[];
   selectedIndex: number;
   tasks?: Task[];
+  stalledIds?: string[]; // tasks with no update for a while
   skillCounts?: SkillCounts;
   memoryCount?: number;
 }
@@ -55,16 +56,25 @@ const TASK_ICON: Record<TaskState, string> = {
   error: "✗",
 };
 
+/** Marks a task with no update for a while */
+const STALLED_ICON = "⏱";
+
 /** How many tasks to list under the counts */
 const TASK_LIST_LIMIT = 6;
 
-/** Unfinished tasks first, then the most recently updated */
-export function tasksToList(tasks: Task[], limit = TASK_LIST_LIMIT): Task[] {
+/** Stalled tasks first, then other unfinished ones, then the most recently updated */
+export function tasksToList(
+  tasks: Task[],
+  limit = TASK_LIST_LIMIT,
+  stalledIds: string[] = [],
+): Task[] {
   const finished = (t: Task) => t.state === "done";
+  const stalled = (t: Task) => stalledIds.includes(t.id);
   return [...tasks]
     .sort(
       (a, b) =>
         Number(finished(a)) - Number(finished(b)) ||
+        Number(stalled(b)) - Number(stalled(a)) ||
         b.updatedAt.localeCompare(a.updatedAt),
     )
     .slice(0, limit);
@@ -83,6 +93,7 @@ export function Dashboard({
   agents,
   selectedIndex,
   tasks = [],
+  stalledIds = [],
   skillCounts,
   memoryCount = 0,
 }: DashboardProps) {
@@ -140,13 +151,22 @@ export function Dashboard({
                     {TASK_ICON[state]} {count} {state}
                   </Text>
                 ))}
+                {stalledIds.length > 0 && (
+                  <Text color="red" bold>
+                    {STALLED_ICON} {stalledIds.length} stalled
+                  </Text>
+                )}
               </Box>
               <Box marginTop={1} flexDirection="column">
-                {tasksToList(tasks).map((task) => (
+                {tasksToList(tasks, TASK_LIST_LIMIT, stalledIds).map((task) => (
                   <Box key={task.id} gap={1}>
-                    <Text color={TASK_COLOR[task.state]}>
-                      {TASK_ICON[task.state]}
-                    </Text>
+                    {stalledIds.includes(task.id) ? (
+                      <Text color="red">{STALLED_ICON}</Text>
+                    ) : (
+                      <Text color={TASK_COLOR[task.state]}>
+                        {TASK_ICON[task.state]}
+                      </Text>
+                    )}
                     <Text wrap="truncate-end">{task.id}</Text>
                     <Text dimColor wrap="truncate-end">
                       {task.assignedTo}

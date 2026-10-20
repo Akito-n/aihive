@@ -13,6 +13,10 @@ const mocks = vi.hoisted(() => {
   const tmGetAll = vi.fn().mockReturnValue([]);
   const tmClear = vi.fn();
   const tmRestore = vi.fn();
+  const stallCheck = vi.fn(() => ({
+    stalled: [] as unknown[],
+    toRemind: [] as unknown[],
+  }));
   const loadTasksMock = vi.fn().mockReturnValue([]);
   const saveTasksMock = vi.fn();
 
@@ -41,7 +45,9 @@ const mocks = vi.hoisted(() => {
   const busStopWatching = vi.fn();
   const busSetNudgeConfig = vi.fn();
   const busSend = vi.fn();
+  const busRemindStalled = vi.fn().mockReturnValue(true);
   const mockBus = {
+    remindStalled: busRemindStalled,
     onMessage: busOnMessage,
     startWatching: busStartWatching,
     stopWatching: busStopWatching,
@@ -59,6 +65,7 @@ const mocks = vi.hoisted(() => {
     tmGetAll,
     tmClear,
     tmRestore,
+    stallCheck,
     loadTasksMock,
     saveTasksMock,
     smInit,
@@ -97,6 +104,7 @@ vi.mock("../../lib/config.js", () => ({
     .fn()
     .mockReturnValue({ installed: [], updated: [], kept: [] }),
   getPaneTarget: vi.fn().mockReturnValue("orchestrator"),
+  stallMinutesOf: () => 15,
 }));
 
 vi.mock("../../lib/tmux.js", () => ({
@@ -126,6 +134,9 @@ vi.mock("../../lib/tasks.js", () => ({
     this.getAll = mocks.tmGetAll;
     this.clear = mocks.tmClear;
     this.restore = mocks.tmRestore;
+  }),
+  StallMonitor: vi.fn(function (this: Record<string, unknown>) {
+    this.check = mocks.stallCheck;
   }),
   tasksFilePath: () => "/proj/.aihive/tasks.json",
   loadTasks: mocks.loadTasksMock,
@@ -344,6 +355,33 @@ describe("App - initial state", () => {
     expect(mocks.saveTasksMock).toHaveBeenCalledWith(
       "/proj/.aihive/tasks.json",
       expect.any(Array),
+    );
+  });
+
+  it("reminds the assignee of a stalled task once a minute check finds it", async () => {
+    mocks.sessionExistsMock.mockReturnValue(true);
+    mocks.mockBus.remindStalled.mockClear();
+    const intervalSpy = vi.spyOn(globalThis, "setInterval");
+    render(<App />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const tick = intervalSpy.mock.calls.find((c) => c[1] === 60_000)?.[0] as
+      | (() => void)
+      | undefined;
+    intervalSpy.mockRestore();
+    expect(tick).toBeDefined();
+
+    const stalled = { id: "T1-2", assignedTo: "Worker 1", state: "pending" };
+    mocks.stallCheck.mockReturnValueOnce({
+      stalled: [stalled],
+      toRemind: [stalled],
+    });
+    act(() => tick?.());
+    expect(mocks.mockBus.remindStalled).toHaveBeenCalledWith(
+      "worker-1",
+      "T1-2",
+      15,
     );
   });
 

@@ -95,7 +95,7 @@ export class TaskManager {
         // Sent again (e.g. sent back after a failed review)
         this.reopen(taskId, msg.to);
       }
-      if (toRole === "reviewer") this.review(taskId);
+      if (toRole === "reviewer") this.review(taskId, msg.to);
     } else if (msg.type === "result") {
       this.complete(taskId, payload);
     } else if (msg.type === "error") {
@@ -123,11 +123,12 @@ export class TaskManager {
     }
   }
 
-  /** Mark task as in review */
-  review(id: string): void {
+  /** Mark task as in review, assigned to the reviewer when given */
+  review(id: string, reviewer?: string): void {
     const task = this.tasks.get(id);
     if (task) {
       task.state = "review";
+      if (reviewer) task.assignedTo = reviewer;
       task.updatedAt = new Date().toISOString();
       this.notify(task);
     }
@@ -201,6 +202,36 @@ export class TaskManager {
         this.notify(task);
       }
     }
+  }
+}
+
+// ─── Stall detection ─────────────────────────────────────────────────
+
+/** States in which a task waits on an agent to move it forward */
+const ACTIVE_STATES = new Set<TaskState>(["pending", "running", "review"]);
+
+/**
+ * Finds tasks with no update for `thresholdMs` and decides which agents to
+ * remind: each task once per stall, again only after it is updated and
+ * stalls anew.
+ */
+export class StallMonitor {
+  private reminded = new Map<string, string>(); // task id → updatedAt reminded for
+
+  constructor(private thresholdMs: number) {}
+
+  check(tasks: Task[], now: number): { stalled: Task[]; toRemind: Task[] } {
+    if (this.thresholdMs <= 0) return { stalled: [], toRemind: [] };
+    const stalled = tasks.filter(
+      (t) =>
+        ACTIVE_STATES.has(t.state) &&
+        now - Date.parse(t.updatedAt) >= this.thresholdMs,
+    );
+    const toRemind = stalled.filter(
+      (t) => this.reminded.get(t.id) !== t.updatedAt,
+    );
+    for (const t of toRemind) this.reminded.set(t.id, t.updatedAt);
+    return { stalled, toRemind };
   }
 }
 

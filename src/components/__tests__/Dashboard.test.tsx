@@ -293,4 +293,29 @@ describe("Dashboard task list", () => {
     );
     expect(lastFrame()).toContain("+2 more");
   });
+
+  it("puts stalled tasks at the top and marks them", () => {
+    const tasks = Array.from({ length: 8 }, (_, i) =>
+      makeTask({
+        id: `t${i}`,
+        state: "pending",
+        updatedAt: `2026-01-01T00:00:0${i}Z`,
+      }),
+    );
+    expect(tasksToList(tasks, 3, ["t0"]).map((t) => t.id)).toEqual([
+      "t0",
+      "t7",
+      "t6",
+    ]);
+    const { lastFrame } = render(
+      <Dashboard
+        agents={[]}
+        selectedIndex={0}
+        tasks={tasks}
+        stalledIds={["t0"]}
+      />,
+    );
+    expect(lastFrame()).toContain("⏱ 1 stalled");
+    expect(lastFrame()).toContain("⏱ t0");
+  });
 });

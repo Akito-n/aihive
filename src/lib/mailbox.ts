@@ -245,10 +245,7 @@ export class MessageBus {
 
   /** Send a minimal nudge to the agent's tmux pane */
   private sendNudge(agentSlug: string, msg: Message): void {
-    if (!this.nudgeConfig) return;
-    const { sessionName, paneTargets } = this.nudgeConfig;
-    const target = paneTargets.get(agentSlug);
-    if (!target) return;
+    if (!this.nudgeConfig?.paneTargets.has(agentSlug)) return;
 
     // Count unread messages in inbox
     const inboxDir = path.join(this.baseDir, agentSlug, "inbox");
@@ -263,19 +260,38 @@ export class MessageBus {
 
     // Absolute path: workers run in their own worktree, not the project dir.
     // One line only: a newline in `from` would submit the prompt early.
-    const from = String(msg.from ?? "")
-      .replace(/\s+/g, " ")
-      .slice(0, 40);
+    const from = oneLine(String(msg.from ?? ""));
     const nudgeText = `[inbox: ${count}件の新着 from ${from}] ${inboxDir}/ を確認してください`;
+    this.typeIntoPane(agentSlug, nudgeText);
+  }
+
+  /** Remind an agent of a task that has had no update for a while */
+  remindStalled(agentSlug: string, taskId: string, minutes: number): boolean {
+    const inboxDir = path.join(this.baseDir, agentSlug, "inbox");
+    const id = oneLine(taskId);
+    return this.typeIntoPane(
+      agentSlug,
+      `[aihive] タスク ${id} が ${minutes}分間更新されていません。${inboxDir}/ と ${inboxDir}/${PROCESSED_DIR}/ を確認して作業を続けてください。終わっていれば result、進められなければ error を送ってください`,
+    );
+  }
+
+  /** Type one line into the agent's tmux pane and submit it */
+  private typeIntoPane(agentSlug: string, text: string): boolean {
+    if (!this.nudgeConfig) return false;
+    const { sessionName, paneTargets } = this.nudgeConfig;
+    const target = paneTargets.get(agentSlug);
+    if (!target) return false;
     const pane = `${sessionName}:${target}`;
     try {
-      // execFile, not a shell: msg.from comes from a file an agent wrote.
+      // execFile, not a shell: the text holds values from files agents wrote.
       // Clear any stale input first (needed for codex CLI which preserves input)
       tmux(["send-keys", "-t", pane, "C-u"]);
-      tmux(["send-keys", "-t", pane, "-l", nudgeText]);
+      tmux(["send-keys", "-t", pane, "-l", text]);
       tmux(["send-keys", "-t", pane, "Enter"]);
+      return true;
     } catch {
       // Pane may not exist yet or session ended
+      return false;
     }
   }
 
@@ -355,6 +371,11 @@ export function archiveMessage(inboxDir: string, filename: string): void {
   } catch {
     // Already moved by the reader, or gone
   }
+}
+
+/** One short line: a newline would submit the prompt early */
+function oneLine(text: string): string {
+  return text.replace(/\s+/g, " ").slice(0, 40);
 }
 
 function withSystem(agentNames: string[]): string[] {

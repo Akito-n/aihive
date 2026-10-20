@@ -2,7 +2,12 @@ import { Box, Text, useApp, useInput, useWindowSize } from "ink";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { loadSlashCommands } from "../lib/commands.js";
 import type { AihiveConfig } from "../lib/config.js";
-import { initInstructions, loadConfig, saveConfig } from "../lib/config.js";
+import {
+  initInstructions,
+  loadConfig,
+  saveConfig,
+  stallMinutesOf,
+} from "../lib/config.js";
 import { type MessageBus, SYSTEM_MAILBOX, toSlug } from "../lib/mailbox.js";
 import { MemoryManager, normalizeMemoryEntry } from "../lib/memory.js";
 import type { QuickCommand } from "../lib/quick-commands.js";
@@ -12,6 +17,7 @@ import { SkillManager } from "../lib/skills.js";
 import type { Task } from "../lib/tasks.js";
 import {
   loadTasks,
+  StallMonitor,
   saveTasks,
   TaskManager,
   tasksFilePath,
@@ -73,6 +79,7 @@ export function App() {
   const skillManagerRef = useRef<SkillManager | null>(null);
   const memoryManagerRef = useRef<MemoryManager | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [stalledIds, setStalledIds] = useState<string[]>([]);
   const [skillCounts, setSkillCounts] = useState<Record<SkillState, number>>({
     proposed: 0,
     approved: 0,
@@ -270,7 +277,26 @@ export function App() {
     const agentNames = config.agents.map((a) => a.name);
     bus.startWatching(agentNames);
 
+    // Mark tasks with no recent update and remind their agent once
+    const stallMinutes = stallMinutesOf(config);
+    const monitor = new StallMonitor(stallMinutes * 60_000);
+    const stallTimer = setInterval(() => {
+      const { stalled, toRemind } = monitor.check(tm.getAll(), Date.now());
+      setStalledIds(stalled.map((t) => t.id));
+      for (const task of toRemind) {
+        const reminded = bus.remindStalled(
+          toSlug(task.assignedTo),
+          task.id,
+          stallMinutes,
+        );
+        addLog(
+          `Task ${task.id} stalled: no update for ${stallMinutes}m${reminded ? `, reminded ${task.assignedTo}` : ""}`,
+        );
+      }
+    }, 60_000);
+
     return () => {
+      clearInterval(stallTimer);
       unsubscribeMessages();
       unsubscribeTasks();
       bus.stopWatching();
@@ -489,6 +515,7 @@ export function App() {
               agents={agents}
               selectedIndex={selectedIndex}
               tasks={tasks}
+              stalledIds={stalledIds}
               skillCounts={skillCounts}
               memoryCount={memoryCount}
             />

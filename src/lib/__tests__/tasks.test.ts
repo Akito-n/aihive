@@ -7,7 +7,9 @@ import {
   extractField,
   extractList,
   loadTasks,
+  StallMonitor,
   saveTasks,
+  type Task,
   TaskManager,
 } from "../tasks.js";
 
@@ -242,7 +244,8 @@ describe("TaskManager.handleMessage() with the instruction protocol", () => {
       "reviewer",
     );
     expect(tm.get("T1-1")?.state).toBe("review");
-    expect(tm.get("T1-1")?.assignedTo).toBe("worker-1");
+    // The reviewer now owns it, so a stall reminder goes to the reviewer
+    expect(tm.get("T1-1")?.assignedTo).toBe("reviewer");
 
     tm.handleMessage(
       msg({
@@ -385,6 +388,63 @@ describe("saveTasks / loadTasks", () => {
         JSON.stringify([good, { ...good, id: "T2", state: "flying" }, null]),
       );
       expect(loadTasks(file).map((t) => t.id)).toEqual(["T1"]);
+    });
+  });
+});
+
+// ─── Stall detection ──────────────────────────────────────────────────
+
+describe("StallMonitor", () => {
+  const MIN = 60_000;
+  const at = (minutes: number) => new Date(minutes * MIN).toISOString();
+  const task = (
+    id: string,
+    state: Task["state"],
+    updatedMin: number,
+  ): Task => ({
+    id,
+    description: "",
+    assignedTo: "worker-1",
+    state,
+    blockedBy: [],
+    createdAt: at(0),
+    updatedAt: at(updatedMin),
+  });
+
+  it("flags waiting tasks with no update for the threshold, not finished or blocked ones", () => {
+    const monitor = new StallMonitor(15 * MIN);
+    const tasks = [
+      task("pending", "pending", 0),
+      task("running", "running", 0),
+      task("review", "review", 0),
+      task("fresh", "pending", 10),
+      task("done", "done", 0),
+      task("error", "error", 0),
+      task("blocked", "blocked", 0),
+    ];
+    const { stalled } = monitor.check(tasks, 20 * MIN);
+    expect(stalled.map((t) => t.id)).toEqual(["pending", "running", "review"]);
+  });
+
+  it("reminds once per stall, and again after the task moves and stalls anew", () => {
+    const monitor = new StallMonitor(15 * MIN);
+    const t = task("T1", "pending", 0);
+
+    expect(monitor.check([t], 15 * MIN).toRemind).toEqual([t]);
+    const later = monitor.check([t], 40 * MIN);
+    expect(later.stalled).toEqual([t]);
+    expect(later.toRemind).toEqual([]);
+
+    const moved = { ...t, state: "review" as const, updatedAt: at(41) };
+    expect(monitor.check([moved], 50 * MIN).stalled).toEqual([]);
+    expect(monitor.check([moved], 56 * MIN).toRemind).toEqual([moved]);
+  });
+
+  it("does nothing when turned off with 0", () => {
+    const monitor = new StallMonitor(0);
+    expect(monitor.check([task("T1", "pending", 0)], 999 * MIN)).toEqual({
+      stalled: [],
+      toRemind: [],
     });
   });
 });
