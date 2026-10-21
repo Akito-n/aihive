@@ -22,6 +22,7 @@ import {
   memberLevelOf,
   type Progress,
   partyLevelOf,
+  recordSkillUses,
   setLooks,
 } from "../lib/progress.js";
 import type { QuickCommand } from "../lib/quick-commands.js";
@@ -35,9 +36,11 @@ import {
 import {
   awardMessage,
   mailMessage,
+  movesMessage,
   poisonMessage,
   type RpgMessage,
 } from "../lib/rpg-messages.js";
+import { findSkillUses, type SkillUse } from "../lib/skill-usage.js";
 import type { SkillState } from "../lib/skills.js";
 import { SkillManager } from "../lib/skills.js";
 import type { Task } from "../lib/tasks.js";
@@ -116,6 +119,13 @@ export function App() {
 
   const messageBusRef = useRef<MessageBus | null>(null);
   const taskManagerRef = useRef<TaskManager>(new TaskManager());
+  // Where the agents work and since when, to find their skill uses
+  const historyRef = useRef<{ cwds: string[]; since: number }>({
+    cwds: [],
+    since: Date.now(),
+  });
+  // Count skill uses as special moves; game only, read from history
+  const countMovesRef = useRef<(uses: SkillUse[]) => void>(() => {});
   const skillManagerRef = useRef<SkillManager | null>(null);
   const memoryManagerRef = useRef<MemoryManager | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -133,6 +143,18 @@ export function App() {
   const [message, setMessage] = useState<RpgMessage | undefined>();
   // aihive's lasting adventure record (levels across sessions)
   const [progress, setProgress] = useState<Progress>(() => loadProgress());
+  countMovesRef.current = (uses) => {
+    try {
+      const result = recordSkillUses(uses);
+      if (!result) return;
+      setProgress(result.progress);
+      const message = movesMessage(result);
+      if (message) setMessage(message);
+      for (const name of result.learned) addLog(`New special move: ${name}`);
+    } catch (e) {
+      addLog(`Could not save progress: ${e}`);
+    }
+  };
   const selectedAgent = agents[selectedIndex];
 
   const addLog = useCallback((message: string) => {
@@ -268,6 +290,8 @@ export function App() {
             for (const item of award.drops) {
               addLog(`Found ${itemName(item)} (${item.rarity})`);
             }
+            const history = historyRef.current;
+            countMovesRef.current(findSkillUses(history.cwds, history.since));
           }
         } catch (e) {
           addLog(`Could not save progress: ${e}`);
@@ -385,6 +409,10 @@ export function App() {
           if (approved) {
             setSkillCounts(sm.getCounts());
             addLog(`Skill approved: ${msg.payload.trim()}`);
+            // An approved aihive skill is a move the party learns
+            countMovesRef.current([
+              { id: `aihive:${msg.payload.trim()}`, skill: msg.payload.trim() },
+            ]);
           }
         }
       } else if (msg.type === "skill-rejected") {
@@ -501,6 +529,10 @@ export function App() {
       const paneWidth = Math.max(80, columns - 41);
       const plan = prepareWorkspaces(config, process.cwd());
       for (const message of plan.messages) addLog(message);
+      historyRef.current = {
+        cwds: [...plan.workspaces.values()].map((ws) => ws.cwd),
+        since: Date.now(),
+      };
       startSession(config, paneWidth, rows, plan.workspaces);
       addLog(`All ${config.agents.length} agents started`);
       setState("running");

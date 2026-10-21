@@ -30,6 +30,7 @@ import {
   slotOf,
 } from "./gear.js";
 import { toSlug } from "./mailbox.js";
+import type { SkillUse } from "./skill-usage.js";
 import type { Task } from "./tasks.js";
 
 export interface MemberProgress {
@@ -58,6 +59,10 @@ export interface Progress {
   equipped: Partial<Record<Slot, string>>;
   /** Whether worn gear changes the screen's look */
   looks: boolean;
+  /** Special moves: how often each skill was used, by skill name */
+  moves: Record<string, number>;
+  /** Skill uses already counted, by tool call id (newest last) */
+  countedUses: string[];
 }
 
 /** XP to reach a level grows with its square: XP(n) = k × (n − 1)² */
@@ -75,6 +80,20 @@ export const XP = {
 
 /** Tasks finished within this long earned nothing (made and closed at once) */
 const MIN_TASK_MS = 60_000;
+/** Special move names: skill names such as "plugin:skill" */
+const MOVE_NAME = /^[\w.:-]{1,64}$/;
+/** Uses to reach a move's level: k × (n − 1)², like levels */
+export const MOVE_FACTOR = 3;
+
+export function moveLevel(uses: number): number {
+  return levelForXp(uses, MOVE_FACTOR);
+}
+
+/** Every special move adds its level to the party's strength */
+export function movesPower(moves: Record<string, number>): number {
+  return Object.values(moves).reduce((sum, uses) => sum + moveLevel(uses), 0);
+}
+
 /** How many rewarded tasks are remembered, so none is rewarded twice */
 const COUNTED_LIMIT = 5000;
 
@@ -107,6 +126,8 @@ export function emptyProgress(): Progress {
     bag: [],
     equipped: {},
     looks: true,
+    moves: {},
+    countedUses: [],
   };
 }
 
@@ -175,6 +196,18 @@ export function loadProgress(file = progressFilePath()): Progress {
     }
   }
   if (r.looks === false) p.looks = false;
+  if (r.moves && typeof r.moves === "object") {
+    for (const [name, uses] of Object.entries(r.moves)) {
+      if (MOVE_NAME.test(name) && isCount(uses)) {
+        p.moves[name] = Math.floor(uses);
+      }
+    }
+  }
+  if (Array.isArray(r.countedUses)) {
+    p.countedUses = r.countedUses.filter(
+      (k): k is string => typeof k === "string",
+    );
+  }
   return p;
 }
 
@@ -329,7 +362,9 @@ export function awardTask(
     partyPower(
       Object.values(progress.members).map((m) => m.skills),
       levelForXp(progress.partyXp, PARTY_XP_FACTOR),
-    ) + gearPower(worn);
+    ) +
+    gearPower(worn) +
+    movesPower(progress.moves);
   const explored = explore(
     { ...progress.adventure, points: progress.adventure.points + xp },
     power,
@@ -391,4 +426,47 @@ export function memberLevelOf(progress: Progress, name: string): number {
 
 export function partyLevelOf(progress: Progress): number {
   return levelForXp(progress.partyXp, PARTY_XP_FACTOR);
+}
+
+export interface MovesResult {
+  /** Moves used for the first time */
+  learned: string[];
+  /** Moves that reached a new level */
+  leveledUp: { name: string; level: number }[];
+  progress: Progress;
+}
+
+/**
+ * Count skill uses as special moves, each use once. Reads the record fresh
+ * and writes it back; returns undefined when nothing new was found.
+ */
+export function recordSkillUses(
+  uses: SkillUse[],
+  file = progressFilePath(),
+): MovesResult | undefined {
+  const progress = loadProgress(file);
+  const counted = new Set(progress.countedUses);
+  const fresh = uses.filter(
+    (u) => MOVE_NAME.test(u.skill) && !counted.has(u.id) && counted.add(u.id),
+  );
+  if (fresh.length === 0) return undefined;
+  const before = { ...progress.moves };
+  for (const use of fresh) {
+    progress.moves[use.skill] = (progress.moves[use.skill] ?? 0) + 1;
+  }
+  progress.countedUses = [
+    ...progress.countedUses,
+    ...fresh.map((u) => u.id),
+  ].slice(-COUNTED_LIMIT);
+  saveProgress(progress, file);
+
+  const learned: string[] = [];
+  const leveledUp: { name: string; level: number }[] = [];
+  for (const [name, uses] of Object.entries(progress.moves)) {
+    if (before[name] === undefined) learned.push(name);
+    else if (moveLevel(uses) > moveLevel(before[name])) {
+      leveledUp.push({ name, level: moveLevel(uses) });
+    }
+  }
+  return { learned, leveledUp, progress };
 }

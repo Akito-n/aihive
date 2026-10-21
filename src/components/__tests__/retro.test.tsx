@@ -286,6 +286,19 @@ describe("StatusView", () => {
     expect(frame).toContain("つぎのかいまで 12/36");
     expect(frame).toContain("ちから 3");
     expect(frame).toContain("たいりょく 2");
+    expect(frame).toContain("まだ ない。スキルを つかうと おぼえる。");
+  });
+
+  it("lists the most used special moves", () => {
+    const progress = emptyProgress();
+    progress.moves = { review: 12, deploy: 1 };
+    const { lastFrame } = render(
+      <StatusView progress={progress} members={[]} />,
+    );
+    const frame = lastFrame() ?? "";
+    expect(frame).toContain(" ひっさつわざ ");
+    expect(frame).toMatch(/review\s+★3\s+12かい/);
+    expect(frame.indexOf("review")).toBeLessThan(frame.indexOf("deploy"));
   });
 });
 

@@ -27,6 +27,8 @@ const mocks = vi.hoisted(() => {
   const writeReportMock = vi.fn().mockReturnValue("/proj/.aihive/reports/x.md");
   const saveTasksMock = vi.fn();
   const awardTaskMock = vi.fn();
+  const recordSkillUsesMock = vi.fn();
+  const findSkillUsesMock = vi.fn().mockReturnValue([]);
 
   // SkillManager instance methods
   const smInit = vi.fn();
@@ -79,6 +81,8 @@ const mocks = vi.hoisted(() => {
     loadTasksMock,
     saveTasksMock,
     awardTaskMock,
+    recordSkillUsesMock,
+    findSkillUsesMock,
     notifyMock,
     reportPrime,
     reportDue,
@@ -270,8 +274,15 @@ vi.mock("../../lib/progress.js", async (importOriginal) => {
     ...original,
     loadProgress: () => original.emptyProgress(),
     awardTask: mocks.awardTaskMock,
+    recordSkillUses: mocks.recordSkillUsesMock,
+    equipItem: () => original.emptyProgress(),
+    setLooks: () => original.emptyProgress(),
   };
 });
+
+vi.mock("../../lib/skill-usage.js", () => ({
+  findSkillUses: mocks.findSkillUsesMock,
+}));
 
 vi.mock("../../lib/report.js", () => ({
   CompletionReporter: vi.fn(function (this: Record<string, unknown>) {
@@ -438,6 +449,9 @@ describe("App - initial state", () => {
       memberLevel: { before: 1, after: 2 },
       partyLevel: { before: 1, after: 1 },
       boss: false,
+      skills: { str: 1, vit: 0, agi: 2, int: 1 },
+      events: [],
+      drops: [],
       progress: { ...emptyProgress(), partyXp: 35 },
     });
     const g = globalThis as Record<string, unknown>;
@@ -476,6 +490,52 @@ describe("App - initial state", () => {
     mocks.tmGetAll.mockReturnValue([{ ...done }]);
     act(() => onChange(done));
     expect(mocks.awardTaskMock).toHaveBeenCalledTimes(1);
+    mocks.tmGetAll.mockReturnValue([]);
+  });
+
+  it("counts the agents' skill uses as special moves when a task finishes", async () => {
+    mocks.sessionExistsMock.mockReturnValue(true);
+    mocks.tmOnChange.mockClear();
+    mocks.awardTaskMock.mockReset();
+    mocks.awardTaskMock.mockReturnValue({
+      xp: 35,
+      member: "worker-1",
+      memberLevel: { before: 1, after: 1 },
+      partyLevel: { before: 1, after: 1 },
+      boss: false,
+      skills: { str: 1, vit: 0, agi: 2, int: 1 },
+      events: [],
+      drops: [],
+      progress: emptyProgress(),
+    });
+    mocks.findSkillUsesMock.mockReturnValue([{ id: "u1", skill: "review" }]);
+    mocks.recordSkillUsesMock.mockReturnValue({
+      learned: ["review"],
+      leveledUp: [],
+      progress: { ...emptyProgress(), moves: { review: 1 } },
+    });
+    const g = globalThis as Record<string, unknown>;
+    render(<App />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const onChange = (
+      mocks.tmOnChange.mock.calls[0] as unknown as [(t: unknown) => void]
+    )[0];
+    const done = {
+      id: "T9",
+      state: "done",
+      assignedTo: "worker-1",
+      blockedBy: [],
+    };
+    mocks.tmGetAll.mockReturnValue([done]);
+    act(() => onChange(done));
+    expect(mocks.recordSkillUsesMock).toHaveBeenCalledWith([
+      { id: "u1", skill: "review" },
+    ]);
+    expect(g.__helpBarMessage).toContain("review");
+    mocks.findSkillUsesMock.mockReturnValue([]);
+    mocks.recordSkillUsesMock.mockReset();
     mocks.tmGetAll.mockReturnValue([]);
   });
 

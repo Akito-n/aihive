@@ -11,6 +11,7 @@ import {
   levelForXp,
   levelProgress,
   MEMBER_XP_FACTOR,
+  moveLevel,
   PARTY_XP_FACTOR,
   type Progress,
   xpForLevel,
@@ -147,6 +148,27 @@ export function StatusView({ progress, members, onClose }: StatusViewProps) {
             </Box>
           );
         })}
+      </Window>
+
+      <Window title={t("status.moves")}>
+        {Object.keys(progress.moves).length === 0 ? (
+          <Text dimColor>{t("status.movesEmpty")}</Text>
+        ) : (
+          Object.entries(progress.moves)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .map(([name, uses]) => (
+              <Box key={name} gap={1}>
+                <Box width={28} flexShrink={0}>
+                  <Text wrap="truncate-end">{name}</Text>
+                </Box>
+                <Box width={8}>
+                  <Text color="yellow">★{moveLevel(uses)}</Text>
+                </Box>
+                <Text dimColor>{tf("status.moveLine", { count: uses })}</Text>
+              </Box>
+            ))
+        )}
       </Window>
 
       {onClose && <Text dimColor>Esc {t("common.back")}</Text>}

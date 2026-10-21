@@ -7,6 +7,7 @@ import {
   awardMessage,
   levelUpMessage,
   mailMessage,
+  movesMessage,
   poisonMessage,
 } from "../rpg-messages.js";
 
@@ -167,5 +168,30 @@ describe("awardMessage", () => {
         "T1",
       ).text,
     ).toContain("たからばこを あけた！");
+  });
+});
+
+describe("movesMessage", () => {
+  beforeEach(() => setLocale("ja"));
+
+  it("tells a new move before a stronger one", () => {
+    const progress = emptyProgress();
+    expect(
+      movesMessage({
+        learned: ["review"],
+        leveledUp: [{ name: "deploy", level: 3 }],
+        progress,
+      })?.text,
+    ).toBe("パーティは ひっさつわざ「review」を おぼえた！");
+    expect(
+      movesMessage({
+        learned: [],
+        leveledUp: [{ name: "deploy", level: 3 }],
+        progress,
+      })?.text,
+    ).toBe("ひっさつわざ「deploy」が ★3に なった！");
+    expect(movesMessage({ learned: [], leveledUp: [], progress })).toBe(
+      undefined,
+    );
   });
 });
