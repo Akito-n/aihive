@@ -1,6 +1,7 @@
 import {
   Box,
   type DOMElement,
+  measureElement,
   Text,
   useCursor,
   useInput,
@@ -41,23 +42,22 @@ export function outputPosition(
   return { x, y };
 }
 
-// Get display width of a string (CJK chars = 2, others = 1)
+// Display width of one character (CJK chars = 2, others = 1)
+function charWidth(ch: string): number {
+  const code = ch.codePointAt(0) ?? 0;
+  return (code >= 0x3000 && code <= 0x9fff) ||
+    (code >= 0xf900 && code <= 0xfaff) ||
+    (code >= 0xff01 && code <= 0xff60) ||
+    (code >= 0xffe0 && code <= 0xffe6) ||
+    (code >= 0x20000 && code <= 0x2fa1f)
+    ? 2
+    : 1;
+}
+
+// Get display width of a string
 export function displayWidth(str: string): number {
   let w = 0;
-  for (const ch of str) {
-    const code = ch.codePointAt(0) ?? 0;
-    if (
-      (code >= 0x3000 && code <= 0x9fff) ||
-      (code >= 0xf900 && code <= 0xfaff) ||
-      (code >= 0xff01 && code <= 0xff60) ||
-      (code >= 0xffe0 && code <= 0xffe6) ||
-      (code >= 0x20000 && code <= 0x2fa1f)
-    ) {
-      w += 2;
-    } else {
-      w += 1;
-    }
-  }
+  for (const ch of str) w += charWidth(ch);
   return w;
 }
 
@@ -66,20 +66,69 @@ export function sliceByWidth(str: string, maxWidth: number): string {
   let w = 0;
   let i = 0;
   for (const ch of str) {
-    const code = ch.codePointAt(0) ?? 0;
-    const cw =
-      (code >= 0x3000 && code <= 0x9fff) ||
-      (code >= 0xf900 && code <= 0xfaff) ||
-      (code >= 0xff01 && code <= 0xff60) ||
-      (code >= 0xffe0 && code <= 0xffe6) ||
-      (code >= 0x20000 && code <= 0x2fa1f)
-        ? 2
-        : 1;
+    const cw = charWidth(ch);
     if (w + cw > maxWidth) break;
     w += cw;
     i += ch.length;
   }
   return str.slice(0, i);
+}
+
+export interface LineView {
+  /** Columns scrolled off the left edge */
+  scrollOffset: number;
+  /** Chars of the text hidden on the left */
+  skipChars: number;
+  before: string;
+  cursorChar: string;
+  after: string;
+}
+
+/**
+ * Pick the part of a one-line input to show in `width` columns, keeping the
+ * cursor in view. The result (with a leading "…" when scrolled) never takes
+ * more than `width` columns, so the terminal never wraps the line.
+ */
+export function layoutLine(
+  text: string,
+  cursor: number,
+  prevOffset: number,
+  width: number,
+): LineView {
+  const before = text.slice(0, cursor);
+  const code = text.codePointAt(cursor);
+  const cursorChar = code === undefined ? " " : String.fromCodePoint(code);
+  const cursorPos = displayWidth(before);
+  const cursorWidth = charWidth(cursorChar);
+
+  let scrollOffset = Math.min(Math.max(0, prevOffset), cursorPos);
+  let skipWidth = 0;
+  let skipChars = 0;
+  for (;;) {
+    skipWidth = 0;
+    skipChars = 0;
+    for (const ch of before) {
+      const cw = charWidth(ch);
+      if (skipWidth + cw > scrollOffset) break;
+      skipWidth += cw;
+      skipChars += ch.length;
+    }
+    const used =
+      (scrollOffset > 0 ? 1 : 0) + cursorPos - skipWidth + cursorWidth;
+    if (used <= width || skipChars >= before.length) break;
+    scrollOffset += used - width;
+  }
+
+  const visibleBefore = before.slice(skipChars);
+  const room =
+    width - (scrollOffset > 0 ? 1 : 0) - (cursorPos - skipWidth) - cursorWidth;
+  return {
+    scrollOffset,
+    skipChars,
+    before: visibleBefore,
+    cursorChar,
+    after: sliceByWidth(text.slice(cursor + cursorChar.length), room),
+  };
 }
 
 const QUICK_KEYS = [
@@ -175,7 +224,18 @@ export function CommandInput({
   const lineRef = useRef<DOMElement>(null);
   const { setCursorPosition } = useCursor();
 
-  const viewWidth = Math.max(20, columns - 6);
+  const boxRef = useRef<DOMElement>(null);
+  const [measuredWidth, setMeasuredWidth] = useState(0);
+
+  // Use the width the line actually got from the layout: the input sits
+  // inside the screen's own padding, so the terminal width overestimates it
+  useEffect(() => {
+    if (!boxRef.current) return;
+    const { width } = measureElement(boxRef.current);
+    if (width > 0 && width !== measuredWidth) setMeasuredWidth(width);
+  });
+
+  const viewWidth = Math.max(3, measuredWidth || columns - 8);
 
   const displayValue = buildDisplay(value, paste);
   const displayCursor = realToDisplay(cursor, value, paste);
@@ -223,15 +283,15 @@ export function CommandInput({
     setCursorVisible(true);
   }, []);
 
+  const isEmpty = value.length === 0;
+  const view = isEmpty
+    ? null
+    : layoutLine(displayValue, displayCursor, scrollOffset, viewWidth);
+
+  const nextOffset = view?.scrollOffset ?? 0;
   useEffect(() => {
-    const beforeCursor = displayValue.slice(0, displayCursor);
-    const cursorPos = displayWidth(beforeCursor);
-    if (cursorPos < scrollOffset) {
-      setScrollOffset(cursorPos);
-    } else if (cursorPos >= scrollOffset + viewWidth - 1) {
-      setScrollOffset(cursorPos - viewWidth + 2);
-    }
-  }, [displayCursor, displayValue, viewWidth, scrollOffset]);
+    if (nextOffset !== scrollOffset) setScrollOffset(nextOffset);
+  }, [nextOffset, scrollOffset]);
 
   // Check if display cursor is inside the alias block
   function isInAlias(dCursor: number): boolean {
@@ -464,62 +524,11 @@ export function CommandInput({
     }
   });
 
-  const isEmpty = value.length === 0;
-
-  // Compute visible portion of display text
-  const renderText = () => {
-    const dv = displayValue;
-    const dc = displayCursor;
-    const before = dv.slice(0, dc);
-    const cursorChar = dv[dc] ?? " ";
-    const after = dv.slice(dc + 1);
-
-    const beforeWidth = displayWidth(before);
-
-    let skipWidth = 0;
-    let skipChars = 0;
-    for (const ch of before) {
-      const code = ch.codePointAt(0) ?? 0;
-      const cw =
-        (code >= 0x3000 && code <= 0x9fff) ||
-        (code >= 0xf900 && code <= 0xfaff) ||
-        (code >= 0xff01 && code <= 0xff60) ||
-        (code >= 0xffe0 && code <= 0xffe6) ||
-        (code >= 0x20000 && code <= 0x2fa1f)
-          ? 2
-          : 1;
-      if (skipWidth + cw > scrollOffset) break;
-      skipWidth += cw;
-      skipChars += ch.length;
-    }
-
-    const visibleBefore = before.slice(skipChars);
-    const visibleBeforeWidth = beforeWidth - skipWidth;
-    const remainingWidth = viewWidth - visibleBeforeWidth - 1;
-    const visibleAfter = sliceByWidth(cursorChar + after, remainingWidth);
-    const visibleCursorChar = visibleAfter.length > 0 ? visibleAfter[0] : " ";
-    const visibleAfterText = visibleAfter.slice(visibleCursorChar.length);
-
-    return {
-      visibleBefore,
-      visibleCursorChar,
-      visibleAfterText,
-      visStartCharIndex: skipChars,
-    };
-  };
-
-  const rendered = isEmpty ? null : renderText();
-  const {
-    visibleBefore,
-    visibleCursorChar,
-    visibleAfterText,
-    visStartCharIndex,
-  } = rendered ?? {
-    visibleBefore: "",
-    visibleCursorChar: "",
-    visibleAfterText: "",
-    visStartCharIndex: 0,
-  };
+  const shownOffset = view?.scrollOffset ?? 0;
+  const visibleBefore = view?.before ?? "";
+  const visibleCursorChar = view?.cursorChar ?? "";
+  const visibleAfterText = view?.after ?? "";
+  const visStartCharIndex = view?.skipChars ?? 0;
 
   // Render with alias coloring
   const renderContent = () => {
@@ -570,7 +579,7 @@ export function CommandInput({
 
       return (
         <>
-          {scrollOffset > 0 && <Text dimColor>{"…"}</Text>}
+          {shownOffset > 0 && <Text dimColor>{"…"}</Text>}
           {renderSegment(visibleBefore, vbPos)}
           {cursorVisible ? (
             <Text backgroundColor="cyan" color="black">
@@ -588,7 +597,7 @@ export function CommandInput({
 
     return (
       <>
-        {scrollOffset > 0 && <Text dimColor>{"…"}</Text>}
+        {shownOffset > 0 && <Text dimColor>{"…"}</Text>}
         <Text>{visibleBefore}</Text>
         {cursorVisible ? (
           <Text backgroundColor="cyan" color="black">
@@ -609,7 +618,7 @@ export function CommandInput({
     linePosition && {
       x:
         linePosition.x +
-        (!isEmpty && scrollOffset > 0 ? 1 : 0) +
+        (shownOffset > 0 ? 1 : 0) +
         displayWidth(visibleBefore),
       y: linePosition.y,
     },
@@ -673,7 +682,7 @@ export function CommandInput({
         paddingY={1}
         width="100%"
       >
-        <Box height={3} alignItems="center" overflowX="hidden">
+        <Box ref={boxRef} height={3} alignItems="center" overflowX="hidden">
           <Box ref={lineRef}>{renderContent()}</Box>
         </Box>
 
