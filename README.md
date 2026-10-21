@@ -6,7 +6,7 @@
 
 [![release](https://img.shields.io/github/v/release/Akito-n/aihive)](https://github.com/Akito-n/aihive/releases/latest)
 [![CI](https://img.shields.io/github/actions/workflow/status/Akito-n/aihive/ci.yml?label=CI)](https://github.com/Akito-n/aihive/actions/workflows/ci.yml)
-[![license](https://img.shields.io/badge/license-MIT-blue)](#license)
+[![license](https://img.shields.io/github/license/Akito-n/aihive)](LICENSE)
 [![node](https://img.shields.io/badge/node-%3E%3D22-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![tmux](https://img.shields.io/badge/requires-tmux-1BB91F?logo=tmux&logoColor=white)](https://github.com/tmux/tmux)
 [![platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey)](#prerequisites)
@@ -245,4 +245,4 @@ instructions/               # エージェントロール別指示ファイル
 
 ## License
 
-MIT
+[MIT](LICENSE)
