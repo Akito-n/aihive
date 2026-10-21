@@ -27,6 +27,9 @@ export function retroCommands(
       ["E", "retro.cmd.equip"],
       ["G", "retro.cmd.shop"],
       ["x", "retro.cmd.stop"],
+      // Newer screens last, so stop stays in view on narrow terminals
+      ["Z", "retro.cmd.codex"],
+      ["M", "retro.cmd.map"],
     );
   }
   commands.push(["q", "retro.cmd.quit"]);
@@ -106,6 +109,18 @@ export function HelpBar({ state, message }: HelpBarProps) {
               [E]
             </Text>{" "}
             {t("help.equip")}
+          </Text>
+          <Text>
+            <Text bold color="yellow">
+              [Z]
+            </Text>{" "}
+            {t("help.codex")}
+          </Text>
+          <Text>
+            <Text bold color="yellow">
+              [M]
+            </Text>{" "}
+            {t("help.map")}
           </Text>
           <Text>
             <Text bold color="yellow">

@@ -93,6 +93,8 @@ export interface AdventureEvent {
   monster: TransKey;
   boss: boolean;
   won: boolean;
+  /** A shiny monster: sure to drop and worth more gold */
+  rare?: boolean;
 }
 
 export function emptyAdventure(): Adventure {
@@ -126,15 +128,20 @@ export function partyPower(skills: Skills[], partyLevel: number): number {
   return power;
 }
 
-const MONSTERS: TransKey[] = [
-  "monster.slime",
-  "monster.bat",
-  "monster.goblin",
-  "monster.skeleton",
-  "monster.golem",
-  "monster.wraith",
-  "monster.chimera",
-  "monster.dragon",
+/** Two monsters roam each band of five floors, the first one more often */
+const BANDS: [TransKey, TransKey][] = [
+  ["monster.slime", "monster.warning"],
+  ["monster.bat", "monster.nullRat"],
+  ["monster.goblin", "monster.magicNumber"],
+  ["monster.skeleton", "monster.zombie"],
+  ["monster.golem", "monster.flaky"],
+  ["monster.wraith", "monster.offByOne"],
+  ["monster.chimera", "monster.heisenbug"],
+  ["monster.dragon", "monster.stackOverflow"],
+  ["monster.yakShaver", "monster.scopeCreep"],
+  ["monster.dependencyHell", "monster.cacheGhost"],
+  ["monster.timezone", "monster.regexHydra"],
+  ["monster.prodFire", "monster.y2k"],
 ];
 
 const BOSSES: TransKey[] = [
@@ -142,13 +149,96 @@ const BOSSES: TransKey[] = [
   "boss.spaghetti",
   "boss.legacy",
   "boss.merge",
+  "boss.monolith",
+  "boss.techDebt",
 ];
 
+/** Shiny monsters that show up now and then and carry treasure */
+const RARE_MONSTERS: [TransKey, number][] = [
+  ["monster.goldSlime", 1],
+  ["monster.platinumBug", 30],
+];
+
+/** The chance a battle off the boss floors meets a rare monster */
+export const RARE_CHANCE = 0.03;
+
+/** Every monster, in the codex's order */
+export const ALL_MONSTERS: TransKey[] = [
+  ...BANDS.flat(),
+  ...BOSSES,
+  ...RARE_MONSTERS.map(([key]) => key),
+];
+
+export function isRareMonster(key: string): boolean {
+  return RARE_MONSTERS.some(([k]) => k === key);
+}
+
+/** Where a monster is met, as a span of floors (to is open for shinies) */
+export function monsterHome(
+  key: string,
+): { from: number; to: number } | undefined {
+  const band = BANDS.findIndex((b) => b.includes(key as TransKey));
+  if (band >= 0) {
+    const to =
+      band === BANDS.length - 1 ? Number.POSITIVE_INFINITY : band * 5 + 5;
+    return { from: band * 5 + 1, to };
+  }
+  const boss = BOSSES.indexOf(key as TransKey);
+  if (boss >= 0) {
+    const floor = (boss + 1) * 10;
+    const to = boss === BOSSES.length - 1 ? Number.POSITIVE_INFINITY : floor;
+    return { from: floor, to };
+  }
+  const rare = RARE_MONSTERS.find(([k]) => k === key);
+  return rare ? { from: rare[1], to: Number.POSITIVE_INFINITY } : undefined;
+}
+
+/** The deepest floors repeat the last band and boss */
+export const MAPPED_FLOORS = BANDS.length * 5;
+
+/** Each ten floors is an area with its own name */
+const AREAS: TransKey[] = [
+  "area.cave",
+  "area.forest",
+  "area.ruins",
+  "area.tower",
+  "area.maze",
+  "area.abyss",
+];
+
+export function areaOf(floor: number): TransKey {
+  return AREAS[Math.min(AREAS.length - 1, Math.floor((floor - 1) / 10))];
+}
+
+function bandOf(floor: number): [TransKey, TransKey] {
+  return BANDS[Math.min(BANDS.length - 1, Math.floor((floor - 1) / 5))];
+}
+
+/** The floor's boss, or the monsters roaming it */
+export function monstersOf(floor: number): TransKey[] {
+  return isBossFloor(floor) ? [monsterOf(floor)] : [...bandOf(floor)];
+}
+
+/** The floor's boss, or the monster most often met there */
 export function monsterOf(floor: number): TransKey {
   if (isBossFloor(floor)) {
     return BOSSES[Math.min(BOSSES.length - 1, floor / 10 - 1)];
   }
-  return MONSTERS[Math.min(MONSTERS.length - 1, Math.floor((floor - 1) / 5))];
+  return bandOf(floor)[0];
+}
+
+/** The monster a battle meets: sometimes the band's second, rarely a shiny */
+function meetMonster(
+  floor: number,
+  random: () => number,
+): { monster: TransKey; rare: boolean } {
+  if (isBossFloor(floor)) return { monster: monsterOf(floor), rare: false };
+  if (random() < RARE_CHANCE) {
+    const shiny = RARE_MONSTERS.filter(([, from]) => from <= floor).pop();
+    if (shiny) return { monster: shiny[0], rare: true };
+  }
+  const band = bandOf(floor);
+  return { monster: random() < 0.35 ? band[1] : band[0], rare: false };
 }
 
 /** At most this many battles per finished task; leftover points wait */
@@ -170,11 +260,13 @@ export function explore(
     next.points -= floorCost(floor);
     // A roll of ±20% keeps an even fight uncertain
     const won = power * (0.8 + 0.4 * random()) >= enemyPower(floor);
+    const { monster, rare } = meetMonster(floor, random);
     events.push({
       floor,
-      monster: monsterOf(floor),
+      monster,
       boss: isBossFloor(floor),
       won,
+      ...(rare ? { rare } : {}),
     });
     if (won) {
       next.wins += 1;

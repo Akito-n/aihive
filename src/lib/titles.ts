@@ -2,6 +2,9 @@
 // Achievements earned from the adventure record. Game only.
 
 import type { TransKey } from "../locales/en.js";
+import { isRareMonster } from "./adventure.js";
+import { codexRate } from "./codex.js";
+import { SETS, setPieces } from "./gear.js";
 import type { Progress } from "./progress.js";
 
 interface Title {
@@ -44,6 +47,40 @@ export const TITLES: Title[] = [
     id: "collector",
     name: "title.collector",
     earned: (p) => p.bag.length >= 30,
+  },
+  {
+    id: "uniqueFinder",
+    name: "title.uniqueFinder",
+    earned: (p) => p.codex.uniques.length >= 1,
+  },
+  {
+    id: "setCollector",
+    name: "title.setCollector",
+    // Every piece of some set found at least once
+    earned: (p) =>
+      Object.keys(SETS).some((set) =>
+        setPieces(set).every((u) => p.codex.uniques.includes(u)),
+      ),
+  },
+  {
+    id: "shinyHunter",
+    name: "title.shinyHunter",
+    earned: (p) => Object.keys(p.codex.monsters).some(isRareMonster),
+  },
+  {
+    id: "blacksmith",
+    name: "title.blacksmith",
+    earned: (p) => p.bag.some((i) => (i.plus ?? 0) >= 9),
+  },
+  {
+    id: "scholar",
+    name: "title.scholar",
+    earned: (p) => codexRate(p.codex) >= 0.5,
+  },
+  {
+    id: "encyclopedia",
+    name: "title.encyclopedia",
+    earned: (p) => codexRate(p.codex) >= 1,
   },
   {
     id: "apprentice",

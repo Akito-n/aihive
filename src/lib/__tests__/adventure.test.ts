@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
+  ALL_MONSTERS,
+  areaOf,
   emptyAdventure,
   emptySkills,
   enemyPower,
   explore,
   floorCost,
   isBossFloor,
+  isRareMonster,
+  monsterHome,
   monsterOf,
+  monstersOf,
   partyPower,
   skillGains,
   skillLevel,
@@ -78,7 +83,45 @@ describe("dungeon", () => {
     expect(enemyPower(10)).toBeGreaterThan(enemyPower(11));
     expect(monsterOf(1)).toBe("monster.slime");
     expect(monsterOf(10)).toBe("boss.bugKing");
-    expect(monsterOf(999)).toBe("monster.dragon");
+    expect(monsterOf(999)).toBe("monster.prodFire");
+    expect(monsterOf(1000)).toBe("boss.techDebt");
+  });
+
+  it("names an area every ten floors and two monsters per band", () => {
+    expect(areaOf(1)).toBe("area.cave");
+    expect(areaOf(11)).toBe("area.forest");
+    expect(areaOf(500)).toBe("area.abyss");
+    expect(monstersOf(3)).toEqual(["monster.slime", "monster.warning"]);
+    expect(monstersOf(20)).toEqual(["boss.spaghetti"]);
+    expect(new Set(ALL_MONSTERS).size).toBe(ALL_MONSTERS.length);
+  });
+
+  it("tells where each monster lives", () => {
+    expect(monsterHome("monster.warning")).toEqual({ from: 1, to: 5 });
+    expect(monsterHome("boss.legacy")).toEqual({ from: 30, to: 30 });
+    expect(monsterHome("monster.platinumBug")?.from).toBe(30);
+    expect(monsterHome("monster.y2k")?.to).toBe(Number.POSITIVE_INFINITY);
+    expect(monsterHome("nope")).toBeUndefined();
+  });
+
+  it("meets the band's second monster or, rarely, a shiny one", () => {
+    const start = { ...emptyAdventure(), points: floorCost(1) };
+    // won roll, then the shiny roll, then which band monster
+    const shiny = explore(start, 100, () => 0).events[0];
+    expect(shiny).toMatchObject({ monster: "monster.goldSlime", rare: true });
+    expect(isRareMonster(shiny.monster)).toBe(true);
+    let i = 0;
+    const second = explore(start, 100, () => [0.5, 0.5, 0.1][i++ % 3])
+      .events[0];
+    expect(second.monster).toBe("monster.warning");
+    expect(second.rare).toBeUndefined();
+    const boss = explore(
+      { ...emptyAdventure(), floor: 10, points: floorCost(10) },
+      1000,
+      () => 0,
+    ).events[0];
+    expect(boss).toMatchObject({ monster: "boss.bugKing", boss: true });
+    expect(boss.rare).toBeUndefined();
   });
 
   it("adds every member's skills and the party level to the power", () => {

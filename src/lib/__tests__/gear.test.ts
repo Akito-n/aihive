@@ -10,10 +10,23 @@ import {
   isItem,
   itemName,
   lookOf,
+  MAX_PLUS,
+  maxTierAt,
   rarityWeights,
   recordLook,
+  rollDrop,
   rollItem,
+  rollUnique,
+  SETS,
+  setCounts,
+  setPieces,
+  setPower,
   slotOf,
+  uniqueChance,
+  uniqueItem,
+  upgradeCost,
+  upgraded,
+  upgradeGain,
 } from "../gear.js";
 import { setLocale } from "../i18n.js";
 
@@ -57,7 +70,10 @@ describe("rollItem", () => {
 
   it("drops better bases and rarer gear deeper down", () => {
     expect(slotOf(rollItem(40, rolls(0.99, 0)))).toBe("accessory");
-    expect(rollItem(40, rolls(0.99, 0)).base).toBe("crown");
+    expect(rollItem(32, rolls(0.99, 0)).base).toBe("hourglass");
+    expect(rollItem(40, rolls(0.99, 0)).base).toBe("sageStone");
+    expect(rollItem(48, rolls(0.99, 0)).base).toBe("goddessTiara");
+    expect(maxTierAt(999)).toBe(6);
     expect(rarityWeights(50).legendary).toBeGreaterThan(
       rarityWeights(1).legendary,
     );
@@ -78,6 +94,82 @@ describe("rollItem", () => {
       );
       expect(frames.length).toBeLessThanOrEqual(1);
     }
+  });
+});
+
+describe("hack-and-slash rolls", () => {
+  beforeEach(() => setLocale("ja"));
+  afterEach(() => setLocale("en"));
+
+  it("adds a random bonus up to the base's tier", () => {
+    // base, rarity (common), bonus roll
+    // Floor 40 drops ranks 3–5; the first is the steel sword (rank 3)
+    expect(rollItem(40, rolls(0, 0, 0)).power).toBe(8);
+    expect(rollItem(40, rolls(0, 0, 0.99)).power).toBe(8 + 3);
+  });
+
+  it("keeps deep affixes off the first floors", () => {
+    const deep = ["brave", "fortune", "mighty", "ocean", "sakura", "aurora"];
+    for (let seed = 0; seed < 300; seed++) {
+      let x = seed + 7;
+      const random = () => {
+        x = (x * 16807) % 2147483647;
+        return x / 2147483647;
+      };
+      const found = rollItem(1, random);
+      expect(found.affixes.some((a) => deep.includes(a))).toBe(false);
+    }
+  });
+
+  it("sometimes drops a unique, only those found this high up", () => {
+    const duck = rollDrop(1, false, rolls(0), "u");
+    expect(duck).toMatchObject({ rarity: "unique", unique: "bugNet" });
+    expect(isItem(duck)).toBe(true);
+    expect(itemName(duck)).toBe("バグとりあみ");
+    expect(rollUnique(0, rolls(0))).toBeUndefined();
+    // A miss on the unique roll gives a random item
+    expect(rollDrop(1, false, rolls(0.5, 0, 0), "r").rarity).not.toBe("unique");
+    expect(uniqueChance(true)).toBeGreaterThan(uniqueChance(false));
+  });
+
+  it("gives sets a bonus for two pieces and their look for all", () => {
+    const sword = uniqueItem("heroSword", "a");
+    const armor = uniqueItem("heroArmor", "b");
+    const crest = uniqueItem("heroCrest", "c");
+    expect(setCounts([sword, armor])).toEqual({ hero: 2 });
+    expect(setPower([sword])).toBe(0);
+    expect(setPower([sword, armor])).toBe(SETS.hero.bonus[0]);
+    expect(setPower([sword, armor, crest])).toBe(SETS.hero.bonus[1]);
+    expect(gearPower([sword, armor, crest])).toBe(
+      sword.power + armor.power + crest.power + SETS.hero.bonus[1],
+    );
+    expect(lookOf([sword, armor, crest])).toMatchObject(SETS.hero.look);
+    expect(lookOf([sword, armor]).frame).toBeUndefined();
+    // The same piece twice is still one piece
+    expect(setCounts([sword, { ...sword, id: "z" }])).toEqual({ hero: 1 });
+    expect(setPieces("hero")).toEqual(["heroSword", "heroArmor", "heroCrest"]);
+  });
+
+  it("lets the blacksmith add pluses up to the top", () => {
+    const sword = item({ base: "steelSword", power: 8 });
+    expect(upgradeCost(sword)).toBe(80);
+    const once = upgraded(sword);
+    expect(once).toMatchObject({ plus: 1, power: 8 + upgradeGain(sword) });
+    expect(itemName(once)).toBe("はがねのつるぎ +1");
+    expect(upgradeCost(once)).toBe(160);
+    const top = { ...sword, plus: MAX_PLUS };
+    expect(upgraded(top)).toBe(top);
+    expect(isItem(top)).toBe(true);
+    expect(isItem({ ...sword, plus: MAX_PLUS + 1 })).toBe(false);
+    expect(isItem({ ...sword, plus: 1.5 })).toBe(false);
+  });
+
+  it("rejects uniques that don't match their base", () => {
+    const net = uniqueItem("bugNet", "n");
+    expect(isItem({ ...net, base: "stick" })).toBe(false);
+    expect(isItem({ ...net, unique: "nope" })).toBe(false);
+    expect(isItem({ ...net, unique: undefined })).toBe(false);
+    expect(isItem({ ...item(), unique: "bugNet" })).toBe(false);
   });
 });
 

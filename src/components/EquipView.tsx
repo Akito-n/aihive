@@ -7,11 +7,18 @@ import {
   type Item,
   itemName,
   type Look,
+  MAX_PLUS,
   RARITY_COLORS,
   RARITY_LABEL_KEYS,
+  SETS,
   SLOT_LABEL_KEYS,
   SLOTS,
+  setCounts,
+  setOf,
+  setPieces,
   slotOf,
+  UNIQUES,
+  upgradeCost,
 } from "../lib/gear.js";
 import { t, tf } from "../lib/i18n.js";
 import type { Progress } from "../lib/progress.js";
@@ -25,6 +32,8 @@ interface EquipViewProps {
   onEquip?: (itemId: string) => void;
   onToggleLooks?: () => void;
   onSell?: (itemId: string) => void;
+  /** Pay the blacksmith to make an item stronger */
+  onUpgrade?: (itemId: string) => void;
   onClose?: () => void;
 }
 
@@ -53,6 +62,7 @@ export function EquipView({
   onEquip,
   onToggleLooks,
   onSell,
+  onUpgrade,
   onClose,
 }: EquipViewProps) {
   const [selected, setSelected] = useState(0);
@@ -72,6 +82,7 @@ export function EquipView({
       else if (input === "v") onToggleLooks?.();
       else if (input === "s" && bag[index] && !worn.has(bag[index].id))
         onSell?.(bag[index].id);
+      else if (input === "u" && bag[index]) onUpgrade?.(bag[index].id);
     },
     { isActive: Boolean(onClose) },
   );
@@ -83,6 +94,8 @@ export function EquipView({
   );
   const current = bag[index];
   const wornItems = equippedItems(progress.bag, progress.equipped);
+  const wornSets = setCounts(wornItems);
+  const currentSet = current ? setOf(current) : undefined;
 
   return (
     <Box flexDirection="column" gap={1}>
@@ -134,14 +147,38 @@ export function EquipView({
       </Window>
 
       {current && (
-        <Box gap={2}>
-          <Text color={RARITY_COLORS[current.rarity]}>
-            {t(RARITY_LABEL_KEYS[current.rarity])}
-          </Text>
-          <Text>{tf("equip.power", { power: current.power })}</Text>
-          {lookSummary(current) && (
-            <Text color="cyan">
-              {tf("equip.look", { look: lookSummary(current) })}
+        <Box flexDirection="column">
+          <Box columnGap={2} flexWrap="wrap">
+            <Text color={RARITY_COLORS[current.rarity]}>
+              {t(RARITY_LABEL_KEYS[current.rarity])}
+            </Text>
+            <Text>{tf("equip.power", { power: current.power })}</Text>
+            {lookSummary(current) && (
+              <Text color="cyan">
+                {tf("equip.look", { look: lookSummary(current) })}
+              </Text>
+            )}
+            {currentSet && (
+              <Text color="green">
+                {tf("equip.set", {
+                  set: t(SETS[currentSet].name),
+                  count: wornSets[currentSet] ?? 0,
+                  total: setPieces(currentSet).length,
+                })}
+              </Text>
+            )}
+            <Text color="yellow">
+              {(current.plus ?? 0) >= MAX_PLUS
+                ? t("equip.maxPlus")
+                : tf("equip.upgrade", {
+                    cost: upgradeCost(current),
+                    gold: progress.gold,
+                  })}
+            </Text>
+          </Box>
+          {current.unique && (
+            <Text dimColor wrap="truncate-end">
+              ＊「{t(UNIQUES[current.unique].flavor)}
             </Text>
           )}
         </Box>
