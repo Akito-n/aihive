@@ -6,7 +6,11 @@ vi.mock("../config.js", () => ({
     .mockReturnValue("/home/u/.aihive/instructions/worker.md"),
 }));
 
-import { buildAgentCommand, shellQuote } from "../cli-registry.js";
+import {
+  buildAgentCommand,
+  getCliModels,
+  shellQuote,
+} from "../cli-registry.js";
 
 const worker = {
   name: "Worker 1",
@@ -35,6 +39,35 @@ describe("buildAgentCommand (claude)", () => {
       "--append-system-prompt-file /wt/prompts/worker-1.md",
     );
     expect(cmd).not.toContain("instructions/worker.md");
+  });
+});
+
+describe("buildAgentCommand (codex / gemini)", () => {
+  it("omits the model flag for 'default'", () => {
+    expect(
+      buildAgentCommand({ ...worker, cli: "codex", model: "default" }),
+    ).not.toContain("model");
+    expect(
+      buildAgentCommand({ ...worker, cli: "gemini", model: "default" }),
+    ).not.toContain("--model");
+  });
+
+  it("passes an explicit model", () => {
+    expect(
+      buildAgentCommand({ ...worker, cli: "codex", model: "gpt-5.5" }),
+    ).toContain('-c model="gpt-5.5"');
+    expect(
+      buildAgentCommand({
+        ...worker,
+        cli: "gemini",
+        model: "gemini-3.1-pro-preview",
+      }),
+    ).toContain("--model gemini-3.1-pro-preview");
+  });
+
+  it("lists 'default' first so new codex / gemini agents use the CLI's own pick", () => {
+    expect(getCliModels("codex")[0]).toBe("default");
+    expect(getCliModels("gemini")[0]).toBe("default");
   });
 });
 

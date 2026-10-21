@@ -19,8 +19,8 @@ export const en = {
 
   // ─── Settings ───────────────────────────────────────────────────
   "settings.title": "Settings",
-  "settings.agentNames": "Agent Names",
-  "settings.agentNames.desc": "Edit agent names and roles",
+  "settings.agentNames": "Agents",
+  "settings.agentNames.desc": "Edit name, role, CLI, and model",
   "settings.quickCommands": "Quick Commands",
   "settings.quickCommands.desc": "Edit // quick commands",
   "settings.character": "Character",

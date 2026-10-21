@@ -112,6 +112,16 @@ agents:
 | reviewer | コードレビュー | sonnet |
 | scout | コードベース調査（読み取り専用） | opus |
 
+`opus` / `sonnet` / `haiku` は Claude Code のエイリアスで、起動時にその系統の最新モデルになります（2026 年 10 月時点で Opus 5.5 / Sonnet 5.5 / Haiku 5.5）。
+
+モデルは TUI の「設定」→「エージェント設定」で、エージェントごとに選び直せます。選べるモデルは次のとおりです。`default` は各 CLI の推奨モデル（Codex は `~/.codex/config.toml`、Gemini は Auto）を使います。
+
+| CLI | 選べるモデル |
+|-----|-------------|
+| claude | `opus`, `sonnet`, `haiku`, `claude-fable-5-1` |
+| codex | `default`, `gpt-5.5`, `gpt-5.4-mini` |
+| gemini | `default`, `gemini-3.1-pro-preview`, `gemini-3-flash-preview` |
+
 ### Worker ごとの作業場所
 
 プロジェクトが git リポジトリの場合、起動時に Worker ごとのブランチ（`aihive/worker-1` など）と作業フォルダ（git worktree）を `~/.aihive/worktrees/` に作ります。Worker は自分のフォルダで作業してブランチにコミットし、Reviewer が確認コマンドを通してから、プロジェクトでチェックアウト中のブランチにマージします。push や PR 作成はエージェントには行わせません。

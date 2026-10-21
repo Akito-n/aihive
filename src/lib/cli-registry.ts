@@ -28,7 +28,8 @@ const DEFAULT_TOOLS = "Edit Write Read Glob Grep Bash Agent";
 const claudeCli: CliDefinition = {
   name: "claude",
   binary: "claude",
-  models: ["opus", "sonnet", "haiku"],
+  // Aliases resolve to the latest model of each tier in Claude Code
+  models: ["opus", "sonnet", "haiku", "claude-fable-5-1"],
   buildCommand(agent, workspace) {
     const tools = agent.role === "scout" ? SCOUT_TOOLS : DEFAULT_TOOLS;
     const parts = ["claude", "--allowedTools", tools];
@@ -54,7 +55,7 @@ const claudeCli: CliDefinition = {
 const codexCli: CliDefinition = {
   name: "codex",
   binary: "codex",
-  models: ["default", "o3", "o4-mini"],
+  models: ["default", "gpt-5.5", "gpt-5.4-mini"],
   buildCommand(agent) {
     const parts = ["codex", "--no-alt-screen"];
 
@@ -76,11 +77,12 @@ const codexCli: CliDefinition = {
 const geminiCli: CliDefinition = {
   name: "gemini",
   binary: "gemini",
-  models: ["gemini-2.5-pro", "gemini-2.5-flash"],
+  models: ["default", "gemini-3.1-pro-preview", "gemini-3-flash-preview"],
   buildCommand(agent) {
     const parts = ["gemini"];
 
-    if (agent.model) {
+    // "default" = let Gemini CLI pick (Auto), otherwise pass --model
+    if (agent.model && agent.model !== "default") {
       parts.push(`--model ${agent.model}`);
     }
 

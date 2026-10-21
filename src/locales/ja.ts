@@ -21,8 +21,8 @@ export const ja: Record<TransKey, string> = {
 
   // ─── Settings ───────────────────────────────────────────────────
   "settings.title": "設定",
-  "settings.agentNames": "エージェント名",
-  "settings.agentNames.desc": "エージェント名とロールを編集",
+  "settings.agentNames": "エージェント設定",
+  "settings.agentNames.desc": "名前・ロール・CLI・モデルを編集",
   "settings.quickCommands": "クイックコマンド",
   "settings.quickCommands.desc": "// コマンドを編集",
   "settings.character": "キャラクター",

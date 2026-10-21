@@ -17,7 +17,7 @@ export interface AgentConfig {
   name: string;
   role: string; // free-form: "orchestrator", "coordinator", "coder", "reviewer", etc.
   cli?: string; // AI CLI tool: "claude", "codex", "gemini" (default: "claude")
-  model?: string; // model identifier (CLI-dependent): "opus", "sonnet", "o3", etc.
+  model?: string; // model identifier (CLI-dependent): "opus", "sonnet", "gpt-5.5", etc.
   window: string; // tmux window name (auto-derived from role)
   pane?: number; // pane index within window (0-based), auto-derived
 }
