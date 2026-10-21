@@ -39,10 +39,10 @@ tmux + AI Coding CLI を使ったマルチエージェントオーケストレ�
 
 ## Install
 
-[Releases](https://github.com/Akito-n/aihive/releases) の tgz からグローバルにインストールします（例は v0.14.1）。
+[Releases](https://github.com/Akito-n/aihive/releases) の tgz からグローバルにインストールします（例は v0.15.0）。
 
 ```bash
-pnpm add -g https://github.com/Akito-n/aihive/releases/download/v0.14.1/aihive-0.14.1.tgz
+pnpm add -g https://github.com/Akito-n/aihive/releases/download/v0.15.0/aihive-0.15.0.tgz
 ```
 
 起動画面とメインメニューにバージョンが出ます。古い動作のままのときは、別の場所（Volta など）に入った古い aihive が先に見つかっていないか確認してください。
@@ -64,6 +64,9 @@ aihive --help
    - `↑`/`↓` で仲間を選び、`Enter` か `i` で話しかける（`//` で Quick Commands）
    - `T` クエスト（タスク）、`O` 全員の様子（Overview）、`L` ログ、`S` つよさ、`E` そうび、`G` おみせ、`Z` ずかん、`M` ちず
    - `Tab` で なかまの下の窓（クエスト・ぼうけん・ふくろ）を切り替え。右のペインの下の枠に、状態ごとの人数とクエストの進み具合が出ます
+   - `D` で直接操作モード。押したキーをそのまま選んだエージェントのペインに送ります（`Ctrl+Q` で戻る）。CLI の確認画面などを aihive の中から操作できます
+   - CLI が終了してシェルに戻ったエージェントは下に ⚠ が出ます。`R` で CLI を起動し直せます
+   - 話しかける画面で、ペインに選択肢（はじめてのフォルダの「Do you trust this folder?」など）が出ているときは、入力欄が空なら `↑`/`↓`・`Enter`・数字がそのままペインに届きます
    - `x` で停止、`q` で終了
 3. **タスク画面**（ダッシュボードで `T`）- タスクの一覧と、選んだタスクの依頼・結果・確認コマンドの結果。`j`/`k` で選択、`J`/`K` で詳細をスクロール、`f` で未完了・完了・失敗に絞り込み、`Esc` で戻る
 4. **ログ画面**（ダッシュボードで `L`）- aihive の動きの記録。最新の行を追い続け、`j`/`k` や PgUp/PgDn でさかのぼれます。`g`/`G` で最初と最新へ、`f` でメッセージ・タスクと確認・警告に絞り込み、`Esc` で戻る
