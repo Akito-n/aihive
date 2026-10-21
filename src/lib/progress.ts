@@ -17,6 +17,13 @@ import {
   skillGains,
 } from "./adventure.js";
 import {
+  type Codex,
+  emptyCodex,
+  loadCodex,
+  recordFinds,
+  recordSlain,
+} from "./codex.js";
+import {
   addToBag,
   dropChance,
   equippedItems,
@@ -24,11 +31,14 @@ import {
   gearPower,
   type Item,
   isItem,
-  rollItem,
+  MAX_PLUS,
+  rollDrop,
   SLOTS,
   type Slot,
   sellPrice,
   slotOf,
+  upgradeCost,
+  upgraded,
 } from "./gear.js";
 import { toSlug } from "./mailbox.js";
 import type { SkillUse } from "./skill-usage.js";
@@ -70,6 +80,8 @@ export interface Progress {
   gold: number;
   /** Shop goods bought, such as themes */
   unlocked: string[];
+  /** Everything ever found or slain */
+  codex: Codex;
 }
 
 /** XP to reach a level grows with its square: XP(n) = k × (n − 1)² */
@@ -138,6 +150,7 @@ export function emptyProgress(): Progress {
     titles: [],
     gold: 0,
     unlocked: [],
+    codex: emptyCodex(),
   };
 }
 
@@ -233,6 +246,7 @@ export function loadProgress(file = progressFilePath()): Progress {
       (k): k is string => typeof k === "string",
     );
   }
+  p.codex = loadCodex(r.codex, p.bag);
   return p;
 }
 
@@ -387,26 +401,26 @@ export function awardTask(
   // The points this task earned carry the party further down the dungeon
   const random = input.random ?? Math.random;
   const worn = equippedItems(progress.bag, progress.equipped);
-  const power =
-    partyPower(
-      Object.values(progress.members).map((m) => m.skills),
-      levelForXp(progress.partyXp, PARTY_XP_FACTOR),
-    ) +
-    gearPower(worn) +
-    movesPower(progress.moves);
   const explored = explore(
     { ...progress.adventure, points: progress.adventure.points + xp },
-    power,
+    partyPowerOf(progress),
     random,
   );
   progress.adventure = explored.adventure;
   const luck = gearLuck(worn);
   const drops = explored.events
-    .filter((e) => e.won && random() < dropChance(e.boss, luck))
-    .map((e) => rollItem(e.floor, random));
+    .filter(
+      (e) => e.won && random() < dropChance(e.boss || e.rare === true, luck),
+    )
+    .map((e) => rollDrop(e.floor, e.boss, random));
   progress.bag = addToBag(progress.bag, drops, progress.equipped);
+  progress.codex = recordSlain(
+    recordFinds(progress.codex, drops),
+    explored.events,
+  );
   const gold = explored.events.reduce(
-    (sum, e) => sum + (e.won ? battleGold(e.floor, e.boss) : 0),
+    (sum, e) =>
+      sum + (e.won ? battleGold(e.floor, e.boss) * (e.rare ? 5 : 1) : 0),
     0,
   );
   progress.gold += gold;
@@ -445,6 +459,38 @@ export function equipItem(itemId: string, file = progressFilePath()): Progress {
   progress.equipped[slotOf(item)] = item.id;
   saveProgress(progress, file);
   return progress;
+}
+
+/** The party's strength in the dungeon: skills, level, gear and moves */
+export function partyPowerOf(progress: Progress): number {
+  return (
+    partyPower(
+      Object.values(progress.members).map((m) => m.skills),
+      levelForXp(progress.partyXp, PARTY_XP_FACTOR),
+    ) +
+    gearPower(equippedItems(progress.bag, progress.equipped)) +
+    movesPower(progress.moves)
+  );
+}
+
+/**
+ * Pay the blacksmith to make an item one plus stronger. Returns the record
+ * and the gold spent: none when the item is gone, at the top or too dear.
+ */
+export function upgradeItem(
+  itemId: string,
+  file = progressFilePath(),
+): { cost: number; progress: Progress } {
+  const progress = loadProgress(file);
+  const item = progress.bag.find((i) => i.id === itemId);
+  if (!item || (item.plus ?? 0) >= MAX_PLUS) return { cost: 0, progress };
+  const cost = upgradeCost(item);
+  if (progress.gold < cost) return { cost: 0, progress };
+  progress.gold -= cost;
+  progress.bag = progress.bag.map((i) => (i.id === itemId ? upgraded(i) : i));
+  earnTitles(progress, new Date(), false);
+  saveProgress(progress, file);
+  return { cost, progress };
 }
 
 /** Gold for a won battle: more deeper down, a lot for a boss */

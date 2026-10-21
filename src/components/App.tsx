@@ -28,6 +28,7 @@ import {
   recordSkillUses,
   sellItem,
   setLooks,
+  upgradeItem,
 } from "../lib/progress.js";
 import type { QuickCommand } from "../lib/quick-commands.js";
 import { groupByCategory, loadQuickCommands } from "../lib/quick-commands.js";
@@ -74,6 +75,7 @@ import {
 } from "../lib/tmux.js";
 import { initWorkspace } from "../lib/workspace.js";
 import { prepareWorkspaces } from "../lib/worktrees.js";
+import { CodexView } from "./CodexView.js";
 import { CommandInput } from "./CommandInput.js";
 import {
   currentTaskOf,
@@ -89,6 +91,7 @@ import { Header } from "./Header.js";
 import { HelpBar } from "./HelpBar.js";
 import { LogView } from "./LogView.js";
 import { MainMenu } from "./MainMenu.js";
+import { MapView } from "./MapView.js";
 import { OverviewMode } from "./OverviewMode.js";
 import type { PromptInfo } from "./PaneView.js";
 import { PaneView } from "./PaneView.js";
@@ -118,6 +121,8 @@ type Mode =
   | "log"
   | "status"
   | "equip"
+  | "codex"
+  | "map"
   | "shop";
 
 export function App() {
@@ -656,6 +661,14 @@ export function App() {
         setMode("equip");
         return;
       }
+      if (input === "Z") {
+        setMode("codex");
+        return;
+      }
+      if (input === "M") {
+        setMode("map");
+        return;
+      }
       if (input === "G") {
         setMode("shop");
         return;
@@ -867,8 +880,57 @@ export function App() {
                 addLog(`Could not save progress: ${e}`);
               }
             }}
+            onUpgrade={(id) => {
+              try {
+                const result = upgradeItem(id);
+                setProgress(result.progress);
+                const item = result.progress.bag.find((i) => i.id === id);
+                if (result.cost > 0 && item) {
+                  setMessage({
+                    text: tf("equip.upgraded", {
+                      item: itemName(item),
+                      gold: result.cost,
+                    }),
+                    color: "yellow",
+                  });
+                } else if (item) {
+                  setMessage({ text: t("equip.cannotUpgrade"), color: "red" });
+                }
+              } catch (e) {
+                addLog(`Could not save progress: ${e}`);
+              }
+            }}
             onClose={() => setMode("normal")}
           />
+        </Box>
+      </Box>
+    );
+  }
+  if (mode === "codex" || mode === "map") {
+    return (
+      <Box flexDirection="column" padding={1} height={termHeight}>
+        <Header
+          state={state}
+          agents={agents}
+          partyLevel={partyLevelOf(progress)}
+          taskCount={tasks.length}
+          skillCount={skillCounts.approved}
+          memoryCount={memoryCount}
+        />
+        <Box marginTop={1} flexGrow={1} overflow="hidden">
+          {mode === "codex" ? (
+            <CodexView
+              progress={progress}
+              height={Math.max(3, rows - 16)}
+              onClose={() => setMode("normal")}
+            />
+          ) : (
+            <MapView
+              progress={progress}
+              height={Math.max(3, rows - 20)}
+              onClose={() => setMode("normal")}
+            />
+          )}
         </Box>
       </Box>
     );

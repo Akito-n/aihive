@@ -17,11 +17,13 @@ import {
   movesPower,
   type Progress,
   partyLevelOf,
+  partyPowerOf,
   recordSkillUses,
   saveProgress,
   sellItem,
   setLooks,
   taskXp,
+  upgradeItem,
   xpForLevel,
 } from "../progress.js";
 import type { Task } from "../tasks.js";
@@ -194,6 +196,67 @@ describe("awardTask", () => {
     expect(none?.drops).toEqual([]);
   });
 
+  it("fills the codex with what dropped and what was beaten", () => {
+    const file = tempFile();
+    const award = awardTask(input({ random: () => 0.5 }), file);
+    const saved = loadProgress(file);
+    expect(saved.codex.monsters).toEqual({ "monster.slime": 1 });
+    expect(award?.drops).toEqual([]);
+    // Selling the gear later keeps it in the codex
+    const found = awardTask(
+      input({ task: task({ id: "T2" }), random: () => 0 }),
+      file,
+    );
+    const item = found?.drops[0];
+    expect(item).toBeDefined();
+    if (!item) return;
+    sellItem(item.id, file);
+    expect(loadProgress(file).codex.bases).toContain(item.base);
+  });
+
+  it("pays five times the gold for a shiny monster", () => {
+    const file = tempFile();
+    // Rolls of 0 meet the golden slime on the first floor
+    const award = awardTask(input({ random: () => 0 }), file);
+    expect(award?.events[0].rare).toBe(true);
+    expect(award?.gold).toBe(battleGold(1, false) * 5);
+  });
+
+  it("lets the blacksmith upgrade gear for gold", () => {
+    const file = tempFile();
+    const p = emptyProgress();
+    p.bag = [
+      {
+        id: "s",
+        base: "ironSword",
+        rarity: "common",
+        affixes: [],
+        power: 5,
+      },
+    ];
+    p.gold = 100;
+    saveProgress(p, file);
+    const first = upgradeItem("s", file);
+    expect(first.cost).toBe(60);
+    expect(first.progress.gold).toBe(40);
+    expect(loadProgress(file).bag[0]).toMatchObject({ plus: 1, power: 7 });
+    // Short of gold: nothing changes
+    const second = upgradeItem("s", file);
+    expect(second.cost).toBe(0);
+    expect(loadProgress(file).bag[0].plus).toBe(1);
+    expect(upgradeItem("gone", file).cost).toBe(0);
+  });
+
+  it("adds worn gear to the party's power", () => {
+    const p = emptyProgress();
+    const bare = partyPowerOf(p);
+    p.bag = [
+      { id: "s", base: "ironSword", rarity: "common", affixes: [], power: 5 },
+    ];
+    p.equipped = { weapon: "s" };
+    expect(partyPowerOf(p)).toBe(bare + 5);
+  });
+
   it("wins gold in battles", () => {
     const file = tempFile();
     const award = awardTask(input({ random: () => 0.5 }), file);
@@ -204,9 +267,11 @@ describe("awardTask", () => {
 
   it("earns titles along the way and keeps them", () => {
     const file = tempFile();
-    expect(awardTask(input(), file)?.titles).toEqual(["firstQuest"]);
+    // Even rolls: no shiny monster or unique to earn more titles by
+    const random = () => 0.5;
+    expect(awardTask(input({ random }), file)?.titles).toEqual(["firstQuest"]);
     expect(
-      awardTask(input({ task: task({ id: "T2" }) }), file)?.titles,
+      awardTask(input({ task: task({ id: "T2" }), random }), file)?.titles,
     ).toEqual([]);
     expect(loadProgress(file).titles).toEqual(["firstQuest"]);
   });

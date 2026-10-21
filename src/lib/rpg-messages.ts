@@ -78,6 +78,13 @@ export function awardMessage(
   if (best && RARITY_RANK[best.rarity] >= RARITY_RANK.epic) {
     return dropMessage(best);
   }
+  const shiny = award.events.find((e) => e.rare && e.won);
+  if (shiny) {
+    return {
+      text: tf("retro.msg.rareWin", { monster: t(shiny.monster) }),
+      color: "yellowBright",
+    };
+  }
   const bossFloor = award.events.find((e) => e.boss && e.won);
   if (bossFloor) {
     return {
@@ -127,11 +134,14 @@ const RARITY_RANK: Record<Rarity, number> = {
   rare: 1,
   epic: 2,
   legendary: 3,
+  unique: 4,
 };
 
 export function dropMessage(item: Item): RpgMessage {
   return {
-    text: tf("retro.msg.drop", { item: itemName(item) }),
+    text: tf(item.unique ? "retro.msg.uniqueDrop" : "retro.msg.drop", {
+      item: itemName(item),
+    }),
     color: RARITY_COLORS[item.rarity],
   };
 }

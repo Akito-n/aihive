@@ -573,7 +573,7 @@ describe("quest monsters and titles", () => {
       <StatusView progress={progress} members={[]} />,
     );
     const frame = lastFrame() ?? "";
-    expect(frame).toContain("しょうごう 2/10");
+    expect(frame).toContain("しょうごう 2/16");
     expect(frame).toContain("「かけだしの ぼうけんしゃ」");
     expect(frame).toContain("パーティ Lv1");
     expect(frame).toContain("「ボスごろし」");
