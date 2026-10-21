@@ -27,7 +27,12 @@ import type { AihiveConfig } from "../config.js";
 import {
   buildAgentList,
   capturePane,
+  isShellCommand,
+  paneCurrentCommand,
+  restartAgent,
   sendKeys,
+  sendLiteral,
+  sendRawKeys,
   sessionExists,
   startSession,
 } from "../tmux.js";
@@ -262,5 +267,87 @@ describe("buildAgentList", () => {
     const config = makeConfig();
     const agents = buildAgentList(config);
     expect(agents.every((a) => a.status === "pending")).toBe(true);
+  });
+});
+
+describe("sendRawKeys", () => {
+  beforeEach(() => {
+    mockExec.mockReset();
+  });
+
+  it("presses the keys with no Enter added", () => {
+    sendRawKeys("s", "orchestrator", ["Down"]);
+    expect(tmuxCalls()).toEqual(["send-keys -t s:orchestrator Down"]);
+  });
+
+  it("sends nothing for no keys", () => {
+    sendRawKeys("s", "orchestrator", []);
+    expect(mockExec).not.toHaveBeenCalled();
+  });
+});
+
+describe("sendLiteral", () => {
+  beforeEach(() => {
+    mockExec.mockReset();
+  });
+
+  it("types text literally, even text that looks like an option", () => {
+    sendLiteral("s", "w.1", "-y");
+    expect(mockExec.mock.calls[0][1]).toEqual([
+      "send-keys",
+      "-t",
+      "s:w.1",
+      "-l",
+      "--",
+      "-y",
+    ]);
+  });
+});
+
+describe("paneCurrentCommand", () => {
+  beforeEach(() => {
+    mockExec.mockReset();
+  });
+
+  it("returns the pane's foreground program", () => {
+    mockExec.mockReturnValueOnce("zsh\n" as never);
+    expect(paneCurrentCommand("s", "orchestrator")).toBe("zsh");
+    expect(tmuxCalls()[0]).toBe(
+      "display-message -p -t s:orchestrator #{pane_current_command}",
+    );
+  });
+
+  it("is undefined when tmux fails", () => {
+    mockExec.mockImplementationOnce(() => {
+      throw new Error("no pane");
+    });
+    expect(paneCurrentCommand("s", "orchestrator")).toBeUndefined();
+  });
+});
+
+describe("isShellCommand", () => {
+  it("knows common shells, also as login shells or paths", () => {
+    for (const cmd of ["zsh", "-zsh", "bash", "fish", "/bin/sh"]) {
+      expect(isShellCommand(cmd)).toBe(true);
+    }
+  });
+
+  it("does not count agent CLIs or nothing", () => {
+    for (const cmd of ["claude", "node", "codex", "gemini", "", undefined]) {
+      expect(isShellCommand(cmd)).toBe(false);
+    }
+  });
+});
+
+describe("restartAgent", () => {
+  beforeEach(() => {
+    mockExec.mockReset();
+  });
+
+  it("types the agent's command into its pane and presses Enter", () => {
+    restartAgent("s", "orchestrator", makeConfig().agents[0]);
+    const calls = tmuxCalls();
+    expect(calls).toContain("paste-buffer -b _aihive_paste -t s:orchestrator");
+    expect(calls.at(-1)).toBe("send-keys -t s:orchestrator Enter");
   });
 });

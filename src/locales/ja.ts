@@ -119,10 +119,21 @@ export const ja: Record<TransKey, string> = {
   "agentEditor.fieldModel": "モデル",
 
   // ─── Command Input ──────────────────────────────────────────────
+  "agent.exited": "⚠ {name}: CLI が終了しました。R で再起動できます",
+  "agent.exitedHint":
+    "⚠ {name} の CLI が終了しています。R: 再起動・D: 直接操作",
+  "agent.restarted": "↻ {name} を再起動しました",
+  "direct.active": "⌨ 直接操作中 → {name}",
+  "direct.exitHint": "すべてのキーをペインに送ります・Ctrl+Q でもどる",
+  "help.direct": "直接操作",
+  "retro.cmd.direct": "ちょくせつ",
   "commandInput.placeholder": "メッセージを入力...",
   "commandInput.commands": "コマンド",
   "commandInput.actionRequired": "⚡ アクションが必要:",
-  "commandInput.pressKey": "キーを押して応答 (入力欄が空の状態で)",
+  "commandInput.pressKey":
+    "↑↓ で選ぶ・Enter で決定・1-9 / y / n で応答（入力欄が空のとき）・Esc → D で直接操作",
+  "commandInput.trustHint":
+    "フォルダの信頼確認です。↓ で「Yes, I trust this folder」を選んで Enter（そのまま Enter だと終了します）",
 
   // ─── Agent-facing text (typed into panes or written for agents) ──
   "agentMsg.inboxNudge":

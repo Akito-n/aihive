@@ -163,6 +163,85 @@ export function sendToPane(
   sendKeys(sessionName, paneTarget, text);
 }
 
+/**
+ * Press keys in a pane as they are, without the Enter that sendKeys adds.
+ * Keys are tmux key names ("Up", "Down", "Enter") or single characters.
+ * Choice menus such as Claude's folder trust check act on Enter, so an
+ * extra Enter would confirm whatever happens to be highlighted.
+ */
+export function sendRawKeys(
+  sessionName: string,
+  paneTarget: string,
+  keys: string[],
+): void {
+  if (keys.length === 0) return;
+  tmux(["send-keys", "-t", `${sessionName}:${paneTarget}`, ...keys]);
+}
+
+/** Type text into a pane exactly as given, with no Enter */
+export function sendLiteral(
+  sessionName: string,
+  paneTarget: string,
+  text: string,
+): void {
+  if (!text) return;
+  tmux(["send-keys", "-t", `${sessionName}:${paneTarget}`, "-l", "--", text]);
+}
+
+/** The program running in the front of a pane, e.g. "claude" or "zsh" */
+export function paneCurrentCommand(
+  sessionName: string,
+  paneTarget: string,
+): string | undefined {
+  try {
+    const output = execFileSync(
+      "tmux",
+      [
+        "display-message",
+        "-p",
+        "-t",
+        `${sessionName}:${paneTarget}`,
+        "#{pane_current_command}",
+      ],
+      { encoding: "utf8", stdio: ["pipe", "pipe", "ignore"] },
+    );
+    return output.trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+const SHELLS = new Set([
+  "sh",
+  "bash",
+  "zsh",
+  "fish",
+  "dash",
+  "ksh",
+  "mksh",
+  "tcsh",
+  "csh",
+  "nu",
+  "pwsh",
+]);
+
+/** Whether a pane's command is a plain shell, i.e. no agent CLI is running */
+export function isShellCommand(command: string | undefined): boolean {
+  if (!command) return false;
+  const name = command.replace(/^-/, "").split("/").pop() ?? "";
+  return SHELLS.has(name);
+}
+
+/** Type the agent's CLI command into its pane again, after the CLI exited */
+export function restartAgent(
+  sessionName: string,
+  paneTarget: string,
+  agent: AgentConfig,
+  workspace?: AgentWorkspace,
+): void {
+  sendKeys(sessionName, paneTarget, buildAgentCommand(agent, workspace));
+}
+
 /** Build agent info list from config */
 export function buildAgentList(config: AihiveConfig): AgentInfo[] {
   return config.agents.map((a) => ({

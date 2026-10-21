@@ -30,6 +30,7 @@ export function retroCommands(
       // Newer screens last, so stop stays in view on narrow terminals
       ["Z", "retro.cmd.codex"],
       ["M", "retro.cmd.map"],
+      ["D", "retro.cmd.direct"],
     );
   }
   commands.push(["q", "retro.cmd.quit"]);
@@ -127,6 +128,12 @@ export function HelpBar({ state, message }: HelpBarProps) {
               [G]
             </Text>{" "}
             {t("help.shop")}
+          </Text>
+          <Text>
+            <Text bold color="magenta">
+              [D]
+            </Text>{" "}
+            {t("help.direct")}
           </Text>
           <Text>
             <Text bold color="red">

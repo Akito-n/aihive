@@ -118,10 +118,20 @@ export const en = {
   "agentEditor.fieldModel": "Model",
 
   // ─── Command Input ──────────────────────────────────────────────
+  "agent.exited": "⚠ {name}: the CLI exited. Press R to restart it",
+  "agent.exitedHint": "⚠ {name}'s CLI has exited. R: restart · D: direct mode",
+  "agent.restarted": "↻ Restarted {name}",
+  "direct.active": "⌨ Direct mode → {name}",
+  "direct.exitHint": "Every key goes to the pane · Ctrl+Q to leave",
+  "help.direct": "Direct",
+  "retro.cmd.direct": "Direct",
   "commandInput.placeholder": "Send a message...",
   "commandInput.commands": "Commands",
   "commandInput.actionRequired": "⚡ Action required:",
-  "commandInput.pressKey": "Press a key to respond (input must be empty)",
+  "commandInput.pressKey":
+    "↑↓ to choose, Enter to confirm, 1-9 / y / n to answer (input must be empty) · Esc then D: direct mode",
+  "commandInput.trustHint":
+    'Folder trust check: press ↓ to pick "Yes, I trust this folder", then Enter (Enter alone exits)',
 
   // ─── Agent-facing text (typed into panes or written for agents) ──
   "agentMsg.inboxNudge": "[inbox: {count} new from {from}] Check {dir}/",

@@ -103,4 +103,25 @@ describe("detectPrompt()", () => {
     expect(result.options[0]).toBe("1. Yes");
     expect(result.options[1]).toBe("2. No");
   });
+
+  // ─── Folder trust check ───────────────────────────────────────────────
+
+  it("detects Claude's folder trust check as a trust prompt", () => {
+    const text = [
+      " Accessing workspace:",
+      " /Users/me/Projects/app",
+      " Quick safety check: Is this a project you created or one you trust?",
+      " ❯ No, exit",
+      "   Yes, I trust this folder",
+      " Enter to confirm · Esc to cancel",
+    ].join("\n");
+    const result = detectPrompt(text);
+    expect(result.detected).toBe(true);
+    expect(result.trust).toBe(true);
+  });
+
+  it("does not mark other menus as trust prompts", () => {
+    const result = detectPrompt("  › 1. Yes\n  › 2. No\n  Esc to cancel");
+    expect(result.trust).toBeUndefined();
+  });
 });

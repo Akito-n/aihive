@@ -10,13 +10,16 @@ import {
 import type React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { SlashCommand } from "../lib/commands.js";
+import { t } from "../lib/i18n.js";
+import { promptKeys } from "../lib/pane-keys.js";
 import type { PromptInfo } from "./PaneView.js";
 
 interface CommandInputProps {
   targetLabel: string;
   onSubmit: (text: string) => void;
   onCancel: () => void;
-  onQuickKey: (key: string) => void;
+  /** Keys for a choice menu in the pane, sent as they are (no Enter) */
+  onPromptKeys: (keys: string[]) => void;
   onDoubleSlash?: () => void;
   promptInfo: PromptInfo;
   slashCommands: SlashCommand[];
@@ -204,7 +207,7 @@ export function CommandInput({
   targetLabel,
   onSubmit,
   onCancel,
-  onQuickKey,
+  onPromptKeys,
   onDoubleSlash,
   promptInfo,
   slashCommands,
@@ -314,6 +317,15 @@ export function CommandInput({
     if (key.escape) {
       onCancel();
       return;
+    }
+
+    // With the input empty, keys answer the pane's choice menu
+    if (value.length === 0 && promptInfo.detected) {
+      const keys = promptKeys(input, key);
+      if (keys) {
+        onPromptKeys(keys);
+        return;
+      }
     }
 
     if (showSlashMenu && filteredCommands.length > 0) {
@@ -461,15 +473,6 @@ export function CommandInput({
     }
 
     if (input && !key.ctrl && !key.meta) {
-      if (
-        value.length === 0 &&
-        promptInfo.detected &&
-        /^[1-9yn]$/.test(input)
-      ) {
-        onQuickKey(input);
-        return;
-      }
-
       const sanitized = input.replace(/[\r\n]+/g, " ");
 
       // Insert at cursor
@@ -704,7 +707,10 @@ export function CommandInput({
                     </Text>
                   ))}
             </Box>
-            <Text dimColor>Press a key to respond (input must be empty)</Text>
+            {promptInfo.trust && (
+              <Text color="yellow">{t("commandInput.trustHint")}</Text>
+            )}
+            <Text dimColor>{t("commandInput.pressKey")}</Text>
           </Box>
         )}
 
