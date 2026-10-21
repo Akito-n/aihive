@@ -452,6 +452,7 @@ describe("App - initial state", () => {
       skills: { str: 1, vit: 0, agi: 2, int: 1 },
       events: [],
       drops: [],
+      gold: 0,
       titles: [],
       progress: { ...emptyProgress(), partyXp: 35 },
     });
@@ -507,6 +508,7 @@ describe("App - initial state", () => {
       skills: { str: 1, vit: 0, agi: 2, int: 1 },
       events: [],
       drops: [],
+      gold: 0,
       titles: [],
       progress: emptyProgress(),
     });

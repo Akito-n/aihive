@@ -24,6 +24,7 @@ interface EquipViewProps {
   height?: number;
   onEquip?: (itemId: string) => void;
   onToggleLooks?: () => void;
+  onSell?: (itemId: string) => void;
   onClose?: () => void;
 }
 
@@ -51,6 +52,7 @@ export function EquipView({
   height = 12,
   onEquip,
   onToggleLooks,
+  onSell,
   onClose,
 }: EquipViewProps) {
   const [selected, setSelected] = useState(0);
@@ -68,6 +70,8 @@ export function EquipView({
         setSelected(Math.min(bag.length - 1, index + 1));
       else if (key.return && bag[index]) onEquip?.(bag[index].id);
       else if (input === "v") onToggleLooks?.();
+      else if (input === "s" && bag[index] && !worn.has(bag[index].id))
+        onSell?.(bag[index].id);
     },
     { isActive: Boolean(onClose) },
   );

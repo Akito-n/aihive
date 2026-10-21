@@ -25,6 +25,7 @@ export function retroCommands(
       ["L", "retro.cmd.log"],
       ["S", "retro.cmd.status"],
       ["E", "retro.cmd.equip"],
+      ["G", "retro.cmd.shop"],
       ["x", "retro.cmd.stop"],
     );
   }
@@ -39,7 +40,7 @@ export function HelpBar({ state, message }: HelpBarProps) {
         <Text wrap="truncate-end" color={message?.color}>
           {message ? `＊「${message.text}` : " "}
         </Text>
-        <Box columnGap={3} height={1} overflow="hidden">
+        <Box columnGap={2} height={1} overflow="hidden">
           {retroCommands(state).map(([key, label]) => (
             <Text key={key}>
               {t(label)} <Text dimColor>{key}</Text>
@@ -102,6 +103,12 @@ export function HelpBar({ state, message }: HelpBarProps) {
               [E]
             </Text>{" "}
             {t("help.equip")}
+          </Text>
+          <Text>
+            <Text bold color="yellow">
+              [G]
+            </Text>{" "}
+            {t("help.shop")}
           </Text>
           <Text>
             <Text bold color="red">

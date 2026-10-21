@@ -241,6 +241,11 @@ export function itemName(item: Item): string {
   ].join(" ");
 }
 
+/** What the shop pays for an item */
+export function sellPrice(item: Item): number {
+  return 5 * item.power;
+}
+
 /** The drop chance after a won battle; bosses always drop */
 export function dropChance(boss: boolean, luck: number): number {
   return boss ? 1 : Math.min(0.6, 0.25 + luck);

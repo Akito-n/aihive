@@ -27,6 +27,7 @@ import {
   rollItem,
   SLOTS,
   type Slot,
+  sellPrice,
   slotOf,
 } from "./gear.js";
 import { toSlug } from "./mailbox.js";
@@ -66,6 +67,9 @@ export interface Progress {
   countedUses: string[];
   /** Titles earned, oldest first */
   titles: string[];
+  gold: number;
+  /** Shop goods bought, such as themes */
+  unlocked: string[];
 }
 
 /** XP to reach a level grows with its square: XP(n) = k × (n − 1)² */
@@ -132,6 +136,8 @@ export function emptyProgress(): Progress {
     moves: {},
     countedUses: [],
     titles: [],
+    gold: 0,
+    unlocked: [],
   };
 }
 
@@ -216,6 +222,12 @@ export function loadProgress(file = progressFilePath()): Progress {
       ),
     ];
   }
+  if (isCount(r.gold)) p.gold = Math.floor(r.gold);
+  if (Array.isArray(r.unlocked)) {
+    p.unlocked = r.unlocked.filter(
+      (k): k is string => typeof k === "string" && MOVE_NAME.test(k),
+    );
+  }
   if (Array.isArray(r.countedUses)) {
     p.countedUses = r.countedUses.filter(
       (k): k is string => typeof k === "string",
@@ -294,6 +306,8 @@ export interface Award {
   events: AdventureEvent[];
   /** Gear dropped in those battles */
   drops: Item[];
+  /** Gold won in those battles */
+  gold: number;
   /** Titles this task earned */
   titles: string[];
   progress: Progress;
@@ -391,6 +405,11 @@ export function awardTask(
     .filter((e) => e.won && random() < dropChance(e.boss, luck))
     .map((e) => rollItem(e.floor, random));
   progress.bag = addToBag(progress.bag, drops, progress.equipped);
+  const gold = explored.events.reduce(
+    (sum, e) => sum + (e.won ? battleGold(e.floor, e.boss) : 0),
+    0,
+  );
+  progress.gold += gold;
   const titles = earnTitles(progress, new Date(now), xp > 0);
   saveProgress(progress, file);
 
@@ -409,6 +428,7 @@ export function awardTask(
     skills,
     events: explored.events,
     drops,
+    gold,
     titles,
     progress,
   };
@@ -425,6 +445,43 @@ export function equipItem(itemId: string, file = progressFilePath()): Progress {
   progress.equipped[slotOf(item)] = item.id;
   saveProgress(progress, file);
   return progress;
+}
+
+/** Gold for a won battle: more deeper down, a lot for a boss */
+export function battleGold(floor: number, boss: boolean): number {
+  return 2 * floor + (boss ? 50 : 0);
+}
+
+/** Sell an unworn item for gold; returns the record unchanged otherwise */
+export function sellItem(itemId: string, file = progressFilePath()): Progress {
+  const progress = loadProgress(file);
+  const item = progress.bag.find((i) => i.id === itemId);
+  if (!item || Object.values(progress.equipped).includes(itemId)) {
+    return progress;
+  }
+  progress.bag = progress.bag.filter((i) => i.id !== itemId);
+  progress.gold += sellPrice(item);
+  saveProgress(progress, file);
+  return progress;
+}
+
+/**
+ * Buy a shop good once. Returns the record and whether it was bought:
+ * not when it is owned already or the gold is short.
+ */
+export function buyGood(
+  key: string,
+  price: number,
+  file = progressFilePath(),
+): { bought: boolean; progress: Progress } {
+  const progress = loadProgress(file);
+  if (progress.unlocked.includes(key) || progress.gold < price) {
+    return { bought: false, progress };
+  }
+  progress.gold -= price;
+  progress.unlocked = [...progress.unlocked, key];
+  saveProgress(progress, file);
+  return { bought: true, progress };
 }
 
 /** Turn the gear's effect on the screen's look on or off */
