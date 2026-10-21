@@ -14,6 +14,7 @@ import { itemName, recordLook, sellPrice } from "../lib/gear.js";
 import { t, tf } from "../lib/i18n.js";
 import { type MessageBus, SYSTEM_MAILBOX, toSlug } from "../lib/mailbox.js";
 import { MemoryManager, normalizeMemoryEntry } from "../lib/memory.js";
+import { onResolvedModelsChange } from "../lib/model-resolver.js";
 import { questMonsterOf } from "../lib/monsters.js";
 import { notify } from "../lib/notify.js";
 import {
@@ -131,6 +132,12 @@ export function App() {
     buildAgentList(config),
   );
   const [selectedIndex, setSelectedIndex] = useState(0);
+  // Re-render when the Claude aliases' versions are looked up
+  const [, setModelsVersion] = useState(0);
+  useEffect(
+    () => onResolvedModelsChange(() => setModelsVersion((v) => v + 1)),
+    [],
+  );
   const [mode, setMode] = useState<Mode>("normal");
   const [showOverview, setShowOverview] = useState(false);
   const [promptInfo, setPromptInfo] = useState<PromptInfo>({
