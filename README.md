@@ -1,4 +1,17 @@
+<div align="center">
+
 # aihive
+
+**tmux + AI Coding CLI で複数の AI エージェントを動かす、レトロ RPG 風の TUI**
+
+[![release](https://img.shields.io/github/v/release/Akito-n/aihive)](https://github.com/Akito-n/aihive/releases/latest)
+[![CI](https://img.shields.io/github/actions/workflow/status/Akito-n/aihive/ci.yml?label=CI)](https://github.com/Akito-n/aihive/actions/workflows/ci.yml)
+[![license](https://img.shields.io/badge/license-MIT-blue)](#license)
+[![node](https://img.shields.io/badge/node-%3E%3D22-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+[![tmux](https://img.shields.io/badge/requires-tmux-1BB91F?logo=tmux&logoColor=white)](https://github.com/tmux/tmux)
+[![platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey)](#prerequisites)
+
+</div>
 
 tmux + AI Coding CLI を使ったマルチエージェントオーケストレーションシステム。React Ink による TUI で複数の AI エージェントを一つの画面から管理・操作できます。
 
