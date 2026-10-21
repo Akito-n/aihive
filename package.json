@@ -1,6 +1,6 @@
 {
   "name": "aihive",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "type": "module",
   "description": "tmux + Claude Code multi-agent orchestration system with React Ink TUI",
   "bin": {
