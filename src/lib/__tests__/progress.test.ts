@@ -11,8 +11,11 @@ import {
   levelProgress,
   loadProgress,
   memberLevelOf,
+  moveLevel,
+  movesPower,
   type Progress,
   partyLevelOf,
+  recordSkillUses,
   saveProgress,
   setLooks,
   taskXp,
@@ -236,6 +239,50 @@ describe("equipment", () => {
     expect(p.bag.map((i) => i.id)).toEqual(["s1"]);
     expect(p.equipped).toEqual({ weapon: "s1" });
     expect(p.looks).toBe(true);
+  });
+});
+
+describe("special moves", () => {
+  it("counts each skill use once and tells new and stronger moves", () => {
+    const file = tempFile();
+    const first = recordSkillUses(
+      [
+        { id: "u1", skill: "review" },
+        { id: "u1", skill: "review" },
+        { id: "u2", skill: "review" },
+      ],
+      file,
+    );
+    expect(first?.learned).toEqual(["review"]);
+    expect(first?.progress.moves).toEqual({ review: 2 });
+    expect(recordSkillUses([{ id: "u2", skill: "review" }], file)).toBe(
+      undefined,
+    );
+    const second = recordSkillUses([{ id: "u3", skill: "review" }], file);
+    expect(second?.learned).toEqual([]);
+    expect(second?.leveledUp).toEqual([{ name: "review", level: 2 }]);
+    expect(loadProgress(file).moves).toEqual({ review: 3 });
+  });
+
+  it("levels moves on a square curve and adds them to the party's power", () => {
+    expect(moveLevel(0)).toBe(1);
+    expect(moveLevel(3)).toBe(2);
+    expect(moveLevel(12)).toBe(3);
+    expect(movesPower({ a: 3, b: 0 })).toBe(3);
+  });
+
+  it("drops malformed moves on load", () => {
+    const file = tempFile();
+    fs.writeFileSync(
+      file,
+      JSON.stringify({
+        moves: { ok: 2, "bad name": 3, neg: -1 },
+        countedUses: ["u1", 4],
+      }),
+    );
+    const p = loadProgress(file);
+    expect(p.moves).toEqual({ ok: 2 });
+    expect(p.countedUses).toEqual(["u1"]);
   });
 });
 

@@ -5,7 +5,7 @@
 import type { AdventureEvent } from "./adventure.js";
 import { type Item, itemName, RARITY_COLORS, type Rarity } from "./gear.js";
 import { t, tf } from "./i18n.js";
-import type { Award } from "./progress.js";
+import type { Award, MovesResult } from "./progress.js";
 
 export interface RpgMessage {
   text: string;
@@ -139,4 +139,26 @@ export function adventureMessage(
     }),
     color: "cyan",
   };
+}
+
+/** News of special moves: a new one beats a stronger one */
+export function movesMessage(result: MovesResult): RpgMessage | undefined {
+  const learned = result.learned[0];
+  if (learned) {
+    return {
+      text: tf("retro.msg.moveLearned", { name: learned }),
+      color: "yellow",
+    };
+  }
+  const leveled = result.leveledUp[0];
+  if (leveled) {
+    return {
+      text: tf("retro.msg.moveLevelUp", {
+        name: leveled.name,
+        level: leveled.level,
+      }),
+      color: "yellow",
+    };
+  }
+  return undefined;
 }
