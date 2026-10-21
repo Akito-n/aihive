@@ -67,6 +67,10 @@ const mocks = vi.hoisted(() => {
 
   const initWorkspaceMock = vi.fn().mockReturnValue(mockBus);
   const sessionExistsMock = vi.fn().mockReturnValue(false);
+  const paneCommandMock = vi.fn().mockReturnValue("claude");
+  const restartAgentMock = vi.fn();
+  const sendRawKeysMock = vi.fn();
+  const sendLiteralMock = vi.fn();
 
   return {
     capturedMsgHandlerRef,
@@ -101,6 +105,10 @@ const mocks = vi.hoisted(() => {
     busUnsubscribe,
     initWorkspaceMock,
     sessionExistsMock,
+    paneCommandMock,
+    restartAgentMock,
+    sendRawKeysMock,
+    sendLiteralMock,
   };
 });
 
@@ -142,6 +150,11 @@ vi.mock("../../lib/tmux.js", () => ({
   stopSession: vi.fn(),
   sendToPane: vi.fn(),
   capturePane: vi.fn().mockReturnValue(""),
+  paneCurrentCommand: mocks.paneCommandMock,
+  isShellCommand: (command?: string) => command === "zsh",
+  restartAgent: mocks.restartAgentMock,
+  sendRawKeys: mocks.sendRawKeysMock,
+  sendLiteral: mocks.sendLiteralMock,
 }));
 
 vi.mock("../../lib/workspace.js", () => ({
@@ -987,5 +1000,94 @@ describe("App - runtime lifecycle", () => {
     expect(registeredTasks).toBe(2);
     // Every registration except the live one has been unsubscribed
     expect(mocks.busUnsubscribe).toHaveBeenCalledTimes(registeredMessages - 1);
+  });
+});
+
+describe("App - agents stuck at the pane", () => {
+  beforeEach(() => {
+    mocks.sessionExistsMock.mockReturnValue(false);
+    mocks.paneCommandMock.mockReset().mockReturnValue("claude");
+    mocks.restartAgentMock.mockReset();
+    mocks.sendRawKeysMock.mockReset();
+    mocks.sendLiteralMock.mockReset();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("notices a CLI that exited to the shell, and R restarts it", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    const { stdin, lastFrame } = await advanceToRunningState();
+    expect(lastFrame()).not.toContain("R:");
+
+    // The CLI quits (e.g. the folder trust check was declined)
+    mocks.paneCommandMock.mockReturnValue("zsh");
+    await act(async () => {
+      vi.advanceTimersByTime(3000);
+      await Promise.resolve();
+    });
+    expect(lastFrame()).toContain("Orchestrator");
+    expect(lastFrame()).toContain("R:");
+
+    await act(async () => {
+      stdin.write("R");
+      await Promise.resolve();
+    });
+    expect(mocks.restartAgentMock).toHaveBeenCalledWith(
+      "test-session",
+      "orchestrator",
+      expect.objectContaining({ name: "Orchestrator" }),
+      undefined,
+    );
+    expect(lastFrame()).not.toContain("R:");
+  });
+
+  it("R does nothing while the CLI is still running", async () => {
+    const { stdin } = await advanceToRunningState();
+    await act(async () => {
+      stdin.write("R");
+      await Promise.resolve();
+    });
+    expect(mocks.restartAgentMock).not.toHaveBeenCalled();
+  });
+
+  it("D sends every key straight to the pane until Ctrl+Q", async () => {
+    const { stdin } = await advanceToRunningState();
+    await act(async () => {
+      stdin.write("D");
+      await Promise.resolve();
+    });
+    await act(async () => {
+      stdin.write("y");
+      await Promise.resolve();
+    });
+    await act(async () => {
+      stdin.write("\u001B[B");
+      await Promise.resolve();
+    });
+    await act(async () => {
+      stdin.write("\r");
+      await Promise.resolve();
+    });
+    expect(mocks.sendLiteralMock).toHaveBeenCalledWith(
+      "test-session",
+      "orchestrator",
+      "y",
+    );
+    expect(mocks.sendRawKeysMock.mock.calls.map((c) => c[2])).toEqual([
+      ["Down"],
+      ["Enter"],
+    ]);
+
+    await act(async () => {
+      stdin.write("\u0011"); // Ctrl+Q
+      await Promise.resolve();
+    });
+    await act(async () => {
+      stdin.write("y");
+      await Promise.resolve();
+    });
+    expect(mocks.sendLiteralMock).toHaveBeenCalledTimes(1);
   });
 });

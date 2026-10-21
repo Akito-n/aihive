@@ -54,7 +54,7 @@ describe("CommandInput wrapping", () => {
           targetLabel="Orchestrator"
           onSubmit={() => {}}
           onCancel={() => {}}
-          onQuickKey={() => {}}
+          onPromptKeys={() => {}}
           promptInfo={{ detected: false, options: [] }}
           slashCommands={[]}
         />
@@ -74,7 +74,7 @@ describe("CommandInput wrapping", () => {
           targetLabel="Orchestrator"
           onSubmit={() => {}}
           onCancel={() => {}}
-          onQuickKey={() => {}}
+          onPromptKeys={() => {}}
           promptInfo={{ detected: false, options: [] }}
           slashCommands={[]}
         />

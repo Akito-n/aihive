@@ -42,7 +42,7 @@ describe("CommandInput cursor", () => {
         targetLabel="Orchestrator"
         onSubmit={() => {}}
         onCancel={() => {}}
-        onQuickKey={() => {}}
+        onPromptKeys={() => {}}
         promptInfo={{ detected: false, options: [] }}
         slashCommands={[]}
       />,
@@ -64,7 +64,7 @@ describe("CommandInput cursor", () => {
         targetLabel="Orchestrator"
         onSubmit={() => {}}
         onCancel={() => {}}
-        onQuickKey={() => {}}
+        onPromptKeys={() => {}}
         promptInfo={{ detected: false, options: [] }}
         slashCommands={[]}
       />,

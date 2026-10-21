@@ -13,11 +13,17 @@ const PROMPT_PATTERNS = [
   /\(y\/n\)/i, // (y/n) prompt
   /\(Y\/n\)/, // (Y/n) prompt
   /Esc to cancel/, // Claude Code choice UI
+  /Enter to confirm/, // Claude Code choice UI without Esc
 ];
+
+// Claude's "Do you trust this folder?" check, shown in folders it has not seen
+const TRUST_PATTERNS = [/trust this folder/i, /Accessing workspace/i];
 
 export interface PromptInfo {
   detected: boolean;
   options: string[];
+  /** The CLI asks whether to trust the folder; its default choice exits */
+  trust?: boolean;
 }
 
 interface PaneViewProps {
@@ -54,7 +60,10 @@ export function detectPrompt(text: string): PromptInfo {
     }
   }
 
-  return { detected: true, options };
+  const trust = TRUST_PATTERNS.some((p) => p.test(text));
+  return trust
+    ? { detected: true, options, trust }
+    : { detected: true, options };
 }
 
 export function PaneView({

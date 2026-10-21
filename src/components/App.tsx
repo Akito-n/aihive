@@ -18,6 +18,11 @@ import { onResolvedModelsChange } from "../lib/model-resolver.js";
 import { questMonsterOf } from "../lib/monsters.js";
 import { notify } from "../lib/notify.js";
 import {
+  hasAgentExited,
+  isDirectExitKey,
+  toPaneKeys,
+} from "../lib/pane-keys.js";
+import {
   awardTask,
   buyGood,
   equipItem,
@@ -68,13 +73,18 @@ import {
 import type { AgentInfo } from "../lib/tmux.js";
 import {
   buildAgentList,
+  isShellCommand,
+  paneCurrentCommand,
+  restartAgent,
+  sendLiteral,
+  sendRawKeys,
   sendToPane,
   sessionExists,
   startSession,
   stopSession,
 } from "../lib/tmux.js";
 import { initWorkspace } from "../lib/workspace.js";
-import { prepareWorkspaces } from "../lib/worktrees.js";
+import { type AgentWorkspace, prepareWorkspaces } from "../lib/worktrees.js";
 import { CodexView } from "./CodexView.js";
 import { CommandInput } from "./CommandInput.js";
 import {
@@ -123,7 +133,8 @@ type Mode =
   | "equip"
   | "codex"
   | "map"
-  | "shop";
+  | "shop"
+  | "direct";
 
 export function App() {
   const { exit } = useApp();
@@ -159,6 +170,14 @@ export function App() {
   const messageBusRef = useRef<MessageBus | null>(null);
   const taskManagerRef = useRef<TaskManager>(new TaskManager());
   // Where the agents work and since when, to find their skill uses
+  const workspacesRef = useRef<Map<string, AgentWorkspace> | undefined>(
+    undefined,
+  );
+  // Per agent: when its CLI was last launched, and whether it was seen running
+  const launchRef = useRef(new Map<string, { at: number; sawCli: boolean }>());
+  const [exitedAgents, setExitedAgents] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
   const historyRef = useRef<{ cwds: string[]; since: number }>({
     cwds: [],
     since: Date.now(),
@@ -205,6 +224,8 @@ export function App() {
     }
   };
   const selectedAgent = agents[selectedIndex];
+  const selectedExited =
+    selectedAgent !== undefined && exitedAgents.has(selectedAgent.name);
 
   const addLog = useCallback((message: string) => {
     const time = new Date().toLocaleTimeString("ja-JP", {
@@ -584,6 +605,8 @@ export function App() {
         since: Date.now(),
       };
       startSession(config, paneWidth, rows, plan.workspaces);
+      workspacesRef.current = plan.workspaces;
+      launchRef.current.clear();
       addLog(`All ${config.agents.length} agents started`);
       setState("running");
     } catch (e) {
@@ -592,6 +615,71 @@ export function App() {
       setAgents(buildAgentList(config));
     }
   }, [config, addLog, columns, rows, setupRuntime]);
+
+  // Notice agents whose CLI exited and left a shell in the pane (for
+  // example after the folder trust check was declined), so they can be
+  // restarted with R instead of being left dead
+  useEffect(() => {
+    if (state !== "running") {
+      setExitedAgents(new Set());
+      return;
+    }
+    const check = () => {
+      const now = Date.now();
+      const exited = new Set<string>();
+      for (const agent of agents) {
+        const launch = launchRef.current.get(agent.name) ?? {
+          at: now,
+          sawCli: false,
+        };
+        const command = paneCurrentCommand(config.session, agent.paneTarget);
+        if (command && !isShellCommand(command)) launch.sawCli = true;
+        launchRef.current.set(agent.name, launch);
+        if (hasAgentExited(command, launch.sawCli, now - launch.at)) {
+          exited.add(agent.name);
+        }
+      }
+      setExitedAgents((prev) => {
+        for (const name of exited) {
+          if (!prev.has(name)) addLog(tf("agent.exited", { name }));
+        }
+        const same =
+          prev.size === exited.size && [...exited].every((n) => prev.has(n));
+        return same ? prev : exited;
+      });
+    };
+    check();
+    const timer = setInterval(check, 3000);
+    return () => clearInterval(timer);
+  }, [state, agents, config.session, addLog]);
+
+  const restartSelectedAgent = useCallback(() => {
+    if (!selectedAgent || !exitedAgents.has(selectedAgent.name)) return;
+    const agentConfig = config.agents.find(
+      (a) => a.name === selectedAgent.name,
+    );
+    if (!agentConfig) return;
+    try {
+      restartAgent(
+        config.session,
+        selectedAgent.paneTarget,
+        agentConfig,
+        workspacesRef.current?.get(agentConfig.name),
+      );
+      launchRef.current.set(selectedAgent.name, {
+        at: Date.now(),
+        sawCli: false,
+      });
+      setExitedAgents((prev) => {
+        const next = new Set(prev);
+        next.delete(selectedAgent.name);
+        return next;
+      });
+      addLog(tf("agent.restarted", { name: selectedAgent.name }));
+    } catch (e) {
+      addLog(`Error: ${e}`);
+    }
+  }, [selectedAgent, exitedAgents, config, addLog]);
 
   // Menu selection handler
   const handleMenuSelect = useCallback(
@@ -673,6 +761,14 @@ export function App() {
         setMode("shop");
         return;
       }
+      if (input === "D") {
+        setMode("direct");
+        return;
+      }
+      if (input === "R") {
+        restartSelectedAgent();
+        return;
+      }
       if (input === "q") {
         stopSession(config.session);
         exit();
@@ -690,12 +786,34 @@ export function App() {
     [config.session, selectedAgent, addLog],
   );
 
-  const handleQuickKey = useCallback(
-    (key: string) => {
-      sendToPane(config.session, selectedAgent.paneTarget, key);
-      addLog(`→ ${selectedAgent.name}: [${key}]`);
+  const handlePromptKeys = useCallback(
+    (keys: string[]) => {
+      sendRawKeys(config.session, selectedAgent.paneTarget, keys);
+      addLog(`→ ${selectedAgent.name}: [${keys.join(" ")}]`);
     },
     [config.session, selectedAgent, addLog],
+  );
+
+  // Direct mode: every key goes to the selected pane until Ctrl+Q
+  useInput(
+    (input, key) => {
+      if (isDirectExitKey(input, key)) {
+        setMode("normal");
+        return;
+      }
+      const out = toPaneKeys(input, key);
+      if (!out || !selectedAgent) return;
+      try {
+        if ("keys" in out) {
+          sendRawKeys(config.session, selectedAgent.paneTarget, out.keys);
+        } else {
+          sendLiteral(config.session, selectedAgent.paneTarget, out.literal);
+        }
+      } catch (e) {
+        addLog(`Error: ${e}`);
+      }
+    },
+    { isActive: state === "running" && mode === "direct" },
   );
 
   const handleCommandCancel = useCallback(() => {
@@ -981,7 +1099,10 @@ export function App() {
   }
 
   // Rows between the header and the help bar: padding, two header lines and two gaps
-  const middleHeight = Math.max(8, rows - 6 - helpBarHeight());
+  const middleHeight = Math.max(
+    8,
+    rows - 6 - helpBarHeight() - (selectedExited ? 1 : 0),
+  );
   const paneTitle = selectedAgent
     ? (() => {
         const current = currentTaskOf(selectedAgent, tasks);
@@ -1044,11 +1165,12 @@ export function App() {
               label={selectedAgent.name}
               active={true}
               lines={
-                mode === "input"
+                mode === "input" || mode === "direct"
                   ? Math.max(10, rows - 15)
                   : Math.max(4, middleHeight - 4)
               }
               onPromptChange={setPromptInfo}
+              refreshMs={mode === "direct" ? 300 : undefined}
               title={isRetro() ? paneTitle : undefined}
               badge={
                 // Only where it cannot run into the title
@@ -1092,13 +1214,35 @@ export function App() {
             targetLabel={selectedAgent.name}
             onSubmit={handleCommandSubmit}
             onCancel={handleCommandCancel}
-            onQuickKey={handleQuickKey}
+            onPromptKeys={handlePromptKeys}
             onDoubleSlash={handleDoubleSlash}
-            promptInfo={promptInfo}
+            // A menu left on screen by a CLI that has exited is not live
+            promptInfo={
+              selectedExited ? { detected: false, options: [] } : promptInfo
+            }
             slashCommands={slashCommands}
           />
+        ) : mode === "direct" ? (
+          <Box
+            borderStyle="round"
+            borderColor="magenta"
+            paddingX={2}
+            width="100%"
+          >
+            <Text color="magenta" bold>
+              {tf("direct.active", { name: selectedAgent?.name ?? "" })}
+            </Text>
+            <Text dimColor> {t("direct.exitHint")}</Text>
+          </Box>
         ) : (
-          <HelpBar state={state} message={message} />
+          <Box flexDirection="column" width="100%">
+            {selectedExited && (
+              <Text color="yellow" bold>
+                {tf("agent.exitedHint", { name: selectedAgent.name })}
+              </Text>
+            )}
+            <HelpBar state={state} message={message} />
+          </Box>
         )}
       </Box>
     </Box>
