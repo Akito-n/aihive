@@ -452,6 +452,7 @@ describe("App - initial state", () => {
       skills: { str: 1, vit: 0, agi: 2, int: 1 },
       events: [],
       drops: [],
+      titles: [],
       progress: { ...emptyProgress(), partyXp: 35 },
     });
     const g = globalThis as Record<string, unknown>;
@@ -506,12 +507,14 @@ describe("App - initial state", () => {
       skills: { str: 1, vit: 0, agi: 2, int: 1 },
       events: [],
       drops: [],
+      titles: [],
       progress: emptyProgress(),
     });
     mocks.findSkillUsesMock.mockReturnValue([{ id: "u1", skill: "review" }]);
     mocks.recordSkillUsesMock.mockReturnValue({
       learned: ["review"],
       leveledUp: [],
+      titles: [],
       progress: { ...emptyProgress(), moves: { review: 1 } },
     });
     const g = globalThis as Record<string, unknown>;

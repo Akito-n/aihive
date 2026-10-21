@@ -14,6 +14,7 @@ import { itemName, recordLook } from "../lib/gear.js";
 import { t, tf } from "../lib/i18n.js";
 import { type MessageBus, SYSTEM_MAILBOX, toSlug } from "../lib/mailbox.js";
 import { MemoryManager, normalizeMemoryEntry } from "../lib/memory.js";
+import { questMonsterOf } from "../lib/monsters.js";
 import { notify } from "../lib/notify.js";
 import {
   awardTask,
@@ -285,7 +286,7 @@ export function App() {
           if (award) {
             setProgress(award.progress);
             setLook(recordLook(award.progress));
-            setMessage(awardMessage(award, task.id));
+            setMessage(awardMessage(award, task.id, t(questMonsterOf(task))));
             addLog(`+${award.xp} XP ${name} (${task.id})`);
             for (const item of award.drops) {
               addLog(`Found ${itemName(item)} (${item.rarity})`);

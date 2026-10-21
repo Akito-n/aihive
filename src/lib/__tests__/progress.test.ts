@@ -191,6 +191,15 @@ describe("awardTask", () => {
     expect(none?.drops).toEqual([]);
   });
 
+  it("earns titles along the way and keeps them", () => {
+    const file = tempFile();
+    expect(awardTask(input(), file)?.titles).toEqual(["firstQuest"]);
+    expect(
+      awardTask(input({ task: task({ id: "T2" }) }), file)?.titles,
+    ).toEqual([]);
+    expect(loadProgress(file).titles).toEqual(["firstQuest"]);
+  });
+
   it("gives no skills or points for a task closed at once", () => {
     const file = tempFile();
     const award = awardTask(
@@ -283,6 +292,15 @@ describe("special moves", () => {
     const p = loadProgress(file);
     expect(p.moves).toEqual({ ok: 2 });
     expect(p.countedUses).toEqual(["u1"]);
+  });
+
+  it("keeps only known titles, once each", () => {
+    const file = tempFile();
+    fs.writeFileSync(
+      file,
+      JSON.stringify({ titles: ["veteran", "nope", "veteran", 3] }),
+    );
+    expect(loadProgress(file).titles).toEqual(["veteran"]);
   });
 });
 

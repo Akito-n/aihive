@@ -6,6 +6,7 @@ import type { AdventureEvent } from "./adventure.js";
 import { type Item, itemName, RARITY_COLORS, type Rarity } from "./gear.js";
 import { t, tf } from "./i18n.js";
 import type { Award, MovesResult } from "./progress.js";
+import { titleName } from "./titles.js";
 
 export interface RpgMessage {
   text: string;
@@ -53,7 +54,12 @@ export function poisonMessage(name: string, taskId: string): RpgMessage {
 }
 
 /** The message for a task's reward: a level up beats plain experience */
-export function awardMessage(award: Award, taskId: string): RpgMessage {
+export function awardMessage(
+  award: Award,
+  taskId: string,
+  /** The task's monster name, told when nothing bigger happened */
+  monster?: string,
+): RpgMessage {
   if (award.partyLevel.after > award.partyLevel.before) {
     return {
       text: tf("retro.msg.partyLevelUp", { level: award.partyLevel.after }),
@@ -63,6 +69,8 @@ export function awardMessage(award: Award, taskId: string): RpgMessage {
   if (award.memberLevel.after > award.memberLevel.before) {
     return levelUpMessage(award.member, award.memberLevel.after);
   }
+  const title = award.titles[0];
+  if (title) return titleMessage(title);
   // Rare finds first, then the boss, then any find
   const best = [...award.drops].sort(
     (a, b) => RARITY_RANK[b.rarity] - RARITY_RANK[a.rarity],
@@ -94,7 +102,24 @@ export function awardMessage(award: Award, taskId: string): RpgMessage {
   if (award.events.length > 0) {
     return adventureMessage(award.events, award.progress.adventure.floor);
   }
+  if (monster) {
+    return {
+      text: tf("retro.msg.slay", {
+        name: award.member,
+        monster,
+        xp: award.xp,
+      }),
+    };
+  }
   return { text: tf("retro.msg.xp", { name: award.member, xp: award.xp }) };
+}
+
+export function titleMessage(id: string): RpgMessage {
+  const name = titleName(id);
+  return {
+    text: tf("retro.msg.title", { title: name ? t(name) : id }),
+    color: "yellow",
+  };
 }
 
 const RARITY_RANK: Record<Rarity, number> = {
@@ -143,6 +168,7 @@ export function adventureMessage(
 
 /** News of special moves: a new one beats a stronger one */
 export function movesMessage(result: MovesResult): RpgMessage | undefined {
+  if (result.titles[0]) return titleMessage(result.titles[0]);
   const learned = result.learned[0];
   if (learned) {
     return {
