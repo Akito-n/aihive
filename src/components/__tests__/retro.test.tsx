@@ -23,6 +23,7 @@ import { HelpBar, retroCommands } from "../HelpBar.js";
 import { partySummary } from "../MainMenu.js";
 import { PaneView } from "../PaneView.js";
 import { PixelLogo, pixelLines } from "../PixelLogo.js";
+import { ShopView } from "../ShopView.js";
 import { StartupScreen, startupSteps } from "../StartupScreen.js";
 import { StatusView } from "../StatusView.js";
 import { ThemeScreen } from "../ThemeScreen.js";
@@ -193,9 +194,17 @@ describe("theme screen", () => {
     );
     const onBack = vi.fn();
     const { stdin, lastFrame } = render(
-      <ThemeScreen onBack={onBack} file={file} />,
+      <ThemeScreen onBack={onBack} file={file} unlocked={["gameboy"]} />,
     );
     expect(lastFrame()).toContain("レトロRPG");
+    expect(lastFrame()).toContain("500G・みせで かえる");
+    await tick();
+    stdin.write("\u001B[B"); // the locked fantasy theme can't be chosen
+    await tick();
+    stdin.write("\r");
+    await tick();
+    expect(onBack).not.toHaveBeenCalled();
+    stdin.write("\u001B[B"); // the bought game boy theme
     await tick();
     stdin.write("\u001B[B"); // down to classic
     await tick();
@@ -421,5 +430,68 @@ describe("quest monsters and titles", () => {
     expect(frame).toContain("「かけだしの ぼうけんしゃ」");
     expect(frame).toContain("パーティ Lv1");
     expect(frame).toContain("「ボスごろし」");
+  });
+});
+
+describe("shop", () => {
+  beforeEach(() => setLocale("ja"));
+
+  it("sells themes for gold and tells what came of it", async () => {
+    const progress = { ...emptyProgress(), gold: 520, unlocked: ["gameboy"] };
+    const onBuy = vi.fn().mockReturnValueOnce(true).mockReturnValue(false);
+    const { stdin, lastFrame } = render(
+      <ShopView progress={progress} onBuy={onBuy} onClose={() => {}} />,
+    );
+    const frame = lastFrame() ?? "";
+    expect(frame).toContain("ゴールド 520G");
+    expect(frame).toMatch(/ファンタジー.*500G/);
+    expect(frame).toMatch(/ゲームボーイ.*かった/);
+    await new Promise((r) => setTimeout(r, 20));
+    stdin.write("\r");
+    await new Promise((r) => setTimeout(r, 20));
+    expect(onBuy).toHaveBeenCalledWith("ff", 500);
+    expect(lastFrame()).toContain("を かった！");
+    stdin.write("j");
+    await new Promise((r) => setTimeout(r, 20));
+    stdin.write("\r");
+    await new Promise((r) => setTimeout(r, 20));
+    expect(onBuy).toHaveBeenCalledTimes(1);
+  });
+
+  it("draws the bought themes in their own colors", () => {
+    setTheme("ff");
+    expect(frameStyle()).toEqual({
+      borderStyle: "double",
+      borderColor: "blueBright",
+    });
+    expect(logoColors()?.[0]).toBe("whiteBright");
+    setTheme("gameboy");
+    expect(frameStyle().borderColor).toBe("green");
+    setLook({ frame: "red" });
+    expect(frameStyle().borderColor).toBe("red");
+    setLook({});
+    setTheme("retro");
+  });
+
+  it("sells the selected unworn item from the equipment screen", async () => {
+    const progress = emptyProgress();
+    progress.bag = [
+      { id: "a", base: "ring", rarity: "common", affixes: [], power: 1 },
+      { id: "b", base: "stick", rarity: "common", affixes: [], power: 1 },
+    ];
+    progress.equipped = { weapon: "b" };
+    const onSell = vi.fn();
+    const { stdin } = render(
+      <EquipView progress={progress} onSell={onSell} onClose={() => {}} />,
+    );
+    await new Promise((r) => setTimeout(r, 20));
+    stdin.write("s"); // the newest, b, is worn
+    await new Promise((r) => setTimeout(r, 20));
+    expect(onSell).not.toHaveBeenCalled();
+    stdin.write("j");
+    await new Promise((r) => setTimeout(r, 20));
+    stdin.write("s");
+    await new Promise((r) => setTimeout(r, 20));
+    expect(onSell).toHaveBeenCalledWith("a");
   });
 });

@@ -71,6 +71,9 @@ export function StatusView({ progress, members, onClose }: StatusViewProps) {
         <Box gap={3}>
           <Text>{tf("status.tasksDone", { count: progress.tasksDone })}</Text>
           <Text>{tf("status.bosses", { count: progress.bossesDefeated })}</Text>
+          <Text color="yellow">
+            {tf("status.goldLine", { gold: progress.gold })}
+          </Text>
         </Box>
       </Window>
 

@@ -1,6 +1,7 @@
 import { Box, Text, useInput } from "ink";
 import { useState } from "react";
-import { t } from "../lib/i18n.js";
+import { t, tf } from "../lib/i18n.js";
+import { loadProgress } from "../lib/progress.js";
 import { getTheme, saveTheme, THEMES } from "../lib/theme.js";
 import { Window } from "./Window.js";
 
@@ -8,9 +9,14 @@ interface ThemeScreenProps {
   onBack: () => void;
   /** Where the choice is saved; the default is ~/.aihive/theme */
   file?: string;
+  /** Themes bought in the shop; read from the adventure record by default */
+  unlocked?: string[];
 }
 
-export function ThemeScreen({ onBack, file }: ThemeScreenProps) {
+export function ThemeScreen({ onBack, file, unlocked }: ThemeScreenProps) {
+  const [owned] = useState(() => unlocked ?? loadProgress().unlocked);
+  const isLocked = (i: number) =>
+    THEMES[i].price !== undefined && !owned.includes(THEMES[i].key);
   const [selectedIndex, setSelectedIndex] = useState(
     Math.max(
       0,
@@ -31,7 +37,7 @@ export function ThemeScreen({ onBack, file }: ThemeScreenProps) {
       setSelectedIndex((prev) => Math.min(THEMES.length - 1, prev + 1));
       return;
     }
-    if (key.return) {
+    if (key.return && !isLocked(selectedIndex)) {
       saveTheme(THEMES[selectedIndex].key, file);
       onBack();
     }
@@ -47,7 +53,14 @@ export function ThemeScreen({ onBack, file }: ThemeScreenProps) {
           return (
             <Box key={theme.key} gap={1}>
               <Text>{isSelected ? "▶" : " "}</Text>
-              <Text bold={isSelected}>{t(theme.labelKey)}</Text>
+              <Text bold={isSelected} dimColor={isLocked(i)}>
+                {t(theme.labelKey)}
+              </Text>
+              {isLocked(i) && (
+                <Text color="gray">
+                  {tf("theme.locked", { price: theme.price ?? 0 })}
+                </Text>
+              )}
               {theme.key === current && (
                 <Text color="gray"> {t("language.current")}</Text>
               )}

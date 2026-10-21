@@ -68,6 +68,7 @@ describe("awardMessage", () => {
     skills: emptySkills(),
     events: [],
     drops: [],
+    gold: 0,
     titles: [],
     progress: emptyProgress(),
     ...overrides,

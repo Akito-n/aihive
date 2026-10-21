@@ -4,6 +4,8 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   awardTask,
+  battleGold,
+  buyGood,
   emptyProgress,
   equipItem,
   isBoss,
@@ -17,6 +19,7 @@ import {
   partyLevelOf,
   recordSkillUses,
   saveProgress,
+  sellItem,
   setLooks,
   taskXp,
   xpForLevel,
@@ -191,6 +194,14 @@ describe("awardTask", () => {
     expect(none?.drops).toEqual([]);
   });
 
+  it("wins gold in battles", () => {
+    const file = tempFile();
+    const award = awardTask(input({ random: () => 0.5 }), file);
+    expect(award?.gold).toBe(battleGold(1, false));
+    expect(loadProgress(file).gold).toBe(2);
+    expect(battleGold(10, true)).toBe(70);
+  });
+
   it("earns titles along the way and keeps them", () => {
     const file = tempFile();
     expect(awardTask(input(), file)?.titles).toEqual(["firstQuest"]);
@@ -226,6 +237,33 @@ describe("equipment", () => {
     expect(equipItem("s1", file).equipped).toEqual({ weapon: "s1" });
     expect(loadProgress(file).equipped).toEqual({ weapon: "s1" });
     expect(equipItem("gone", file).equipped).toEqual({ weapon: "s1" });
+  });
+
+  it("sells unworn gear for gold", () => {
+    const file = tempFile();
+    const ring = { ...sword, id: "r1", base: "ring", power: 2 };
+    saveProgress(
+      {
+        ...emptyProgress(),
+        bag: [sword, ring],
+        equipped: { weapon: "s1" },
+      } as Progress,
+      file,
+    );
+    expect(sellItem("s1", file).gold).toBe(0);
+    const sold = sellItem("r1", file);
+    expect(sold.gold).toBe(10);
+    expect(sold.bag.map((i) => i.id)).toEqual(["s1"]);
+    expect(loadProgress(file).gold).toBe(10);
+  });
+
+  it("buys a good once, when the gold is there", () => {
+    const file = tempFile();
+    saveProgress({ ...emptyProgress(), gold: 600 }, file);
+    expect(buyGood("ff", 500, file)).toMatchObject({ bought: true });
+    expect(buyGood("ff", 500, file).bought).toBe(false);
+    expect(buyGood("gameboy", 500, file).bought).toBe(false);
+    expect(loadProgress(file)).toMatchObject({ gold: 100, unlocked: ["ff"] });
   });
 
   it("turns the look off and on", () => {

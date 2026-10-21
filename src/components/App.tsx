@@ -10,7 +10,7 @@ import {
   saveConfig,
   stallMinutesOf,
 } from "../lib/config.js";
-import { itemName, recordLook } from "../lib/gear.js";
+import { itemName, recordLook, sellPrice } from "../lib/gear.js";
 import { t, tf } from "../lib/i18n.js";
 import { type MessageBus, SYSTEM_MAILBOX, toSlug } from "../lib/mailbox.js";
 import { MemoryManager, normalizeMemoryEntry } from "../lib/memory.js";
@@ -18,12 +18,14 @@ import { questMonsterOf } from "../lib/monsters.js";
 import { notify } from "../lib/notify.js";
 import {
   awardTask,
+  buyGood,
   equipItem,
   loadProgress,
   memberLevelOf,
   type Progress,
   partyLevelOf,
   recordSkillUses,
+  sellItem,
   setLooks,
 } from "../lib/progress.js";
 import type { QuickCommand } from "../lib/quick-commands.js";
@@ -53,7 +55,12 @@ import {
   taskIdOf,
   tasksFilePath,
 } from "../lib/tasks.js";
-import { helpBarHeight, setLook } from "../lib/theme.js";
+import {
+  helpBarHeight,
+  saveTheme,
+  setLook,
+  type ThemeName,
+} from "../lib/theme.js";
 import type { AgentInfo } from "../lib/tmux.js";
 import {
   buildAgentList,
@@ -76,6 +83,7 @@ import type { PromptInfo } from "./PaneView.js";
 import { PaneView } from "./PaneView.js";
 import { QuickCommandMenu } from "./QuickCommandMenu.js";
 import { SettingsScreen } from "./SettingsScreen.js";
+import { ShopView } from "./ShopView.js";
 import { StartupScreen } from "./StartupScreen.js";
 import { StatusView } from "./StatusView.js";
 import { TaskView } from "./TaskView.js";
@@ -91,7 +99,8 @@ type Mode =
   | "tasks"
   | "log"
   | "status"
-  | "equip";
+  | "equip"
+  | "shop";
 
 export function App() {
   const { exit } = useApp();
@@ -288,6 +297,7 @@ export function App() {
             setLook(recordLook(award.progress));
             setMessage(awardMessage(award, task.id, t(questMonsterOf(task))));
             addLog(`+${award.xp} XP ${name} (${task.id})`);
+            if (award.gold > 0) addLog(`+${award.gold} G`);
             for (const item of award.drops) {
               addLog(`Found ${itemName(item)} (${item.rarity})`);
             }
@@ -606,6 +616,10 @@ export function App() {
         setMode("equip");
         return;
       }
+      if (input === "G") {
+        setMode("shop");
+        return;
+      }
       if (input === "q") {
         stopSession(config.session);
         exit();
@@ -733,6 +747,37 @@ export function App() {
       </Box>
     );
   }
+  if (mode === "shop") {
+    return (
+      <Box flexDirection="column" padding={1} height={termHeight}>
+        <Header
+          state={state}
+          agents={agents}
+          partyLevel={partyLevelOf(progress)}
+          taskCount={tasks.length}
+          skillCount={skillCounts.approved}
+          memoryCount={memoryCount}
+        />
+        <Box marginTop={1} flexGrow={1} overflow="hidden">
+          <ShopView
+            progress={progress}
+            onBuy={(key, price) => {
+              try {
+                const result = buyGood(key, price);
+                setProgress(result.progress);
+                if (result.bought) saveTheme(key as ThemeName);
+                return result.bought;
+              } catch (e) {
+                addLog(`Could not save progress: ${e}`);
+                return false;
+              }
+            }}
+            onClose={() => setMode("normal")}
+          />
+        </Box>
+      </Box>
+    );
+  }
   if (mode === "equip") {
     return (
       <Box flexDirection="column" padding={1} height={termHeight}>
@@ -762,6 +807,22 @@ export function App() {
                 const next = setLooks(!progress.looks);
                 setProgress(next);
                 setLook(recordLook(next));
+              } catch (e) {
+                addLog(`Could not save progress: ${e}`);
+              }
+            }}
+            onSell={(id) => {
+              const item = progress.bag.find((i) => i.id === id);
+              try {
+                setProgress(sellItem(id));
+                if (item) {
+                  setMessage({
+                    text: tf("equip.sold", {
+                      item: itemName(item),
+                      gold: sellPrice(item),
+                    }),
+                  });
+                }
               } catch (e) {
                 addLog(`Could not save progress: ${e}`);
               }

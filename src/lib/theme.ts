@@ -9,12 +9,59 @@ import type { TransKey } from "../locales/en.js";
 import type { Look } from "./gear.js";
 import type { AgentInfo } from "./tmux.js";
 
-export type ThemeName = "retro" | "classic";
+export type ThemeName = "retro" | "ff" | "gameboy" | "classic";
 
-export const THEMES: { key: ThemeName; labelKey: TransKey }[] = [
-  { key: "retro", labelKey: "theme.retro" },
-  { key: "classic", labelKey: "theme.classic" },
-];
+/** Themes with a price are bought with gold in the shop first */
+export const THEMES: { key: ThemeName; labelKey: TransKey; price?: number }[] =
+  [
+    { key: "retro", labelKey: "theme.retro" },
+    { key: "ff", labelKey: "theme.ff", price: 500 },
+    { key: "gameboy", labelKey: "theme.gameboy", price: 500 },
+    { key: "classic", labelKey: "theme.classic" },
+  ];
+
+/** The RPG themes' colors: everything but classic draws RPG windows */
+const PALETTES: Partial<
+  Record<
+    ThemeName,
+    {
+      border: "round" | "double";
+      frame: string;
+      accent: string;
+      logo?: string[];
+    }
+  >
+> = {
+  retro: { border: "round", frame: "white", accent: "white" },
+  ff: {
+    border: "double",
+    frame: "blueBright",
+    accent: "white",
+    logo: [
+      "whiteBright",
+      "whiteBright",
+      "cyanBright",
+      "cyanBright",
+      "cyan",
+      "blue",
+      "blue",
+    ],
+  },
+  gameboy: {
+    border: "round",
+    frame: "green",
+    accent: "greenBright",
+    logo: [
+      "greenBright",
+      "greenBright",
+      "green",
+      "green",
+      "green",
+      "gray",
+      "gray",
+    ],
+  },
+};
 
 let currentTheme: ThemeName = "retro";
 
@@ -51,7 +98,7 @@ export function setTheme(theme: ThemeName): void {
 }
 
 export function isRetro(): boolean {
-  return currentTheme === "retro";
+  return currentTheme !== "classic";
 }
 
 // ─── Look from gear ───────────────────────────────────────────────
@@ -79,7 +126,7 @@ export function gaugeFill(): string {
 
 /** Row colors for the pixel logo, when gear changes them */
 export function logoColors(): string[] | undefined {
-  return currentLook.logo;
+  return currentLook.logo ?? PALETTES[currentTheme]?.logo;
 }
 
 // ─── Tokens ───────────────────────────────────────────────────────
@@ -89,8 +136,12 @@ export function frameStyle(active = false): {
   borderStyle: "round" | "double" | "single";
   borderColor: string;
 } {
-  if (isRetro()) {
-    return { borderStyle: "round", borderColor: currentLook.frame ?? "white" };
+  const palette = PALETTES[currentTheme];
+  if (palette) {
+    return {
+      borderStyle: palette.border,
+      borderColor: currentLook.frame ?? palette.frame,
+    };
   }
   return active
     ? { borderStyle: "double", borderColor: "cyan" }
@@ -99,7 +150,7 @@ export function frameStyle(active = false): {
 
 /** Accent for titles and selections */
 export function accentColor(): string {
-  return isRetro() ? "white" : "cyan";
+  return PALETTES[currentTheme]?.accent ?? "cyan";
 }
 
 /** Rows the help bar takes: the retro one is a framed message and command window */
