@@ -28,8 +28,8 @@ const DEFAULT_TOOLS = "Edit Write Read Glob Grep Bash Agent";
 const claudeCli: CliDefinition = {
   name: "claude",
   binary: "claude",
-  // Aliases resolve to the latest model of each tier in Claude Code
-  models: ["opus", "sonnet", "haiku", "claude-fable-5-1"],
+  // Aliases follow the latest model of each tier (see model-resolver.ts)
+  models: ["opus", "sonnet", "haiku", "fable"],
   buildCommand(agent, workspace) {
     const tools = agent.role === "scout" ? SCOUT_TOOLS : DEFAULT_TOOLS;
     const parts = ["claude", "--allowedTools", tools];

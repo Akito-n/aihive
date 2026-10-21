@@ -1,5 +1,6 @@
 import { Box, Text } from "ink";
 import { t, tf } from "../lib/i18n.js";
+import { modelName } from "../lib/model-resolver.js";
 import { isRetro } from "../lib/theme.js";
 import type { AgentInfo } from "../lib/tmux.js";
 import { VERSION } from "../lib/version.js";
@@ -40,7 +41,7 @@ export function Header({
   const modelCounts = new Map<string, number>();
   for (const a of agents) {
     const prefix = a.cli && a.cli !== "claude" ? `${a.cli}:` : "";
-    const m = `${prefix}${a.model ?? "default"}`;
+    const m = `${prefix}${a.model ? modelName(a.cli, a.model) : "default"}`;
     modelCounts.set(m, (modelCounts.get(m) ?? 0) + 1);
   }
   const modelSummary = [...modelCounts.entries()]

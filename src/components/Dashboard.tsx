@@ -1,6 +1,7 @@
 import { Box, Text } from "ink";
 import { t, tf } from "../lib/i18n.js";
 import { toSlug } from "../lib/mailbox.js";
+import { modelName } from "../lib/model-resolver.js";
 import { bossHp, questMonsterOf } from "../lib/monsters.js";
 import { formatDuration } from "../lib/report.js";
 import type { RpgMessage } from "../lib/rpg-messages.js";
@@ -612,7 +613,7 @@ function ClassicDashboard({
                   <Text dimColor>
                     [
                     {agent.cli && agent.cli !== "claude" ? `${agent.cli}:` : ""}
-                    {agent.model}]
+                    {modelName(agent.cli, agent.model)}]
                   </Text>
                 )}
               </Box>

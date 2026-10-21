@@ -3,6 +3,7 @@ import { useState } from "react";
 import { getCliKeys, getCliModels } from "../lib/cli-registry.js";
 import type { AgentConfig, AihiveConfig } from "../lib/config.js";
 import { resolveWindowLayout } from "../lib/config.js";
+import { modelOptionLabel } from "../lib/model-resolver.js";
 
 interface AgentEditorProps {
   config: AihiveConfig;
@@ -230,7 +231,7 @@ export function AgentEditor({ config, onSave, onCancel }: AgentEditorProps) {
     name: 18,
     role: 14,
     cli: 10,
-    model: 16,
+    model: 22,
   };
 
   return (
@@ -271,7 +272,9 @@ export function AgentEditor({ config, onSave, onCancel }: AgentEditorProps) {
                 const isCellSelected = isRowSelected && selectedCol === colIdx;
                 const isEditing = isCellSelected && mode === "edit-field";
                 const isSelecting = isCellSelected && mode === "select-option";
-                const val = String(agent[f.key] ?? "");
+                const raw = String(agent[f.key] ?? "");
+                const val =
+                  f.key === "model" ? modelOptionLabel(agent.cli, raw) : raw;
 
                 if (isEditing) {
                   const before = editValue.slice(0, editCursor);
@@ -305,7 +308,10 @@ export function AgentEditor({ config, onSave, onCancel }: AgentEditorProps) {
                           }
                         >
                           {(optIdx === selectIndex ? "▸ " : "  ") +
-                            opt.padEnd(colWidths[f.key] - 2)}
+                            (f.key === "model"
+                              ? modelOptionLabel(agent.cli, opt)
+                              : opt
+                            ).padEnd(colWidths[f.key] - 2)}
                         </Text>
                       ))}
                     </Box>

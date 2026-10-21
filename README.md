@@ -112,13 +112,13 @@ agents:
 | reviewer | コードレビュー | sonnet |
 | scout | コードベース調査（読み取り専用） | opus |
 
-`opus` / `sonnet` / `haiku` は Claude Code のエイリアスで、起動時にその系統の最新モデルになります（2026 年 10 月時点で Opus 5.5 / Sonnet 5.5 / Haiku 5.5）。
+`opus` / `sonnet` / `haiku` / `fable` は Claude Code のエイリアスで、その系統の最新モデルに自動で追従します。aihive は起動時に裏で各エイリアスが今どのモデルを指すかを Claude Code に確認し（`~/.aihive/models.json` にキャッシュ）、画面では「opus (Opus 5.5)」のように表示します。
 
 モデルは TUI の「設定」→「エージェント設定」で、エージェントごとに選び直せます。選べるモデルは次のとおりです。`default` は各 CLI の推奨モデル（Codex は `~/.codex/config.toml`、Gemini は Auto）を使います。
 
 | CLI | 選べるモデル |
 |-----|-------------|
-| claude | `opus`, `sonnet`, `haiku`, `claude-fable-5-1` |
+| claude | `opus`, `sonnet`, `haiku`, `fable` |
 | codex | `default`, `gpt-5.5`, `gpt-5.4-mini` |
 | gemini | `default`, `gemini-3.1-pro-preview`, `gemini-3-flash-preview` |
 
