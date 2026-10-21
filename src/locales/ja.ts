@@ -238,7 +238,7 @@ export const ja: Record<TransKey, string> = {
   "retro.noAdventure": "クエストを おえると ぼうけんが すすむ",
   "retro.bagEmpty": "ふくろは からっぽだ",
   "retro.hudFloor": "ちか{floor}かい",
-  "retro.paneTitleFull": "{name} · {job} Lv{level} · {state}",
+  "retro.paneTitleFull": "{name} · {job} Lv{level} {state}",
   "retro.commands": "コマンド",
   "retro.cmd.start": "ぼうけんに でる",
   "retro.cmd.talk": "はなす",

@@ -235,7 +235,7 @@ export const en = {
   "retro.noAdventure": "Finish quests to move the adventure on",
   "retro.bagEmpty": "The bag is empty",
   "retro.hudFloor": "B{floor}F",
-  "retro.paneTitleFull": "{name} · {job} Lv{level} · {state}",
+  "retro.paneTitleFull": "{name} · {job} Lv{level} {state}",
   "retro.commands": "Command",
   "retro.cmd.start": "Set out",
   "retro.cmd.talk": "Talk",
