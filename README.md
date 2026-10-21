@@ -39,10 +39,10 @@ tmux + AI Coding CLI を使ったマルチエージェントオーケストレ�
 
 ## Install
 
-[Releases](https://github.com/Akito-n/aihive/releases) の tgz からグローバルにインストールします（例は v0.12.0）。
+[Releases](https://github.com/Akito-n/aihive/releases) の tgz からグローバルにインストールします（例は v0.13.0）。
 
 ```bash
-pnpm add -g https://github.com/Akito-n/aihive/releases/download/v0.12.0/aihive-0.12.0.tgz
+pnpm add -g https://github.com/Akito-n/aihive/releases/download/v0.13.0/aihive-0.13.0.tgz
 ```
 
 起動画面とメインメニューにバージョンが出ます。古い動作のままのときは、別の場所（Volta など）に入った古い aihive が先に見つかっていないか確認してください。
