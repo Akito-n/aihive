@@ -28,6 +28,11 @@ interface PaneViewProps {
   lines?: number;
   refreshMs?: number;
   onPromptChange?: (info: PromptInfo) => void;
+  /** Retro look: the window's title, instead of one made from the label */
+  title?: string;
+  /** Retro look: shown on the right of the top and bottom borders */
+  badge?: React.ReactNode;
+  footer?: React.ReactNode;
 }
 
 /** Detect if a tmux pane output contains a prompt waiting for user input */
@@ -60,6 +65,9 @@ export function PaneView({
   lines = 15,
   refreshMs = 2000,
   onPromptChange,
+  title,
+  badge,
+  footer,
 }: PaneViewProps) {
   const [output, setOutput] = useState("");
   const prevOutputRef = useRef("");
@@ -121,7 +129,9 @@ export function PaneView({
   if (isRetro()) {
     return (
       <Window
-        title={tf("retro.paneTitle", { name: label })}
+        title={title ?? tf("retro.paneTitle", { name: label })}
+        badge={badge}
+        footer={footer}
         flexGrow={1}
         height={boxHeight}
         overflow="hidden"

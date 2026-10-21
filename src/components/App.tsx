@@ -57,6 +57,8 @@ import {
 } from "../lib/tasks.js";
 import {
   helpBarHeight,
+  isRetro,
+  jobKeyOf,
   saveTheme,
   setLook,
   type ThemeName,
@@ -72,7 +74,15 @@ import {
 import { initWorkspace } from "../lib/workspace.js";
 import { prepareWorkspaces } from "../lib/worktrees.js";
 import { CommandInput } from "./CommandInput.js";
-import { Dashboard } from "./Dashboard.js";
+import {
+  currentTaskOf,
+  DASH_TABS,
+  Dashboard,
+  type DashTab,
+  type JournalEntry,
+  memberStateOf,
+  PartyHud,
+} from "./Dashboard.js";
 import { EquipView } from "./EquipView.js";
 import { Header } from "./Header.js";
 import { HelpBar } from "./HelpBar.js";
@@ -90,6 +100,13 @@ import { TaskView } from "./TaskView.js";
 
 /** Log lines kept for the log screen */
 const LOG_LIMIT = 500;
+
+/** Width of the party column beside the pane */
+const LEFT_COLUMN_WIDTH = 34;
+/** Narrowest pane that shows the floor and gold beside its title */
+const BADGE_MIN_PANE_WIDTH = 60;
+/** How many story lines the adventure tab keeps */
+const JOURNAL_LIMIT = 30;
 
 type AppState = "idle" | "settings" | "starting" | "running" | "stopping";
 type Mode =
@@ -151,6 +168,16 @@ export function App() {
   const [memoryCount, setMemoryCount] = useState(0);
   // Latest line for the retro message window
   const [message, setMessage] = useState<RpgMessage | undefined>();
+  // Story lines so far, newest first, for the adventure tab
+  const [journal, setJournal] = useState<JournalEntry[]>([]);
+  const journalIdRef = useRef(0);
+  useEffect(() => {
+    if (!message) return;
+    const entry = { ...message, id: ++journalIdRef.current };
+    setJournal((prev) => [entry, ...prev].slice(0, JOURNAL_LIMIT));
+  }, [message]);
+  // The tab under the party (retro look)
+  const [dashTab, setDashTab] = useState<DashTab>("quests");
   // aihive's lasting adventure record (levels across sessions)
   const [progress, setProgress] = useState<Progress>(() => loadProgress());
   countMovesRef.current = (uses) => {
@@ -596,6 +623,12 @@ export function App() {
         setMode("input");
         return;
       }
+      if (key.tab) {
+        setDashTab(
+          (prev) => DASH_TABS[(DASH_TABS.indexOf(prev) + 1) % DASH_TABS.length],
+        );
+        return;
+      }
       if (input === "T") {
         setMode("tasks");
         return;
@@ -878,6 +911,26 @@ export function App() {
     );
   }
 
+  // Rows between the header and the help bar: padding, two header lines and two gaps
+  const middleHeight = Math.max(8, rows - 6 - helpBarHeight());
+  const paneTitle = selectedAgent
+    ? (() => {
+        const current = currentTaskOf(selectedAgent, tasks);
+        const state = memberStateOf(
+          selectedAgent,
+          current,
+          Boolean(current && stalledIds.includes(current.id)),
+        );
+        const jobKey = jobKeyOf(selectedAgent.role);
+        return tf("retro.paneTitleFull", {
+          name: selectedAgent.name,
+          job: jobKey ? t(jobKey) : selectedAgent.role,
+          level: memberLevelOf(progress, selectedAgent.name),
+          state: state.text,
+        });
+      })()
+    : undefined;
+
   return (
     <Box flexDirection="column" padding={1} height={termHeight}>
       <Header
@@ -892,7 +945,7 @@ export function App() {
         {mode !== "input" && (
           <Box
             flexDirection="column"
-            width={34}
+            width={LEFT_COLUMN_WIDTH}
             marginRight={1}
             overflow="hidden"
           >
@@ -906,6 +959,11 @@ export function App() {
               stalledIds={stalledIds}
               skillCounts={skillCounts}
               memoryCount={memoryCount}
+              height={middleHeight}
+              tab={dashTab}
+              journal={journal}
+              floor={progress.adventure.floor}
+              gold={progress.gold}
             />
           </Box>
         )}
@@ -916,11 +974,29 @@ export function App() {
               paneTarget={selectedAgent.paneTarget}
               label={selectedAgent.name}
               active={true}
-              lines={Math.max(
-                10,
-                rows - (mode === "input" ? 15 : 9 + helpBarHeight()),
-              )}
+              lines={
+                mode === "input"
+                  ? Math.max(10, rows - 15)
+                  : Math.max(4, middleHeight - 4)
+              }
               onPromptChange={setPromptInfo}
+              title={isRetro() ? paneTitle : undefined}
+              badge={
+                // Only where it cannot run into the title
+                columns - 2 - LEFT_COLUMN_WIDTH - 1 >= BADGE_MIN_PANE_WIDTH && (
+                  <Text color="yellow">
+                    {tf("retro.hudFloor", { floor: progress.adventure.floor })}{" "}
+                    {progress.gold}G
+                  </Text>
+                )
+              }
+              footer={
+                <PartyHud
+                  agents={agents}
+                  tasks={tasks}
+                  stalledIds={stalledIds}
+                />
+              }
             />
           ) : (
             <Box
