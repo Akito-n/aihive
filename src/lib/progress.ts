@@ -32,6 +32,7 @@ import {
 import { toSlug } from "./mailbox.js";
 import type { SkillUse } from "./skill-usage.js";
 import type { Task } from "./tasks.js";
+import { earnTitles, isTitleId } from "./titles.js";
 
 export interface MemberProgress {
   name: string;
@@ -63,6 +64,8 @@ export interface Progress {
   moves: Record<string, number>;
   /** Skill uses already counted, by tool call id (newest last) */
   countedUses: string[];
+  /** Titles earned, oldest first */
+  titles: string[];
 }
 
 /** XP to reach a level grows with its square: XP(n) = k × (n − 1)² */
@@ -128,6 +131,7 @@ export function emptyProgress(): Progress {
     looks: true,
     moves: {},
     countedUses: [],
+    titles: [],
   };
 }
 
@@ -202,6 +206,15 @@ export function loadProgress(file = progressFilePath()): Progress {
         p.moves[name] = Math.floor(uses);
       }
     }
+  }
+  if (Array.isArray(r.titles)) {
+    p.titles = [
+      ...new Set(
+        r.titles.filter(
+          (k): k is string => typeof k === "string" && isTitleId(k),
+        ),
+      ),
+    ];
   }
   if (Array.isArray(r.countedUses)) {
     p.countedUses = r.countedUses.filter(
@@ -281,6 +294,8 @@ export interface Award {
   events: AdventureEvent[];
   /** Gear dropped in those battles */
   drops: Item[];
+  /** Titles this task earned */
+  titles: string[];
   progress: Progress;
 }
 
@@ -376,6 +391,7 @@ export function awardTask(
     .filter((e) => e.won && random() < dropChance(e.boss, luck))
     .map((e) => rollItem(e.floor, random));
   progress.bag = addToBag(progress.bag, drops, progress.equipped);
+  const titles = earnTitles(progress, new Date(now), xp > 0);
   saveProgress(progress, file);
 
   return {
@@ -393,6 +409,7 @@ export function awardTask(
     skills,
     events: explored.events,
     drops,
+    titles,
     progress,
   };
 }
@@ -433,6 +450,8 @@ export interface MovesResult {
   learned: string[];
   /** Moves that reached a new level */
   leveledUp: { name: string; level: number }[];
+  /** Titles these moves earned */
+  titles: string[];
   progress: Progress;
 }
 
@@ -458,6 +477,7 @@ export function recordSkillUses(
     ...progress.countedUses,
     ...fresh.map((u) => u.id),
   ].slice(-COUNTED_LIMIT);
+  const titles = earnTitles(progress, new Date(), false);
   saveProgress(progress, file);
 
   const learned: string[] = [];
@@ -468,5 +488,5 @@ export function recordSkillUses(
       leveledUp.push({ name, level: moveLevel(uses) });
     }
   }
-  return { learned, leveledUp, progress };
+  return { learned, leveledUp, titles, progress };
 }

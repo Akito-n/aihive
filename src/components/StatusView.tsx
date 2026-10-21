@@ -17,6 +17,7 @@ import {
   xpForLevel,
 } from "../lib/progress.js";
 import { gaugeFill, jobKeyOf } from "../lib/theme.js";
+import { TITLES, titleName } from "../lib/titles.js";
 import { Window } from "./Window.js";
 
 interface StatusViewProps {
@@ -47,6 +48,9 @@ export function StatusView({ progress, members, onClose }: StatusViewProps) {
   );
 
   const partyLevel = levelForXp(progress.partyXp, PARTY_XP_FACTOR);
+  const newestTitle = titleName(
+    progress.titles[progress.titles.length - 1] ?? "",
+  );
   return (
     <Box flexDirection="column" gap={1}>
       <Window title={t("status.title")}>
@@ -54,6 +58,7 @@ export function StatusView({ progress, members, onClose }: StatusViewProps) {
           <Text bold>
             {t("status.party")} Lv{partyLevel}
           </Text>
+          {newestTitle && <Text color="yellow">「{t(newestTitle)}」</Text>}
           <Text color="yellow">
             {gauge(levelProgress(progress.partyXp, PARTY_XP_FACTOR), 20)}
           </Text>
@@ -168,6 +173,24 @@ export function StatusView({ progress, members, onClose }: StatusViewProps) {
                 <Text dimColor>{tf("status.moveLine", { count: uses })}</Text>
               </Box>
             ))
+        )}
+      </Window>
+
+      <Window
+        title={tf("status.titles", {
+          count: progress.titles.length,
+          total: TITLES.length,
+        })}
+      >
+        {progress.titles.length === 0 ? (
+          <Text dimColor>{t("status.titlesEmpty")}</Text>
+        ) : (
+          <Box columnGap={2} flexWrap="wrap">
+            {progress.titles.map((id) => {
+              const name = titleName(id);
+              return name ? <Text key={id}>「{t(name)}」</Text> : null;
+            })}
+          </Box>
         )}
       </Window>
 

@@ -68,6 +68,7 @@ describe("awardMessage", () => {
     skills: emptySkills(),
     events: [],
     drops: [],
+    titles: [],
     progress: emptyProgress(),
     ...overrides,
   });
@@ -96,6 +97,24 @@ describe("awardMessage", () => {
     ).toBe("Worker 1の レベルが 3に あがった！");
     expect(awardMessage(award({ boss: true }), "T1").text).toContain(
       "ボス T1 を たおした！",
+    );
+  });
+
+  it("tells a new title right after level ups", () => {
+    expect(
+      awardMessage(award({ titles: ["bossSlayer"], boss: true }), "T1").text,
+    ).toBe("しょうごう「ボスごろし」を てにいれた！");
+    expect(
+      awardMessage(
+        award({ titles: ["bossSlayer"], memberLevel: { before: 1, after: 2 } }),
+        "T1",
+      ).text,
+    ).toBe("Worker 1の レベルが 2に あがった！");
+  });
+
+  it("names the task's monster when nothing bigger happened", () => {
+    expect(awardMessage(award({}), "T1", "バグスライム").text).toBe(
+      "Worker 1は バグスライムを たおした！ 35ポイントの けいけんちを かくとく！",
     );
   });
 
@@ -180,6 +199,7 @@ describe("movesMessage", () => {
       movesMessage({
         learned: ["review"],
         leveledUp: [{ name: "deploy", level: 3 }],
+        titles: [],
         progress,
       })?.text,
     ).toBe("パーティは ひっさつわざ「review」を おぼえた！");
@@ -187,11 +207,12 @@ describe("movesMessage", () => {
       movesMessage({
         learned: [],
         leveledUp: [{ name: "deploy", level: 3 }],
+        titles: [],
         progress,
       })?.text,
     ).toBe("ひっさつわざ「deploy」が ★3に なった！");
-    expect(movesMessage({ learned: [], leveledUp: [], progress })).toBe(
-      undefined,
-    );
+    expect(
+      movesMessage({ learned: [], leveledUp: [], titles: [], progress }),
+    ).toBe(undefined);
   });
 });

@@ -1,9 +1,16 @@
 import { Box, Text } from "ink";
 import { t, tf } from "../lib/i18n.js";
 import { toSlug } from "../lib/mailbox.js";
+import { bossHp, questMonsterOf } from "../lib/monsters.js";
 import { formatDuration } from "../lib/report.js";
 import type { Task, TaskState } from "../lib/tasks.js";
-import { conditionOf, cursorGlyph, isRetro, jobKeyOf } from "../lib/theme.js";
+import {
+  conditionOf,
+  cursorGlyph,
+  gaugeFill,
+  isRetro,
+  jobKeyOf,
+} from "../lib/theme.js";
 import type { AgentInfo } from "../lib/tmux.js";
 import type { TransKey } from "../locales/en.js";
 import { useBlink, Window } from "./Window.js";
@@ -130,6 +137,19 @@ export function Dashboard(props: DashboardProps) {
 }
 
 /** The dashboard as RPG windows: party, quests and the bag */
+/** A boss's HP: the subtasks still open, as a small bar */
+function BossHp({ hp }: { hp?: { left: number; total: number } }) {
+  if (!hp) return null;
+  const width = 5;
+  const filled = Math.ceil((hp.left / hp.total) * width);
+  return (
+    <Text color={hp.left === 0 ? "gray" : "red"}>
+      {gaugeFill().repeat(filled)}
+      {"░".repeat(width - filled)} {hp.left}/{hp.total}
+    </Text>
+  );
+}
+
 function RetroDashboard({
   agents,
   selectedIndex,
@@ -220,9 +240,12 @@ function RetroDashboard({
                 {TASK_ICON[task.state]}
               </Text>
               <Text wrap="truncate-end">{task.id}</Text>
-              <Text dimColor wrap="truncate-end">
-                {task.assignedTo}
-              </Text>
+              <Box flexGrow={1} flexShrink={1}>
+                <Text dimColor wrap="truncate-end">
+                  {t(questMonsterOf(task))}
+                </Text>
+              </Box>
+              <BossHp hp={bossHp(task, tasks)} />
             </Box>
           ))}
           {tasks.length > TASK_LIST_LIMIT && (

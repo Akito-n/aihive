@@ -383,3 +383,43 @@ describe("EquipView", () => {
     expect(lastFrame()).toContain("ふくろは からっぽだ。");
   });
 });
+
+describe("quest monsters and titles", () => {
+  beforeEach(() => setLocale("ja"));
+
+  it("shows each quest's monster and a boss's HP", () => {
+    setTheme("retro");
+    const base = {
+      description: "",
+      assignedTo: "worker-1",
+      state: "running" as const,
+      blockedBy: [],
+      createdAt: "2026-10-20T00:00:00Z",
+      updatedAt: "2026-10-20T00:00:00Z",
+    };
+    const tasks = [
+      { ...base, id: "T1", description: "Fix the crash" },
+      { ...base, id: "T1-1", state: "done" as const },
+      { ...base, id: "T1-2" },
+    ];
+    const { lastFrame } = render(
+      <Dashboard agents={[makeAgent()]} selectedIndex={0} tasks={tasks} />,
+    );
+    const frame = lastFrame() ?? "";
+    expect(frame).toContain("バグスライム");
+    expect(frame).toContain("1/2");
+  });
+
+  it("lists the earned titles on the status screen", () => {
+    const progress = emptyProgress();
+    progress.titles = ["firstQuest", "bossSlayer"];
+    const { lastFrame } = render(
+      <StatusView progress={progress} members={[]} />,
+    );
+    const frame = lastFrame() ?? "";
+    expect(frame).toContain("しょうごう 2/10");
+    expect(frame).toContain("「かけだしの ぼうけんしゃ」");
+    expect(frame).toContain("パーティ Lv1");
+    expect(frame).toContain("「ボスごろし」");
+  });
+});
