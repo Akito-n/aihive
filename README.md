@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/logo.svg" alt="aihive" width="160">
+
 # aihive
 
 **tmux + AI Coding CLI で複数の AI エージェントを動かす、レトロ RPG 風の TUI**
