@@ -17,7 +17,13 @@ import {
   setTheme,
 } from "../../lib/theme.js";
 import type { AgentInfo } from "../../lib/tmux.js";
-import { Dashboard } from "../Dashboard.js";
+import {
+  cellWidth,
+  Dashboard,
+  fitLeftColumn,
+  memberStateOf,
+  PartyHud,
+} from "../Dashboard.js";
 import { EquipView, lookSummary } from "../EquipView.js";
 import { HelpBar, retroCommands } from "../HelpBar.js";
 import { partySummary } from "../MainMenu.js";
@@ -74,6 +80,17 @@ describe("Window", () => {
     expect(top).toMatch(/^╭─+ なかま ─+╮$/);
     expect(middle).toContain("body");
   });
+
+  it("puts a badge on the top border and a footer on the bottom one", () => {
+    const { lastFrame } = render(
+      <Window title="ようす" badge={<Text>B3F</Text>} footer={<Text>⚔1</Text>}>
+        <Text>body</Text>
+      </Window>,
+    );
+    const lines = (lastFrame() ?? "").split("\n");
+    expect(lines[0]).toMatch(/ ようす ─+ B3F ─╮$/);
+    expect(lines[lines.length - 1]).toMatch(/⚔1─╯$/);
+  });
 });
 
 describe("retro dashboard", () => {
@@ -89,11 +106,37 @@ describe("retro dashboard", () => {
     const frame = lastFrame() ?? "";
     expect(frame).toContain(" なかま ");
     expect(frame).toMatch(/▶Orchestrator\s+おうさま Lv1/);
-    expect(frame).toContain("せんし Lv1");
-    expect(frame).toContain("designer Lv1");
-    expect(frame).toContain("たたかい中");
-    expect(frame).toContain("たいき");
-    expect(frame).toContain("こんらん");
+    expect(frame).toMatch(/せんし\s+Lv1/);
+    expect(frame).toMatch(/designer\s+Lv1/);
+    expect(frame).toContain("·たいき");
+    expect(frame).toContain("✗こんらん");
+  });
+
+  it("shows members without a task as waiting, not fighting", () => {
+    // Every agent is "running" once the session starts, with or without work
+    const { lastFrame } = render(
+      <Dashboard
+        agents={[makeAgent(), makeAgent({ name: "Worker 2" })]}
+        selectedIndex={0}
+        tasks={[makeTask()]}
+      />,
+    );
+    const frame = lastFrame() ?? "";
+    expect(frame).not.toContain("たたかい中");
+    expect(frame).toMatch(/Worker 1\s+せんし\s+Lv1 ⚔T1/);
+    expect(frame).toMatch(/Worker 2\s+せんし\s+Lv1 ·たいき/);
+    expect(frame).toMatch(/└ .+ build the log screen/);
+  });
+
+  it("marks a member reviewing a task", () => {
+    const { lastFrame } = render(
+      <Dashboard
+        agents={[makeAgent()]}
+        selectedIndex={0}
+        tasks={[makeTask({ state: "review" })]}
+      />,
+    );
+    expect(lastFrame()).toContain("✚T1");
   });
 
   it("shows a stalled agent as poisoned and counts it in the quests", () => {
@@ -107,7 +150,7 @@ describe("retro dashboard", () => {
       />,
     );
     const frame = lastFrame() ?? "";
-    expect(frame).toMatch(/どく T1/);
+    expect(frame).toContain("☠T1");
     expect(frame).toContain(" クエスト ");
     expect(frame).toContain("どく 1");
   });
@@ -121,23 +164,127 @@ describe("retro dashboard", () => {
       />,
     );
     const frame = lastFrame() ?? "";
-    expect(frame).toContain("せんし Lv7");
-    expect(frame).toContain("せんし Lv1");
+    expect(frame).toMatch(/せんし\s+Lv7/);
+    expect(frame).toMatch(/せんし\s+Lv1/);
   });
 
-  it("keeps skills and memory in the bag", () => {
+  it("shows one tab under the party, the quests first", () => {
+    const { lastFrame } = render(
+      <Dashboard agents={[makeAgent()]} selectedIndex={0} />,
+    );
+    const frame = lastFrame() ?? "";
+    expect(frame).toContain("[クエスト]");
+    expect(frame).toContain(" ぼうけん ");
+    expect(frame).toContain("Tab");
+    expect(frame).toContain("まだ クエストは ない");
+    expect(frame).not.toContain("ふくろは");
+  });
+
+  it("keeps skills and memory in the bag tab", () => {
     const { lastFrame } = render(
       <Dashboard
         agents={[makeAgent()]}
         selectedIndex={0}
+        tab="bag"
         skillCounts={{ approved: 2, proposed: 1, rejected: 0 }}
         memoryCount={4}
       />,
     );
     const frame = lastFrame() ?? "";
-    expect(frame).toContain(" ふくろ ");
+    expect(frame).toContain("[ふくろ]");
     expect(frame).toContain("承認済み 2");
     expect(frame).toContain("4 件");
+  });
+
+  it("tells the adventure in its tab, newest first", () => {
+    const { lastFrame } = render(
+      <Dashboard
+        agents={[makeAgent()]}
+        selectedIndex={0}
+        tab="adventure"
+        floor={3}
+        gold={120}
+        journal={[
+          { id: 2, text: "スライムを たおした！" },
+          { id: 1, text: "なかまが そろった。" },
+        ]}
+      />,
+    );
+    const lines = (lastFrame() ?? "").split("\n");
+    const at = (text: string) => lines.findIndex((l) => l.includes(text));
+    expect(at("ちか3かい 120G")).toBeGreaterThan(-1);
+    expect(at("スライムを たおした")).toBeLessThan(at("なかまが そろった"));
+  });
+
+  it("fits its height: the party always, the tab only when it has room", () => {
+    const agents = [makeAgent(), makeAgent({ name: "Worker 2" })];
+    const tall = render(
+      <Dashboard agents={agents} selectedIndex={0} height={12} />,
+    );
+    const tallFrame = tall.lastFrame() ?? "";
+    expect(tallFrame.split("\n").length).toBeLessThanOrEqual(12);
+    expect(tallFrame).toContain("[クエスト]");
+
+    const short = render(
+      <Dashboard agents={agents} selectedIndex={0} height={6} />,
+    );
+    const shortFrame = short.lastFrame() ?? "";
+    expect(shortFrame).toContain("Worker 2");
+    expect(shortFrame).not.toContain("[クエスト]");
+  });
+
+  it("keeps the selected member in view when the party does not fit", () => {
+    const agents = ["A", "B", "C", "D", "E"].map((name) => makeAgent({ name }));
+    const { lastFrame } = render(
+      <Dashboard agents={agents} selectedIndex={4} height={5} />,
+    );
+    const frame = lastFrame() ?? "";
+    expect(frame).toMatch(/E\s+せんし/);
+    expect(frame).not.toMatch(/A\s+せんし/);
+  });
+
+  it("measures wide characters as two columns", () => {
+    expect(cellWidth("Lv1")).toBe(3);
+    expect(cellWidth("せんし")).toBe(6);
+  });
+
+  it("drops the task lines before the tab when space is short", () => {
+    expect(fitLeftColumn(undefined, 7, 3).details).toBe(true);
+    // 7 members take 9 rows; 3 task lines and a 4-row tab need 16
+    expect(fitLeftColumn(16, 7, 3)).toEqual({ details: true, tabLines: 1 });
+    expect(fitLeftColumn(15, 7, 3)).toEqual({ details: false, tabLines: 3 });
+    expect(fitLeftColumn(12, 7, 0)).toEqual({ details: false, tabLines: 0 });
+  });
+
+  it("sums up the party and the quests for a border", () => {
+    const agents = [
+      makeAgent(),
+      makeAgent({ name: "Worker 2" }),
+      makeAgent({ name: "Worker 3" }),
+    ];
+    const tasks = [
+      makeTask(),
+      makeTask({ id: "T2", assignedTo: "worker-2", state: "review" }),
+      makeTask({ id: "T3", assignedTo: "worker-3", state: "done" }),
+    ];
+    const { lastFrame } = render(
+      <PartyHud agents={agents} tasks={tasks} stalledIds={[]} />,
+    );
+    const frame = lastFrame() ?? "";
+    expect(frame).toContain("⚔1");
+    expect(frame).toContain("✚1");
+    expect(frame).toContain("·1");
+    expect(frame).toContain("1/3");
+  });
+
+  it("names a member's state from its task", () => {
+    const agent = makeAgent();
+    expect(memberStateOf(agent, undefined, false).kind).toBe("idle");
+    expect(memberStateOf(agent, makeTask(), false).text).toBe("⚔T1");
+    expect(memberStateOf(agent, makeTask(), true).kind).toBe("stalled");
+    expect(
+      memberStateOf(makeAgent({ status: "error" }), makeTask(), false).kind,
+    ).toBe("error");
   });
 });
 

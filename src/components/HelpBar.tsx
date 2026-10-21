@@ -42,9 +42,12 @@ export function HelpBar({ state, message }: HelpBarProps) {
         </Text>
         <Box columnGap={2} height={1} overflow="hidden">
           {retroCommands(state).map(([key, label]) => (
-            <Text key={key}>
-              {t(label)} <Text dimColor>{key}</Text>
-            </Text>
+            // Commands keep their width; the ones that do not fit are cut off
+            <Box key={key} flexShrink={0}>
+              <Text>
+                {t(label)} <Text dimColor>{key}</Text>
+              </Text>
+            </Box>
           ))}
         </Box>
       </Window>

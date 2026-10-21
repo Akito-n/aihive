@@ -232,7 +232,8 @@ vi.mock("../StartupScreen.js", async () => {
   };
 });
 
-vi.mock("../Dashboard.js", () => ({
+vi.mock("../Dashboard.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../Dashboard.js")>()),
   Dashboard: (props: { agents: unknown }) => {
     (globalThis as Record<string, unknown>).__dashboardAgents = props.agents;
     return null;
@@ -932,7 +933,7 @@ describe("App - runtime lifecycle", () => {
   });
 
   it("T opens the task screen with the task list, and it can close", async () => {
-    const task = { id: "T1", state: "running" };
+    const task = { id: "T1", state: "running", assignedTo: "worker-1" };
     mocks.tmGetAll.mockReturnValue([task]);
     const g = globalThis as Record<string, unknown>;
     g.__taskViewProps = undefined;
