@@ -127,6 +127,16 @@ export const ja: Record<TransKey, string> = {
   "direct.exitHint": "すべてのキーをペインに送ります・Ctrl+Q でもどる",
   "help.direct": "直接操作",
   "retro.cmd.direct": "ちょくせつ",
+  "trust.title": "エージェントのフォルダを信頼しますか？",
+  "trust.body":
+    "次の {count} 個のフォルダは、まだ Claude Code で信頼されていません。このままだと、エージェントのウィンドウごとに「Do you trust this folder?」と聞かれます。まとめて信頼しますか？",
+  "trust.warning":
+    "Claude がこれらのフォルダのファイルを読み書き・実行でき、フォルダ内の .claude の設定も使われます。自分のプロジェクトや信頼できるものだけ y を押してください。",
+  "trust.more": "…ほか {count} 個",
+  "trust.yes": "すべて信頼して起動",
+  "trust.no": "信頼せずに起動（各ウィンドウで確認）",
+  "trust.saved": "{count} 個のフォルダを Claude Code の信頼済みに登録しました",
+  "trust.failed": "フォルダの信頼を保存できませんでした: {error}",
   "commandInput.placeholder": "メッセージを入力...",
   "commandInput.commands": "コマンド",
   "commandInput.actionRequired": "⚡ アクションが必要:",

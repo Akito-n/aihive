@@ -39,10 +39,10 @@ tmux + AI Coding CLI を使ったマルチエージェントオーケストレ�
 
 ## Install
 
-[Releases](https://github.com/Akito-n/aihive/releases) の tgz からグローバルにインストールします（例は v0.15.0）。
+[Releases](https://github.com/Akito-n/aihive/releases) の tgz からグローバルにインストールします（例は v0.16.0）。
 
 ```bash
-pnpm add -g https://github.com/Akito-n/aihive/releases/download/v0.15.0/aihive-0.15.0.tgz
+pnpm add -g https://github.com/Akito-n/aihive/releases/download/v0.16.0/aihive-0.16.0.tgz
 ```
 
 起動画面とメインメニューにバージョンが出ます。古い動作のままのときは、別の場所（Volta など）に入った古い aihive が先に見つかっていないか確認してください。
@@ -60,6 +60,7 @@ aihive --help
 ### 画面構成
 
 1. **メインメニュー** - エージェントの起動、設定、ヘルプ
+   - 起動時、Claude Code でまだ信頼していないフォルダ（Worker の worktree を含む）があれば一覧を出して一度だけ確認します。`y` でまとめて信頼済みに登録（`~/.claude.json`、`CLAUDE_CONFIG_DIR` があればその中）し、各ウィンドウの「Do you trust this folder?」が出なくなります。`n` ならそのまま起動します
 2. **ダッシュボード** - 全エージェントの出力とクエスト（タスク）をリアルタイム表示。主なキーは次のとおりです
    - `↑`/`↓` で仲間を選び、`Enter` か `i` で話しかける（`//` で Quick Commands）
    - `T` クエスト（タスク）、`O` 全員の様子（Overview）、`L` ログ、`S` つよさ、`E` そうび、`G` おみせ、`Z` ずかん、`M` ちず

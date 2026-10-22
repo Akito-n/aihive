@@ -71,6 +71,9 @@ const mocks = vi.hoisted(() => {
   const restartAgentMock = vi.fn();
   const sendRawKeysMock = vi.fn();
   const sendLiteralMock = vi.fn();
+  // Never touch the real ~/.claude.json from tests
+  const untrustedDirsMock = vi.fn().mockReturnValue([]);
+  const trustDirsMock = vi.fn();
 
   return {
     capturedMsgHandlerRef,
@@ -109,8 +112,16 @@ const mocks = vi.hoisted(() => {
     restartAgentMock,
     sendRawKeysMock,
     sendLiteralMock,
+    untrustedDirsMock,
+    trustDirsMock,
   };
 });
+
+vi.mock("../../lib/claude-trust.js", () => ({
+  claudeAgentDirs: () => ["/proj"],
+  untrustedDirs: mocks.untrustedDirsMock,
+  trustDirs: mocks.trustDirsMock,
+}));
 
 // ─── vi.mock factories ────────────────────────────────────────────────────────
 
@@ -321,6 +332,7 @@ vi.mock("../../lib/checks.js", () => ({
 import { render } from "ink-testing-library";
 import { loadConfig } from "../../lib/config.js";
 import { emptyProgress } from "../../lib/progress.js";
+import { startSession } from "../../lib/tmux.js";
 import { App } from "../App.js";
 
 // ─── Test helpers ─────────────────────────────────────────────────────────────
@@ -1089,5 +1101,59 @@ describe("App - agents stuck at the pane", () => {
       await Promise.resolve();
     });
     expect(mocks.sendLiteralMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("App - folder trust before the agents start", () => {
+  beforeEach(() => {
+    mocks.sessionExistsMock.mockReturnValue(false);
+    mocks.untrustedDirsMock.mockReset().mockReturnValue(["/proj"]);
+    mocks.trustDirsMock.mockReset();
+    vi.mocked(startSession).mockClear();
+  });
+
+  afterEach(() => {
+    mocks.untrustedDirsMock.mockReset().mockReturnValue([]);
+  });
+
+  it("asks once, then trusts every folder and starts on y", async () => {
+    const { stdin, lastFrame } = await advanceToRunningState();
+    expect(lastFrame()).toContain("/proj");
+    expect(startSession).not.toHaveBeenCalled();
+
+    await act(async () => {
+      stdin.write("y");
+      await Promise.resolve();
+    });
+    expect(mocks.trustDirsMock).toHaveBeenCalledWith(["/proj"]);
+    expect(startSession).toHaveBeenCalledTimes(1);
+  });
+
+  it("starts without saving anything on n", async () => {
+    const { stdin } = await advanceToRunningState();
+    await act(async () => {
+      stdin.write("n");
+      await Promise.resolve();
+    });
+    expect(mocks.trustDirsMock).not.toHaveBeenCalled();
+    expect(startSession).toHaveBeenCalledTimes(1);
+  });
+
+  it("still starts when the trust cannot be saved", async () => {
+    mocks.trustDirsMock.mockImplementation(() => {
+      throw new Error("bad json");
+    });
+    const { stdin } = await advanceToRunningState();
+    await act(async () => {
+      stdin.write("y");
+      await Promise.resolve();
+    });
+    expect(startSession).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips the question when every folder is trusted", async () => {
+    mocks.untrustedDirsMock.mockReturnValue([]);
+    await advanceToRunningState();
+    expect(startSession).toHaveBeenCalledTimes(1);
   });
 });
