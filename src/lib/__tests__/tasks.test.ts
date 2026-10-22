@@ -206,6 +206,43 @@ describe("TaskManager.handleMessage()", () => {
     expect(tm.get("msg-42")?.state).toBe("done");
   });
 
+  it('type="result" without task_id completes the sender\'s only open task', () => {
+    const tm = new TaskManager();
+    tm.add("subtask-002", "desc", "worker-2");
+    tm.add("subtask-003", "desc", "worker-3");
+    tm.handleMessage(
+      makeMsg({
+        type: "result",
+        id: "result-worker2-002",
+        from: "worker-2",
+        to: "coordinator",
+        payload: "found it",
+      }),
+    );
+    expect(tm.get("subtask-002")?.state).toBe("done");
+    expect(tm.get("subtask-003")?.state).toBe("pending");
+  });
+
+  it('type="result" without task_id leaves tasks alone when the sender has several open', () => {
+    const tm = new TaskManager();
+    tm.add("a", "desc", "worker-2");
+    tm.add("b", "desc", "worker-2");
+    tm.handleMessage(
+      makeMsg({ type: "result", id: "r1", from: "worker-2", payload: "x" }),
+    );
+    expect(tm.get("a")?.state).toBe("pending");
+    expect(tm.get("b")?.state).toBe("pending");
+  });
+
+  it('type="error" without task_id fails the sender\'s only open task', () => {
+    const tm = new TaskManager();
+    tm.add("t1", "desc", "worker-1");
+    tm.handleMessage(
+      makeMsg({ type: "error", id: "e1", from: "worker-1", payload: "x" }),
+    );
+    expect(tm.get("t1")?.state).toBe("error");
+  });
+
   it('type="error" marks task as failed', () => {
     const tm = new TaskManager();
     tm.add("my-task", "desc", "worker-1");
