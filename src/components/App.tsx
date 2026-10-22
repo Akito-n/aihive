@@ -850,7 +850,7 @@ export function App() {
   const handleCommandSubmit = useCallback(
     (text: string) => {
       sendToPane(config.session, selectedAgent.paneTarget, text);
-      addLog(`→ ${selectedAgent.name}: ${text}`);
+      addLog(`→ ${selectedAgent.name}: ${text.replace(/\n/g, " ⏎ ")}`);
     },
     [config.session, selectedAgent, addLog],
   );

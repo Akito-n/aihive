@@ -42,6 +42,7 @@ if (args.includes("--evaluate")) {
 
 checkDependencies();
 
-render(<App />);
+// Lets terminals that support it tell Ctrl+Enter apart from Enter
+render(<App />, { kittyKeyboard: { mode: "auto" } });
 // Look up which versions the Claude aliases mean now, in the background
 void refreshResolvedModels();
