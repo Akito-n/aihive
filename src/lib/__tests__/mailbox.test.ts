@@ -22,6 +22,7 @@ import {
   archiveMessage,
   type Message,
   MessageBus,
+  NUDGE_ATTEMPTS,
   SYSTEM_MAILBOX,
   toSlug,
 } from "../mailbox.js";
@@ -232,126 +233,230 @@ describe("MessageBus", () => {
     });
   });
 
-  describe("sendNudge()", () => {
-    const msg: Message = {
-      id: "n1",
-      from: "coordinator",
-      to: "worker-1",
-      type: "task",
-      payload: "p",
-      timestamp: "t",
+  describe("notices", () => {
+    type Internals = {
+      processNewFile: (slug: string, file: string) => void;
+      sendNudge: (slug: string) => Promise<boolean>;
+      paneQueues: Map<string, Promise<boolean>>;
+      wait: (ms: number) => Promise<void>;
     };
+    const internals = (b: MessageBus) => b as unknown as Internals;
+    const settle = async (b: MessageBus, slug: string) => {
+      await internals(b).paneQueues.get(slug);
+    };
+    const tmuxCalls = () =>
+      mockExecFileSync.mock.calls.map((c) => c[1] as string[]);
+    const message = (id: string, from = "coordinator"): string =>
+      stringify({ id, from, to: "worker-1", type: "task", payload: "p" });
+    let frame = 0;
+    /** The pane keeps changing, as when the agent starts working */
+    const working = () => {
+      mockExecFileSync.mockImplementation((_cmd: string, args: string[]) =>
+        args[0] === "capture-pane" ? `frame ${frame++}` : undefined,
+      );
+    };
+    /** The pane never changes: the line was not submitted */
+    const stuck = () => {
+      mockExecFileSync.mockImplementation((_cmd: string, args: string[]) =>
+        args[0] === "capture-pane" ? "same" : undefined,
+      );
+    };
+    const handledFile = () => {
+      const writes = mockFs.writeFileSync.mock.calls.filter((c) =>
+        String(c[0]).endsWith(".handled.json"),
+      );
+      return JSON.parse(String(writes[writes.length - 1]?.[1] ?? "[]"));
+    };
+    const onNudgeFailed = vi.fn();
 
-    it("nudgeConfig=nullのとき何もしない", () => {
-      (bus as unknown as Record<string, Function>).sendNudge("worker-1", msg);
-      expect(mockExecFileSync).not.toHaveBeenCalled();
-    });
-
-    it("paneTargets.get(slug)がundefinedのとき何もしない", () => {
-      bus.setNudgeConfig({ sessionName: "aihive", paneTargets: new Map() });
-      (bus as unknown as Record<string, Function>).sendNudge("worker-1", msg);
-      expect(mockExecFileSync).not.toHaveBeenCalled();
-    });
-
-    it("tmux失敗でも例外を伝播しない", () => {
-      bus.setNudgeConfig({
-        sessionName: "aihive",
-        paneTargets: new Map([["worker-1", "worker-1"]]),
-      });
-      mockFs.readdirSync.mockReturnValue(["msg.yaml"] as unknown as string[]);
-      mockExecFileSync.mockImplementation(() => {
-        throw new Error("tmux failed");
-      });
-
-      expect(() =>
-        (bus as unknown as Record<string, Function>).sendNudge("worker-1", msg),
-      ).not.toThrow();
-    });
-    it("シェルを通さず、1行の文字列としてそのまま送る", () => {
+    beforeEach(() => {
       mockExecFileSync.mockReset();
+      internals(bus).wait = () => Promise.resolve();
       bus.setNudgeConfig({
         sessionName: "aihive",
-        paneTargets: new Map([["worker-1", "workers.0"]]),
+        paneTargets: new Map([
+          ["worker-1", "workers.0"],
+          ["reviewer", "reviewer"],
+        ]),
+        onNudgeFailed,
       });
-      mockFs.readdirSync.mockReturnValue(["a.yaml", "b.yaml", "processed"]);
+      onNudgeFailed.mockReset();
+    });
 
-      (
-        bus as unknown as {
-          sendNudge: (slug: string, msg: Message) => void;
-        }
-      ).sendNudge("worker-1", {
-        ...msg,
-        from: "x\n$(rm -rf ~) `id`",
-      });
+    it("does nothing without a nudge config", async () => {
+      const plain = new MessageBus("/test-project");
+      internals(plain).wait = () => Promise.resolve();
+      mockFs.readFileSync.mockReturnValue(message("n1"));
+      internals(plain).processNewFile("worker-1", "n1.yaml");
+      await settle(plain, "worker-1");
+      expect(mockExecFileSync).not.toHaveBeenCalled();
+    });
 
-      const calls = mockExecFileSync.mock.calls.map((c) => c[1] as string[]);
+    it("does nothing for an agent without a pane", async () => {
+      mockFs.readFileSync.mockReturnValue(message("n1"));
+      internals(bus).processNewFile("worker-9", "n1.yaml");
+      await settle(bus, "worker-9");
+      expect(mockExecFileSync).not.toHaveBeenCalled();
+    });
+
+    it("pastes one line without a shell, then presses Enter", async () => {
+      working();
+      mockFs.readFileSync.mockReturnValue(message("n1", "x\n$(rm -rf ~) `id`"));
+      internals(bus).processNewFile("worker-1", "n1.yaml");
+      await settle(bus, "worker-1");
+
       expect(mockExecFileSync.mock.calls.every((c) => c[0] === "tmux")).toBe(
         true,
       );
+      const calls = tmuxCalls();
       expect(calls[0]).toEqual(["send-keys", "-t", "aihive:workers.0", "C-u"]);
       expect(calls[1].slice(0, 4)).toEqual([
-        "send-keys",
-        "-t",
-        "aihive:workers.0",
-        "-l",
+        "set-buffer",
+        "-b",
+        "aihive-nudge",
+        "--",
       ]);
       expect(calls[1][4]).toContain(
-        "[inbox: 2件の新着 from x $(rm -rf ~) `id`]",
+        "[inbox: 1件の新着 from x $(rm -rf ~) `id`]",
       );
       expect(calls[1][4]).not.toContain("\n");
       expect(calls[2]).toEqual([
+        "paste-buffer",
+        "-p",
+        "-d",
+        "-b",
+        "aihive-nudge",
+        "-t",
+        "aihive:workers.0",
+      ]);
+      expect(calls[3]).toEqual([
         "send-keys",
         "-t",
         "aihive:workers.0",
         "Enter",
       ]);
-    });
-  });
-
-  describe("remindStalled()", () => {
-    it("types one reminder line naming the task and the inbox", () => {
-      mockExecFileSync.mockReset();
-      bus.setNudgeConfig({
-        sessionName: "aihive",
-        paneTargets: new Map([["reviewer", "reviewer"]]),
-      });
-
-      expect(bus.remindStalled("reviewer", "T1-2\nrm -rf", 15)).toBe(true);
-
-      const calls = mockExecFileSync.mock.calls.map((c) => c[1] as string[]);
-      expect(calls).toHaveLength(3);
-      const text = calls[1][4];
-      expect(calls[1].slice(0, 4)).toEqual([
-        "send-keys",
-        "-t",
-        "aihive:reviewer",
-        "-l",
-      ]);
-      expect(text).toContain("タスク T1-2 rm -rf が 15分間更新されていません");
-      expect(text).toContain("/test-project/.aihive/mailbox/reviewer/inbox/");
-      expect(text).not.toContain("\n");
+      expect(
+        calls.filter((c) => c[0] === "send-keys" && c[3] === "Enter"),
+      ).toHaveLength(1);
+      expect(handledFile()).toEqual(["worker-1/n1.yaml"]);
+      expect(onNudgeFailed).not.toHaveBeenCalled();
     });
 
-    it("uses English when the language is set to English", () => {
-      mockExecFileSync.mockReset();
-      bus.setNudgeConfig({
-        sessionName: "aihive",
-        paneTargets: new Map([["reviewer", "reviewer"]]),
-      });
-      setLocale("en");
-      try {
-        bus.remindStalled("reviewer", "T1", 15);
-      } finally {
-        setLocale("ja");
+    it("presses Enter again when the pane does not change, and keeps the message undelivered", async () => {
+      stuck();
+      mockFs.readFileSync.mockReturnValue(message("n1"));
+      internals(bus).processNewFile("worker-1", "n1.yaml");
+      await settle(bus, "worker-1");
+
+      const enters = tmuxCalls().filter(
+        (c) => c[0] === "send-keys" && c[3] === "Enter",
+      );
+      expect(enters).toHaveLength(2);
+      expect(onNudgeFailed).toHaveBeenCalledWith("worker-1");
+      // Not recorded as handled, so a relaunched aihive announces it again
+      expect(handledFile()).toEqual([]);
+    });
+
+    it("tries again on a later poll and gives up after the last attempt", async () => {
+      stuck();
+      mockFs.readFileSync.mockReturnValue(message("n1"));
+      mockFs.readdirSync.mockReturnValue(["n1.yaml"]);
+      internals(bus).processNewFile("worker-1", "n1.yaml");
+      await settle(bus, "worker-1");
+      for (let i = 1; i < NUDGE_ATTEMPTS; i++) {
+        await internals(bus).sendNudge("worker-1");
       }
-      const text = (mockExecFileSync.mock.calls[1][1] as string[])[4];
-      expect(text).toContain("[aihive] Task T1 has had no update for 15 min.");
+      expect(onNudgeFailed).toHaveBeenCalledTimes(NUDGE_ATTEMPTS);
+      expect(handledFile()).toEqual(["worker-1/n1.yaml"]);
+
+      mockExecFileSync.mockClear();
+      expect(await internals(bus).sendNudge("worker-1")).toBe(true);
+      expect(mockExecFileSync).not.toHaveBeenCalled();
     });
 
-    it("returns false for an agent without a pane", () => {
-      bus.setNudgeConfig({ sessionName: "aihive", paneTargets: new Map() });
-      expect(bus.remindStalled("worker-9", "T1", 15)).toBe(false);
-      expect(mockExecFileSync).not.toHaveBeenCalled();
+    it("counts only the messages not announced yet", async () => {
+      working();
+      mockFs.readFileSync.mockReturnValue(message("n1"));
+      internals(bus).processNewFile("worker-1", "n1.yaml");
+      await settle(bus, "worker-1");
+      mockFs.readFileSync.mockReturnValue(message("n2", "worker-2"));
+      internals(bus).processNewFile("worker-1", "n2.yaml");
+      await settle(bus, "worker-1");
+
+      const texts = tmuxCalls()
+        .filter((c) => c[0] === "set-buffer")
+        .map((c) => c[4]);
+      expect(texts).toHaveLength(2);
+      expect(texts[1]).toContain("[inbox: 1件の新着 from worker-2]");
+    });
+
+    it("announces messages that arrive together in one notice", async () => {
+      working();
+      mockFs.readFileSync.mockReturnValue(message("n1"));
+      internals(bus).processNewFile("worker-1", "n1.yaml");
+      mockFs.readFileSync.mockReturnValue(message("n2", "worker-2"));
+      internals(bus).processNewFile("worker-1", "n2.yaml");
+      await settle(bus, "worker-1");
+
+      const texts = tmuxCalls()
+        .filter((c) => c[0] === "set-buffer")
+        .map((c) => c[4]);
+      expect(texts).toHaveLength(1);
+      expect(texts[0]).toContain("[inbox: 2件の新着 from worker-2]");
+    });
+
+    it("does not throw when tmux fails", async () => {
+      mockExecFileSync.mockImplementation(() => {
+        throw new Error("tmux failed");
+      });
+      mockFs.readFileSync.mockReturnValue(message("n1"));
+      expect(() =>
+        internals(bus).processNewFile("worker-1", "n1.yaml"),
+      ).not.toThrow();
+      await settle(bus, "worker-1");
+      expect(onNudgeFailed).toHaveBeenCalledWith("worker-1");
+    });
+
+    describe("remindStalled()", () => {
+      it("types one reminder line naming the task and the inbox", async () => {
+        working();
+        expect(await bus.remindStalled("reviewer", "T1-2\nrm -rf", 15)).toBe(
+          true,
+        );
+
+        const calls = tmuxCalls();
+        expect(calls[1].slice(0, 4)).toEqual([
+          "set-buffer",
+          "-b",
+          "aihive-nudge",
+          "--",
+        ]);
+        const text = calls[1][4];
+        expect(text).toContain(
+          "タスク T1-2 rm -rf が 15分間更新されていません",
+        );
+        expect(text).toContain("/test-project/.aihive/mailbox/reviewer/inbox/");
+        expect(text).not.toContain("\n");
+      });
+
+      it("uses English when the language is set to English", async () => {
+        working();
+        setLocale("en");
+        try {
+          await bus.remindStalled("reviewer", "T1", 15);
+        } finally {
+          setLocale("ja");
+        }
+        const text = tmuxCalls()[1][4];
+        expect(text).toContain(
+          "[aihive] Task T1 has had no update for 15 min.",
+        );
+      });
+
+      it("returns false for an agent without a pane", async () => {
+        expect(await bus.remindStalled("worker-9", "T1", 15)).toBe(false);
+        expect(mockExecFileSync).not.toHaveBeenCalled();
+      });
     });
   });
 

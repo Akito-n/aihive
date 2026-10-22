@@ -37,6 +37,8 @@ export type MessageHandler = (message: Message) => void;
 export interface NudgeConfig {
   sessionName: string;
   paneTargets: Map<string, string>; // slug → pane target (e.g. "orchestrator" → "orchestrator")
+  /** Called when a notice could not be submitted after every attempt */
+  onNudgeFailed?: (agentSlug: string) => void;
 }
 
 /**
@@ -55,6 +57,17 @@ export const PROCESSED_DIR = "processed";
  */
 export const HANDLED_FILE = ".handled.json";
 
+/** tmux buffer used to paste notices into panes */
+const NUDGE_BUFFER = "aihive-nudge";
+/** Pause before Enter, so the pasted text has been read as input */
+const SETTLE_MS = 300;
+/** How long a pane is watched after Enter for signs that the agent started */
+const WORKING_CHECK_MS = 1500;
+/** Enter presses per notice before it counts as not delivered */
+const ENTER_ATTEMPTS = 2;
+/** Notices per message before giving up (the stall reminder still follows) */
+export const NUDGE_ATTEMPTS = 3;
+
 // ─── MessageBus ──────────────────────────────────────────────────────
 
 export class MessageBus {
@@ -65,6 +78,13 @@ export class MessageBus {
   private nudgeConfig: NudgeConfig | null = null;
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   private pollAgentSlugs: string[] = [];
+  /** Inbox keys whose notice has not been submitted yet → sender */
+  private undelivered = new Map<string, string>();
+  private nudgeFailures = new Map<string, number>();
+  /** Per pane, so two notices never type into one pane at the same time */
+  private paneQueues = new Map<string, Promise<boolean>>();
+  private wait = (ms: number) =>
+    new Promise<void>((resolve) => setTimeout(resolve, ms));
 
   constructor(projectDir: string) {
     this.baseDir = path.join(projectDir, ".aihive", "mailbox");
@@ -218,9 +238,9 @@ export class MessageBus {
         if (slug === SYSTEM_MAILBOX) {
           // aihive itself is the reader of the system inbox
           archiveMessage(path.join(this.baseDir, slug, "inbox"), filename);
-        } else {
-          // Send tmux nudge to the recipient agent's pane
-          this.sendNudge(slug, msg);
+        } else if (this.nudgeConfig?.paneTargets.has(slug)) {
+          this.undelivered.set(key, oneLine(String(msg.from ?? "")));
+          void this.sendNudge(slug);
         }
         this.saveHandled();
       }
@@ -242,48 +262,113 @@ export class MessageBus {
       } catch {
         // ignore read errors
       }
+      if (this.undeliveredOf(slug).length > 0 && !this.paneQueues.has(slug)) {
+        void this.sendNudge(slug);
+      }
     }
   }
 
-  /** Send a minimal nudge to the agent's tmux pane */
-  private sendNudge(agentSlug: string, msg: Message): void {
-    if (!this.nudgeConfig?.paneTargets.has(agentSlug)) return;
-
-    // Count unread messages in inbox
-    const inboxDir = path.join(this.baseDir, agentSlug, "inbox");
-    let count = 0;
-    try {
-      count = fs
-        .readdirSync(inboxDir)
-        .filter((f) => f.endsWith(".yaml")).length;
-    } catch {
-      count = 1;
+  /** Undelivered messages still in the agent's inbox */
+  private undeliveredOf(agentSlug: string): string[] {
+    const keys: string[] = [];
+    for (const key of this.undelivered.keys()) {
+      const [slug, file] = key.split("/");
+      if (slug !== agentSlug) continue;
+      if (fs.existsSync(path.join(this.baseDir, slug, "inbox", file))) {
+        keys.push(key);
+      } else {
+        this.undelivered.delete(key);
+      }
     }
+    return keys;
+  }
 
-    // Absolute path: workers run in their own worktree, not the project dir.
-    // One line only: a newline in `from` would submit the prompt early.
-    const from = oneLine(String(msg.from ?? ""));
-    const nudgeText = tf("agentMsg.inboxNudge", { count, from, dir: inboxDir });
-    this.typeIntoPane(agentSlug, nudgeText);
+  /**
+   * Tell the agent about the messages it has not been told about yet. Until
+   * the notice is submitted they stay undelivered: the poll tries again, and
+   * after NUDGE_ATTEMPTS they are given up on.
+   */
+  private sendNudge(agentSlug: string): Promise<boolean> {
+    return this.enqueue(agentSlug, async () => {
+      const keys = this.undeliveredOf(agentSlug);
+      if (keys.length === 0) return true;
+
+      // Absolute path: workers run in their own worktree, not the project dir.
+      const from = this.undelivered.get(keys[keys.length - 1]) ?? "";
+      const dir = path.join(this.baseDir, agentSlug, "inbox");
+      const nudgeText = tf("agentMsg.inboxNudge", {
+        count: keys.length,
+        from,
+        dir,
+      });
+      const delivered = await this.typeIntoPane(agentSlug, nudgeText);
+
+      const failures = delivered
+        ? 0
+        : (this.nudgeFailures.get(agentSlug) ?? 0) + 1;
+      if (delivered || failures >= NUDGE_ATTEMPTS) {
+        for (const key of keys) this.undelivered.delete(key);
+        this.nudgeFailures.delete(agentSlug);
+        this.saveHandled();
+      } else {
+        this.nudgeFailures.set(agentSlug, failures);
+      }
+      if (delivered === false) this.nudgeConfig?.onNudgeFailed?.(agentSlug);
+      return delivered;
+    });
+  }
+
+  /** Run after the pane's previous notice has finished */
+  private enqueue(
+    agentSlug: string,
+    job: () => Promise<boolean>,
+  ): Promise<boolean> {
+    const previous = this.paneQueues.get(agentSlug) ?? Promise.resolve(true);
+    const next = previous.then(job, job);
+    this.paneQueues.set(agentSlug, next);
+    void next.finally(() => {
+      if (this.paneQueues.get(agentSlug) === next) {
+        this.paneQueues.delete(agentSlug);
+      }
+    });
+    return next;
   }
 
   /** Remind an agent of a task that has had no update for a while */
-  remindStalled(agentSlug: string, taskId: string, minutes: number): boolean {
+  remindStalled(
+    agentSlug: string,
+    taskId: string,
+    minutes: number,
+  ): Promise<boolean> {
     const inboxDir = path.join(this.baseDir, agentSlug, "inbox");
     const id = oneLine(taskId);
-    return this.typeIntoPane(
-      agentSlug,
-      tf("agentMsg.stallReminder", {
-        id,
-        minutes,
-        dir: inboxDir,
-        processed: PROCESSED_DIR,
-      }),
+    return this.enqueue(agentSlug, () =>
+      this.typeIntoPane(
+        agentSlug,
+        tf("agentMsg.stallReminder", {
+          id,
+          minutes,
+          dir: inboxDir,
+          processed: PROCESSED_DIR,
+        }),
+      ),
     );
   }
 
-  /** Type one line into the agent's tmux pane and submit it */
-  private typeIntoPane(agentSlug: string, text: string): boolean {
+  /**
+   * Paste one line into the agent's tmux pane and submit it. Returns whether
+   * the agent started working on it.
+   *
+   * The text goes in as a bracketed paste, so the CLI sees where it ends:
+   * typed fast as keys, Claude Code could take it for a paste that never
+   * ended and turn every later Enter into a newline. After Enter the pane
+   * must keep changing (the CLI's spinner and timer); a pane that stays the
+   * same did not take the line, and Enter is pressed again.
+   */
+  private async typeIntoPane(
+    agentSlug: string,
+    text: string,
+  ): Promise<boolean> {
     if (!this.nudgeConfig) return false;
     const { sessionName, paneTargets } = this.nudgeConfig;
     const target = paneTargets.get(agentSlug);
@@ -293,9 +378,17 @@ export class MessageBus {
       // execFile, not a shell: the text holds values from files agents wrote.
       // Clear any stale input first (needed for codex CLI which preserves input)
       tmux(["send-keys", "-t", pane, "C-u"]);
-      tmux(["send-keys", "-t", pane, "-l", text]);
-      tmux(["send-keys", "-t", pane, "Enter"]);
-      return true;
+      tmux(["set-buffer", "-b", NUDGE_BUFFER, "--", text]);
+      tmux(["paste-buffer", "-p", "-d", "-b", NUDGE_BUFFER, "-t", pane]);
+      for (let attempt = 0; attempt < ENTER_ATTEMPTS; attempt++) {
+        await this.wait(SETTLE_MS);
+        tmux(["send-keys", "-t", pane, "Enter"]);
+        await this.wait(SETTLE_MS);
+        const before = capturePane(pane);
+        await this.wait(WORKING_CHECK_MS);
+        if (capturePane(pane) !== before) return true;
+      }
+      return false;
     } catch {
       // Pane may not exist yet or session ended
       return false;
@@ -309,6 +402,8 @@ export class MessageBus {
     }
     this.watchers.clear();
     this.seen.clear();
+    this.undelivered.clear();
+    this.nudgeFailures.clear();
     if (this.pollTimer) {
       clearInterval(this.pollTimer);
       this.pollTimer = null;
@@ -320,6 +415,8 @@ export class MessageBus {
   private saveHandled(): void {
     const keys: string[] = [];
     for (const key of this.seen) {
+      // Not announced yet: a relaunched aihive should still announce it
+      if (this.undelivered.has(key)) continue;
       const [slug, file] = key.split("/");
       if (fs.existsSync(path.join(this.baseDir, slug, "inbox", file))) {
         keys.push(key);
@@ -367,6 +464,15 @@ export class MessageBus {
 
 function tmux(args: string[]): void {
   execFileSync("tmux", args, { stdio: "ignore" });
+}
+
+function capturePane(pane: string): string {
+  return String(
+    execFileSync("tmux", ["capture-pane", "-p", "-t", pane], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }),
+  );
 }
 
 /** Move a read message into inbox/processed/ */

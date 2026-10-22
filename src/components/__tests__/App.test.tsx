@@ -55,7 +55,7 @@ const mocks = vi.hoisted(() => {
   const busStopWatching = vi.fn();
   const busSetNudgeConfig = vi.fn();
   const busSend = vi.fn();
-  const busRemindStalled = vi.fn().mockReturnValue(true);
+  const busRemindStalled = vi.fn().mockResolvedValue(true);
   const mockBus = {
     remindStalled: busRemindStalled,
     onMessage: busOnMessage,

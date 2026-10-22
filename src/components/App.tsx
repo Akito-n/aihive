@@ -315,7 +315,12 @@ export function App() {
         const slug = a.name.toLowerCase().replace(/\s+/g, "-");
         paneTargets.set(slug, a.paneTarget);
       }
-      bus.setNudgeConfig({ sessionName: config.session, paneTargets });
+      bus.setNudgeConfig({
+        sessionName: config.session,
+        paneTargets,
+        onNudgeFailed: (slug) =>
+          addLog(`Notice to ${slug} was not submitted; will try again`),
+      });
 
       return bus;
     },
@@ -581,14 +586,13 @@ export function App() {
       }
       for (const task of toRemind) {
         setMessage(poisonMessage(nameOf(task.assignedTo), task.id));
-        const reminded = bus.remindStalled(
-          toSlug(task.assignedTo),
-          task.id,
-          stallMinutes,
-        );
-        addLog(
-          `Task ${task.id} stalled: no update for ${stallMinutes}m${reminded ? `, reminded ${task.assignedTo}` : ""}`,
-        );
+        void bus
+          .remindStalled(toSlug(task.assignedTo), task.id, stallMinutes)
+          .then((reminded) =>
+            addLog(
+              `Task ${task.id} stalled: no update for ${stallMinutes}m${reminded ? `, reminded ${task.assignedTo}` : ""}`,
+            ),
+          );
       }
     }, 60_000);
 
