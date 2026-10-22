@@ -1,6 +1,11 @@
 import { Box, Text, useApp, useInput, useWindowSize } from "ink";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CheckRunner } from "../lib/checks.js";
+import {
+  claudeAgentDirs,
+  trustDirs,
+  untrustedDirs,
+} from "../lib/claude-trust.js";
 import { loadSlashCommands } from "../lib/commands.js";
 import type { AihiveConfig } from "../lib/config.js";
 import {
@@ -111,6 +116,7 @@ import { ShopView } from "./ShopView.js";
 import { StartupScreen } from "./StartupScreen.js";
 import { StatusView } from "./StatusView.js";
 import { TaskView } from "./TaskView.js";
+import { TrustScreen } from "./TrustScreen.js";
 
 /** Log lines kept for the log screen */
 const LOG_LIMIT = 500;
@@ -122,7 +128,13 @@ const BADGE_MIN_PANE_WIDTH = 60;
 /** How many story lines the adventure tab keeps */
 const JOURNAL_LIMIT = 30;
 
-type AppState = "idle" | "settings" | "starting" | "running" | "stopping";
+type AppState =
+  | "idle"
+  | "settings"
+  | "starting"
+  | "trust"
+  | "running"
+  | "stopping";
 type Mode =
   | "normal"
   | "input"
@@ -590,31 +602,84 @@ export function App() {
   }, [state, config, addLog, updateAgentStatus, setupRuntime]);
 
   // Handle startup completion
+  const failStart = useCallback(
+    (e: unknown) => {
+      addLog(`Error: ${e}`);
+      setState("idle");
+      setAgents(buildAgentList(config));
+    },
+    [config, addLog],
+  );
+
+  const launchAgents = useCallback(
+    (workspaces: Map<string, AgentWorkspace>) => {
+      addLog("Starting tmux session...");
+      try {
+        // Subtract Dashboard(34) + margin(1) + border(2) + paddingX(2) + outer padding(2) = ~41
+        const paneWidth = Math.max(80, columns - 41);
+        historyRef.current = {
+          cwds: [...workspaces.values()].map((ws) => ws.cwd),
+          since: Date.now(),
+        };
+        startSession(config, paneWidth, rows, workspaces);
+        workspacesRef.current = workspaces;
+        launchRef.current.clear();
+        addLog(`All ${config.agents.length} agents started`);
+        setState("running");
+      } catch (e) {
+        failStart(e);
+      }
+    },
+    [config, addLog, columns, rows, failStart],
+  );
+
+  // Folders waiting on the user's trust answer, with the prepared workspaces
+  const [pendingTrust, setPendingTrust] = useState<{
+    dirs: string[];
+    workspaces: Map<string, AgentWorkspace>;
+  } | null>(null);
+
   const handleStartupComplete = useCallback(() => {
     setupRuntime(true);
     addLog("Workspace initialized");
 
-    addLog("Starting tmux session...");
+    let workspaces: Map<string, AgentWorkspace>;
     try {
-      // Subtract Dashboard(34) + margin(1) + border(2) + paddingX(2) + outer padding(2) = ~41
-      const paneWidth = Math.max(80, columns - 41);
       const plan = prepareWorkspaces(config, process.cwd());
       for (const message of plan.messages) addLog(message);
-      historyRef.current = {
-        cwds: [...plan.workspaces.values()].map((ws) => ws.cwd),
-        since: Date.now(),
-      };
-      startSession(config, paneWidth, rows, plan.workspaces);
-      workspacesRef.current = plan.workspaces;
-      launchRef.current.clear();
-      addLog(`All ${config.agents.length} agents started`);
-      setState("running");
+      workspaces = plan.workspaces;
     } catch (e) {
-      addLog(`Error: ${e}`);
-      setState("idle");
-      setAgents(buildAgentList(config));
+      failStart(e);
+      return;
     }
-  }, [config, addLog, columns, rows, setupRuntime]);
+    // Ask once here rather than in every agent's window
+    const dirs = untrustedDirs(
+      claudeAgentDirs(config, workspaces, process.cwd()),
+    );
+    if (dirs.length > 0) {
+      setPendingTrust({ dirs, workspaces });
+      setState("trust");
+      return;
+    }
+    launchAgents(workspaces);
+  }, [config, addLog, setupRuntime, failStart, launchAgents]);
+
+  const handleTrustAnswer = useCallback(
+    (trust: boolean) => {
+      if (!pendingTrust) return;
+      if (trust) {
+        try {
+          trustDirs(pendingTrust.dirs);
+          addLog(tf("trust.saved", { count: pendingTrust.dirs.length }));
+        } catch (e) {
+          addLog(tf("trust.failed", { error: String(e) }));
+        }
+      }
+      setPendingTrust(null);
+      launchAgents(pendingTrust.workspaces);
+    },
+    [pendingTrust, addLog, launchAgents],
+  );
 
   // Notice agents whose CLI exited and left a shell in the pane (for
   // example after the folder trust check was declined), so they can be
@@ -871,6 +936,12 @@ export function App() {
   // Starting: show startup animation
   if (state === "starting") {
     return <StartupScreen onComplete={handleStartupComplete} />;
+  }
+
+  if (state === "trust") {
+    return pendingTrust ? (
+      <TrustScreen dirs={pendingTrust.dirs} onAnswer={handleTrustAnswer} />
+    ) : null;
   }
 
   const termHeight = rows;

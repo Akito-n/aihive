@@ -125,6 +125,16 @@ export const en = {
   "direct.exitHint": "Every key goes to the pane · Ctrl+Q to leave",
   "help.direct": "Direct",
   "retro.cmd.direct": "Direct",
+  "trust.title": "Trust the agents' folders?",
+  "trust.body":
+    'Claude Code has not been told to trust these {count} folder(s), so it would ask "Do you trust this folder?" in each agent\'s window. Trust them all now?',
+  "trust.warning":
+    "Claude will be able to read, edit and run files there, and use the folders' .claude settings. Only say yes for your own or trusted projects.",
+  "trust.more": "…and {count} more",
+  "trust.yes": "Trust all and start",
+  "trust.no": "Start without (Claude asks in each window)",
+  "trust.saved": "Trusted {count} folder(s) for Claude Code",
+  "trust.failed": "Could not save folder trust: {error}",
   "commandInput.placeholder": "Send a message...",
   "commandInput.commands": "Commands",
   "commandInput.actionRequired": "⚡ Action required:",
