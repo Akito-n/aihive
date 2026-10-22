@@ -88,7 +88,11 @@ export class TaskManager {
    */
   handleMessage(msg: Message, toRole?: string): void {
     const payload = typeof msg.payload === "string" ? msg.payload : "";
-    const taskId = taskIdOf(msg) || msg.id;
+    const reply = msg.type === "result" || msg.type === "error";
+    const taskId =
+      taskIdOf(msg) ||
+      (reply ? this.onlyOpenTaskOf(msg.from) : undefined) ||
+      msg.id;
 
     if (msg.type === "task") {
       const existing = this.tasks.get(taskId);
@@ -107,6 +111,22 @@ export class TaskManager {
     } else if (msg.type === "error") {
       this.fail(taskId, payload);
     }
+  }
+
+  /**
+   * The one unfinished task assigned to an agent, for a result or error that
+   * came without a task_id. None when there are several to choose from.
+   */
+  private onlyOpenTaskOf(agent: string): string | undefined {
+    const name = agent.trim().toLowerCase();
+    const open = [...this.tasks.values()].filter(
+      (t) =>
+        t.assignedTo.trim().toLowerCase() === name &&
+        (t.state === "pending" ||
+          t.state === "running" ||
+          t.state === "review"),
+    );
+    return open.length === 1 ? open[0].id : undefined;
   }
 
   /** Put a finished or failed task back to pending for another attempt */
