@@ -261,7 +261,16 @@ export function sendKeys(session: string, target: string, text: string): void {
   try {
     fs.writeFileSync(tmpFile, text);
     tmux(["load-buffer", "-b", "_aihive_paste", tmpFile]);
-    tmux(["paste-buffer", "-b", "_aihive_paste", "-t", `${session}:${target}`]);
+    // Bracketed (-p): a line break in the text stays in the agent's input
+    // instead of sending each line on its own
+    tmux([
+      "paste-buffer",
+      "-p",
+      "-b",
+      "_aihive_paste",
+      "-t",
+      `${session}:${target}`,
+    ]);
     tmux(["delete-buffer", "-b", "_aihive_paste"]);
     tmux(["send-keys", "-t", `${session}:${target}`, "Enter"]);
   } finally {

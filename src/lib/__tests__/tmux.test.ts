@@ -347,7 +347,9 @@ describe("restartAgent", () => {
   it("types the agent's command into its pane and presses Enter", () => {
     restartAgent("s", "orchestrator", makeConfig().agents[0]);
     const calls = tmuxCalls();
-    expect(calls).toContain("paste-buffer -b _aihive_paste -t s:orchestrator");
+    expect(calls).toContain(
+      "paste-buffer -p -b _aihive_paste -t s:orchestrator",
+    );
     expect(calls.at(-1)).toBe("send-keys -t s:orchestrator Enter");
   });
 });
